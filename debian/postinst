@@ -47,7 +47,6 @@ chown root:"$APP_GROUP" "$ENV_FILE"
 chmod 0640 "$ENV_FILE"
 [[ ! -f "$EXAMPLE_ENV" ]] || chmod 0640 "$EXAMPLE_ENV"
 
-# Konfiguration lesen, ohne Werte auszugeben.
 set -a
 # shellcheck disable=SC1090
 . "$ENV_FILE"
@@ -65,8 +64,6 @@ if [[ "$DATABASE_HOST" == "127.0.0.1" || "$DATABASE_HOST" == "localhost" ]]; the
       sed -i "s/^DATABASE_PASSWORD=.*/DATABASE_PASSWORD=$DATABASE_PASSWORD/" "$ENV_FILE"
     fi
 
-    # Die generierten beziehungsweise vorhandenen Werte werden als psql-Variablen übergeben.
-    # Namen werden auf sichere PostgreSQL-Bezeichner begrenzt.
     if [[ ! "$DATABASE_USER" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]]; then
       echo "Ungültiger DATABASE_USER in $ENV_FILE" >&2
       exit 1
@@ -76,11 +73,14 @@ if [[ "$DATABASE_HOST" == "127.0.0.1" || "$DATABASE_HOST" == "localhost" ]]; the
       exit 1
     fi
 
+    # SQL-Stringliterale verwenden verdoppelte Hochkommas als Escape-Sequenz.
+    SQL_PASSWORD="${DATABASE_PASSWORD//\'/\'\'}"
+
     ROLE_EXISTS="$(runuser -u postgres -- psql -tAc "SELECT 1 FROM pg_roles WHERE rolname='$DATABASE_USER'" postgres || true)"
     if [[ "$ROLE_EXISTS" != "1" ]]; then
-      runuser -u postgres -- psql -v ON_ERROR_STOP=1 postgres -c "CREATE ROLE \"$DATABASE_USER\" LOGIN PASSWORD '$DATABASE_PASSWORD';"
+      runuser -u postgres -- psql -v ON_ERROR_STOP=1 postgres -c "CREATE ROLE \"$DATABASE_USER\" LOGIN PASSWORD '$SQL_PASSWORD';"
     else
-      runuser -u postgres -- psql -v ON_ERROR_STOP=1 postgres -c "ALTER ROLE \"$DATABASE_USER\" WITH LOGIN PASSWORD '$DATABASE_PASSWORD';"
+      runuser -u postgres -- psql -v ON_ERROR_STOP=1 postgres -c "ALTER ROLE \"$DATABASE_USER\" WITH LOGIN PASSWORD '$SQL_PASSWORD';"
     fi
 
     DB_EXISTS="$(runuser -u postgres -- psql -tAc "SELECT 1 FROM pg_database WHERE datname='$DATABASE_NAME'" postgres || true)"
