@@ -1,9 +1,10 @@
 {% extends "base.html" %}
 {% block content %}
 <style>
-.diag-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1rem;margin:1rem 0}.diag-card{border:1px solid #d9dee7;border-radius:10px;padding:1rem;background:#fff}.diag-card h2{margin-top:0;font-size:1.1rem}.diag-status{display:inline-block;padding:.2rem .55rem;border-radius:999px;font-weight:700}.diag-ok{background:#dff5e6;color:#176b35}.diag-warning{background:#fff2cc;color:#785c00}.diag-error{background:#f9dddd;color:#8a1f1f}.diag-table{width:100%;border-collapse:collapse}.diag-table td{padding:.35rem .2rem;border-bottom:1px solid #edf0f4;vertical-align:top}.diag-table td:first-child{font-weight:600;width:48%}.diag-actions{display:flex;gap:.75rem;flex-wrap:wrap;margin:1rem 0}.diag-actions a{display:inline-block;padding:.65rem 1rem;border-radius:7px;background:#2457a7;color:#fff;text-decoration:none}.diag-warnings{padding-left:1.2rem}.diag-muted{color:#667085}
+.diag-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1rem;margin:1rem 0}.diag-card{border:1px solid #d9dee7;border-radius:10px;padding:1rem;background:#fff}.diag-card h2{margin-top:0;font-size:1.1rem}.diag-status{display:inline-block;padding:.2rem .55rem;border-radius:999px;font-weight:700}.diag-ok{background:#dff5e6;color:#176b35}.diag-warning{background:#fff2cc;color:#785c00}.diag-error{background:#f9dddd;color:#8a1f1f}.diag-table{width:100%;border-collapse:collapse}.diag-table td{padding:.35rem .2rem;border-bottom:1px solid #edf0f4;vertical-align:top}.diag-table td:first-child{font-weight:600;width:48%}.diag-actions{display:flex;gap:.75rem;flex-wrap:wrap;margin:1rem 0}.diag-actions a{display:inline-block;padding:.65rem 1rem;border-radius:7px;background:#2457a7;color:#fff;text-decoration:none}.diag-actions a.secondary{background:#667085}.diag-warnings{padding-left:1.2rem}.diag-muted{color:#667085}
 </style>
 
+<p><a href="/system/settings">Systemeinstellungen</a> &rsaquo; Systemdiagnose</p>
 <h1>Systemdiagnose</h1>
 <p class="diag-muted">Stand: {{ diagnostics.generated_at }} · Prüfdauer: {{ diagnostics.duration_ms }} ms</p>
 <p>
@@ -13,6 +14,7 @@
 </p>
 
 <div class="diag-actions">
+  <a class="secondary" href="/system/settings">Zurück zu Systemeinstellungen</a>
   <a href="/system/diagnostics">Diagnose neu laden</a>
   <a href="/system/diagnostics/report">Diagnosebericht herunterladen</a>
 </div>
