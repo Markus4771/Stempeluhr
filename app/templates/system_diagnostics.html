@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block content %}
+<style>
+.diag-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1rem;margin:1rem 0}.diag-card{border:1px solid #d9dee7;border-radius:10px;padding:1rem;background:#fff}.diag-card h2{margin-top:0;font-size:1.1rem}.diag-status{display:inline-block;padding:.2rem .55rem;border-radius:999px;font-weight:700}.diag-ok{background:#dff5e6;color:#176b35}.diag-warning{background:#fff2cc;color:#785c00}.diag-error{background:#f9dddd;color:#8a1f1f}.diag-table{width:100%;border-collapse:collapse}.diag-table td{padding:.35rem .2rem;border-bottom:1px solid #edf0f4;vertical-align:top}.diag-table td:first-child{font-weight:600;width:48%}.diag-actions{display:flex;gap:.75rem;flex-wrap:wrap;margin:1rem 0}.diag-actions a{display:inline-block;padding:.65rem 1rem;border-radius:7px;background:#2457a7;color:#fff;text-decoration:none}.diag-warnings{padding-left:1.2rem}.diag-muted{color:#667085}
+</style>
+
+<h1>Systemdiagnose</h1>
+<p class="diag-muted">Stand: {{ diagnostics.generated_at }} · Prüfdauer: {{ diagnostics.duration_ms }} ms</p>
+<p>
+  {% if diagnostics.status == "ok" %}<span class="diag-status diag-ok">System in Ordnung</span>
+  {% elif diagnostics.status == "warning" %}<span class="diag-status diag-warning">Warnungen vorhanden</span>
+  {% else %}<span class="diag-status diag-error">Fehler erkannt</span>{% endif %}
+</p>
+
+<div class="diag-actions">
+  <a href="/system/diagnostics">Diagnose neu laden</a>
+  <a href="/system/diagnostics/report">Diagnosebericht herunterladen</a>
+</div>
+
+<div class="diag-grid">
+  <section class="diag-card">
+    <h2>Anwendung</h2>
+    <table class="diag-table">
+      <tr><td>Version</td><td>{{ diagnostics.application.version }}</td></tr>
+      <tr><td>Version konsistent</td><td>{{ "Ja" if diagnostics.application.version_matches else "Nein" }}</td></tr>
+      <tr><td>Python</td><td>{{ diagnostics.application.python }}</td></tr>
+      <tr><td>Installationspfad</td><td>{{ diagnostics.application.app_dir }}</td></tr>
+      <tr><td>Laufzeit</td><td>{{ diagnostics.application.uptime_seconds }} Sekunden</td></tr>
+      <tr><td>Plattform</td><td>{{ diagnostics.application.platform }}</td></tr>
+    </table>
+  </section>
+
+  <section class="diag-card">
+    <h2>PostgreSQL</h2>
+    <p><span class="diag-status {{ 'diag-ok' if diagnostics.database.ok else 'diag-error' }}">{{ 'Verbunden' if diagnostics.database.ok else 'Nicht erreichbar' }}</span></p>
+    <table class="diag-table">
+      <tr><td>Server</td><td>{{ diagnostics.database.host }}:{{ diagnostics.database.port }}</td></tr>
+      <tr><td>Datenbank</td><td>{{ diagnostics.database.name }}</td></tr>
+      <tr><td>Benutzer</td><td>{{ diagnostics.database.user }}</td></tr>
+      <tr><td>PostgreSQL-Version</td><td>{{ diagnostics.database.server_version or 'unbekannt' }}</td></tr>
+      <tr><td>Latenz</td><td>{{ diagnostics.database.latency_ms or '-' }} ms</td></tr>
+      <tr><td>Mitarbeiter</td><td>{{ diagnostics.database.employees if diagnostics.database.ok else '-' }}</td></tr>
+      <tr><td>Buchungen</td><td>{{ diagnostics.database.time_entries if diagnostics.database.ok else '-' }}</td></tr>
+    </table>
+  </section>
+
+  <section class="diag-card">
+    <h2>Konfiguration</h2>
+    <p><span class="diag-status {{ 'diag-ok' if diagnostics.configuration.ok else 'diag-error' }}">{{ 'Vollständig' if diagnostics.configuration.ok else 'Unvollständig' }}</span></p>
+    <table class="diag-table">
+      <tr><td>Datei</td><td>{{ diagnostics.configuration.file }}</td></tr>
+      <tr><td>Vorhanden</td><td>{{ "Ja" if diagnostics.configuration.exists else "Nein" }}</td></tr>
+      <tr><td>Fehlende Pflichtwerte</td><td>{{ diagnostics.configuration.missing_required|join(', ') or 'keine' }}</td></tr>
+      <tr><td>Fehlende empfohlene Werte</td><td>{{ diagnostics.configuration.missing_recommended|join(', ') or 'keine' }}</td></tr>
+    </table>
+    <p class="diag-muted">Passwörter und Tokens werden weder angezeigt noch in den Bericht aufgenommen.</p>
+  </section>
+
+  <section class="diag-card">
+    <h2>Speicher</h2>
+    <p><span class="diag-status {{ 'diag-ok' if diagnostics.storage.ok else 'diag-warning' }}">{{ diagnostics.storage.free_percent }} % frei</span></p>
+    <table class="diag-table">
+      <tr><td>Geprüfter Pfad</td><td>{{ diagnostics.storage.path }}</td></tr>
+      <tr><td>Freier Speicher</td><td>{{ (diagnostics.storage.free_bytes / 1024 / 1024 / 1024)|round(2) }} GiB</td></tr>
+      <tr><td>Gesamt</td><td>{{ (diagnostics.storage.total_bytes / 1024 / 1024 / 1024)|round(2) }} GiB</td></tr>
+    </table>
+  </section>
+</div>
+
+<section class="diag-card">
+  <h2>Pfad- und Rechteprüfung</h2>
+  <table class="diag-table">
+    {% for item in diagnostics.paths %}
+    <tr><td>{{ item.name }}</td><td>{{ item.path }}</td><td><span class="diag-status {{ 'diag-ok' if item.ok else 'diag-error' }}">{{ 'OK' if item.ok else 'Fehler' }}</span></td></tr>
+    {% endfor %}
+  </table>
+</section>
+
+{% if diagnostics.warnings %}
+<section class="diag-card">
+  <h2>Hinweise</h2>
+  <ul class="diag-warnings">{% for warning in diagnostics.warnings %}<li>{{ warning }}</li>{% endfor %}</ul>
+</section>
+{% endif %}
+{% endblock %}
