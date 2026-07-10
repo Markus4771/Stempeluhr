@@ -19,10 +19,16 @@ jobs:
           set -euo pipefail
 
           test -f version.txt
+          test -f app/version.py
           test -f README.md
           test -f changelog.md
           test -f CHATGPT_PROJEKTKONTEXT.md
           test -f NEUER_CHAT.md
+
+          if [ -f VERSION ]; then
+            echo "Die veraltete zweite Versionsdatei VERSION darf nicht existieren."
+            exit 1
+          fi
 
           VERSION="$(tr -d '[:space:]' < version.txt)"
 
@@ -31,10 +37,32 @@ jobs:
             exit 1
           fi
 
-          echo "Prüfe Dokumentation für Version $VERSION"
+          APP_VERSION="$(python3 - <<'PY'
+          import re
+          from pathlib import Path
+
+          text = Path('app/version.py').read_text(encoding='utf-8')
+          match = re.search(r'^APP_VERSION\s*=\s*["\x27]([^"\x27]+)["\x27]', text, re.MULTILINE)
+          if not match:
+              raise SystemExit('APP_VERSION wurde in app/version.py nicht gefunden.')
+          print(match.group(1))
+          PY
+          )"
+
+          echo "Prüfe Dokumentation und Anwendung für Version $VERSION"
+
+          if [ "$APP_VERSION" != "$VERSION" ]; then
+            echo "Versionskonflikt: version.txt=$VERSION, app/version.py=$APP_VERSION"
+            exit 1
+          fi
 
           grep -Fq "$VERSION" README.md || {
             echo "README.md enthält Version $VERSION nicht."
+            exit 1
+          }
+
+          grep -Fq "$VERSION" changelog.md || {
+            echo "changelog.md enthält Version $VERSION nicht."
             exit 1
           }
 
@@ -42,10 +70,5 @@ jobs:
             echo "CHATGPT_PROJEKTKONTEXT.md enthält Version $VERSION nicht."
             exit 1
           }
-
-          if ! grep -Fq "$VERSION" changelog.md; then
-            echo "WARNUNG: changelog.md enthält Version $VERSION nicht."
-            echo "Bei einem Release muss changelog.md ergänzt werden."
-          fi
 
           echo "Projektkontext-Prüfung erfolgreich."
