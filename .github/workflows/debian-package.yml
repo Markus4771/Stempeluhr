@@ -1,0 +1,57 @@
+name: Debian-Paket bauen
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'app/**'
+      - 'scripts/build_release.sh'
+      - 'debian/**'
+      - 'requirements.txt'
+      - 'stempeluhr.service'
+      - 'version.txt'
+      - 'README.md'
+      - 'changelog.md'
+      - 'CHATGPT_PROJEKTKONTEXT.md'
+
+jobs:
+  build-deb:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Repository auschecken
+        uses: actions/checkout@v4
+
+      - name: Build-Werkzeuge installieren
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y rsync dpkg-dev
+
+      - name: Skripte ausführbar machen
+        run: |
+          chmod +x scripts/build_release.sh debian/postinst debian/prerm
+
+      - name: Debian-Paket bauen
+        run: ./scripts/build_release.sh
+
+      - name: Paketmetadaten prüfen
+        run: |
+          VERSION="$(tr -d '[:space:]' < version.txt)"
+          DEB="releases/stempeluhr_${VERSION}_all.deb"
+          test -f "$DEB"
+          test -f "$DEB.sha256"
+          test "$(dpkg-deb -f "$DEB" Package)" = "stempeluhr"
+          test "$(dpkg-deb -f "$DEB" Version)" = "$VERSION"
+          dpkg-deb --contents "$DEB" | grep -Fq './opt/stempeluhr/app/main.py'
+          dpkg-deb --contents "$DEB" | grep -Fq './etc/systemd/system/stempeluhr.service'
+
+      - name: Build-Artefakt hochladen
+        uses: actions/upload-artifact@v4
+        with:
+          name: stempeluhr-debian-${{ github.sha }}
+          path: |
+            releases/*.deb
+            releases/*.sha256
+            releases/*_build.log
+          if-no-files-found: error
+          retention-days: 14
