@@ -1,3 +1,12 @@
+## 5.5.06
+
+- PostgreSQL-Verbindungs-URL mit `SQLAlchemy URL.create()` sicher aufgebaut
+- Sonderzeichen in Datenbankpasswörtern werden korrekt verarbeitet
+- lokale PostgreSQL-Verbindungen greifen nicht mehr auf `/root/.postgresql` zu
+- bestehende PostgreSQL-Rollenpasswörter werden bei Updates nicht mehr verändert
+- Migrationen laufen mit sauberer Umgebung des Benutzers `stempeluhr`
+- bestehende Datenbank und Konfiguration bleiben erhalten
+
 ## 5.5.05
 
 - Projektspezifischen Debian-Buildprozess erweitert
