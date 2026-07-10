@@ -4,6 +4,8 @@ set -Eeuo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
+BUILD_STARTED_EPOCH="$(date +%s)"
+BUILD_STARTED_ISO="$(date --iso-8601=seconds)"
 VERSION="$(tr -d '[:space:]' < version.txt)"
 PACKAGE="stempeluhr"
 ARCH="all"
@@ -12,6 +14,7 @@ PKG_ROOT="$BUILD_ROOT/${PACKAGE}_${VERSION}_${ARCH}"
 RELEASE_DIR="$ROOT_DIR/releases"
 DEB_FILE="$RELEASE_DIR/${PACKAGE}_${VERSION}_${ARCH}.deb"
 LOG_FILE="$RELEASE_DIR/${PACKAGE}_${VERSION}_build.log"
+REPORT_FILE="$RELEASE_DIR/${PACKAGE}_${VERSION}_BUILD_REPORT.md"
 
 mkdir -p "$RELEASE_DIR"
 exec > >(tee "$LOG_FILE") 2>&1
@@ -29,6 +32,7 @@ require_command python3
 require_command dpkg-deb
 require_command sha256sum
 require_command rsync
+require_command git
 
 [[ -n "$VERSION" ]] || fail "version.txt ist leer"
 [[ -f app/version.py ]] || fail "app/version.py fehlt"
@@ -56,6 +60,7 @@ grep -Fq "$VERSION" README.md || fail "README.md enthält Version $VERSION nicht
 grep -Fq "$VERSION" changelog.md || fail "changelog.md enthält Version $VERSION nicht"
 grep -Fq "$VERSION" CHATGPT_PROJEKTKONTEXT.md || fail "CHATGPT_PROJEKTKONTEXT.md enthält Version $VERSION nicht"
 [[ ! -e VERSION ]] || fail "Veraltete zweite Versionsdatei VERSION existiert"
+[[ ! -e CHANGELOG.md ]] || fail "Doppelte Changelog-Datei CHANGELOG.md existiert; verbindlich ist changelog.md"
 
 if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
   if [[ -n "$(git status --porcelain)" && "${ALLOW_DIRTY:-0}" != "1" ]]; then
@@ -63,6 +68,12 @@ if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
   fi
 fi
 
+GIT_COMMIT="$(git rev-parse HEAD 2>/dev/null || echo unbekannt)"
+GIT_BRANCH="$(git branch --show-current 2>/dev/null || echo unbekannt)"
+PYTHON_VERSION="$(python3 --version 2>&1)"
+DEBIAN_VERSION="$(. /etc/os-release 2>/dev/null && printf '%s %s' "${NAME:-Linux}" "${VERSION_ID:-unbekannt}" || echo unbekannt)"
+
+rm -f "$REPORT_FILE"
 echo "Prüfe Python-Syntax ..."
 python3 -m compileall -q app
 
@@ -121,8 +132,48 @@ dpkg-deb --info "$DEB_FILE"
 dpkg-deb --contents "$DEB_FILE" >/dev/null
 sha256sum "$DEB_FILE" > "$DEB_FILE.sha256"
 
+BUILD_FINISHED_EPOCH="$(date +%s)"
+BUILD_FINISHED_ISO="$(date --iso-8601=seconds)"
+BUILD_DURATION="$((BUILD_FINISHED_EPOCH - BUILD_STARTED_EPOCH))"
+PACKAGE_SIZE_BYTES="$(stat -c '%s' "$DEB_FILE")"
+PACKAGE_SIZE_HUMAN="$(du -h "$DEB_FILE" | awk '{print $1}')"
+PACKAGE_SHA256="$(sha256sum "$DEB_FILE" | awk '{print $1}')"
+
+cat > "$REPORT_FILE" <<EOF
+# Buildbericht – Stempeluhr Professional $VERSION
+
+- Status: **erfolgreich**
+- Paket: \`$(basename "$DEB_FILE")\`
+- Version: **$VERSION**
+- Architektur: **$ARCH**
+- Git-Branch: \`$GIT_BRANCH\`
+- Git-Commit: \`$GIT_COMMIT\`
+- Buildstart: $BUILD_STARTED_ISO
+- Buildende: $BUILD_FINISHED_ISO
+- Builddauer: ${BUILD_DURATION} Sekunden
+- Buildsystem: $DEBIAN_VERSION
+- Python: $PYTHON_VERSION
+- Paketgröße: $PACKAGE_SIZE_HUMAN ($PACKAGE_SIZE_BYTES Bytes)
+- SHA256: \`$PACKAGE_SHA256\`
+
+## Durchgeführte Prüfungen
+
+- Versionsgleichheit von \`version.txt\`, \`app/version.py\` und \`debian/control\`
+- Versionsnachweis in README, Changelog und Projektkontext
+- sauberer Git-Arbeitsstand
+- Python-Syntaxprüfung mit \`compileall\`
+- Ausschluss lokaler Konfigurationen, Datenbanken, Uploads und Buildartefakte
+- Debian-Paketmetadaten und Paketinhalt mit \`dpkg-deb\`
+- SHA256-Prüfsumme
+
+## Hinweis
+
+Dieser Bericht bestätigt den erfolgreichen Paketbau. Neuinstallation, Upgrade mit vorhandener PostgreSQL-Datenbank, systemd-Start und HTTP-Healthcheck müssen vor einer produktiven Freigabe zusätzlich auf einem Testsystem geprüft werden.
+EOF
+
 echo
 echo "Build erfolgreich:"
 echo "  Paket:     $DEB_FILE"
 echo "  Prüfsumme: $DEB_FILE.sha256"
 echo "  Protokoll: $LOG_FILE"
+echo "  Bericht:   $REPORT_FILE"
