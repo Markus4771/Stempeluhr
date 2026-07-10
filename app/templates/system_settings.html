@@ -2,21 +2,20 @@
 {% block content %}
 <h1>Systemeinstellungen</h1>
 
-
 <section class="card">
     <h2>Systemstatus</h2>
     <div class="system-health-grid">
         <div class="system-health-box"><strong>Version</strong><span class="badge-ok">{{ app_version }}</span></div>
         <div class="system-health-box"><strong>Updates</strong><a href="/system/settings/updates">DEB-Update öffnen</a></div>
         <div class="system-health-box"><strong>Backup</strong><a href="/system/settings/backup">Backup &amp; Restore öffnen</a></div>
-        <div class="system-health-box"><strong>Diagnose</strong><span class="muted">/opt/stempeluhr/scripts/stempeluhr-diagnose.sh</span></div>
+        <div class="system-health-box"><strong>Systemdiagnose</strong><a href="/system/diagnostics">Diagnose öffnen</a></div>
         <div class="system-health-box"><strong>Entwickler</strong><a href="/system/developer">Konsole öffnen</a></div>
     </div>
 </section>
 
 <section class="card">
     <h2>Übersicht</h2>
-    <p class="muted">Die Einstellungen sind nach Bereichen gruppiert. Wartung enthält Backup, Updates, DSGVO und Offboarding.</p>
+    <p class="muted">Die Einstellungen sind nach Bereichen gruppiert. Wartung enthält Backup, Updates, Systemdiagnose, DSGVO und Offboarding.</p>
 
     <div class="settings-section">
         <h3>Allgemein</h3>
@@ -62,6 +61,7 @@
         <div class="settings-menu">
             {% if settings.get('module_settings_backup_enabled', '1') in ['1', 'true', 'on'] %}<a class="settings-tile" href="/system/settings/backup"><strong>Backup &amp; Restore</strong><span>Backup-Zeit, Aufbewahrung, manuelle Sicherung und Wiederherstellung</span></a>{% endif %}
             <a class="settings-tile" href="/system/settings/updates"><strong>Updates</strong><span>DEB-Paket hochladen, Installation starten und Protokoll ansehen</span></a>
+            <a class="settings-tile" href="/system/diagnostics"><strong>Systemdiagnose</strong><span>Anwendung, PostgreSQL, Konfiguration, Speicherplatz und Verzeichnisrechte prüfen</span></a>
             <a class="settings-tile" href="/system/developer"><strong>Entwicklerkonsole</strong><span>Modulstatus, Routen, Selbsttest und Logs anzeigen</span></a>
             {% if settings.get('module_settings_dsgvo_enabled', '1') in ['1', 'true', 'on'] %}<a class="settings-tile" href="/system/settings/dsgvo"><strong>DSGVO-Manager</strong><span>Fristen, Vorschau, Archivierung, Anonymisierung und Löschprotokoll</span></a>{% endif %}
             {% if settings.get('module_settings_offboarding_enabled', '1') in ['1', 'true', 'on'] %}<a class="settings-tile" href="/system/settings/offboarding"><strong>Offboarding</strong><span>Austritt, Archivierung, RFID-Freigabe und Mitarbeiter-Neuanfang</span></a>{% endif %}
