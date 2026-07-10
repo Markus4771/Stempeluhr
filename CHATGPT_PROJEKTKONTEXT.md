@@ -7,7 +7,7 @@
 - Name: **Stempeluhr Professional**
 - Repository: `Markus4771/Stempeluhr`
 - Standardbranch: `main`
-- Aktuelle Version: **5.5.07**
+- Aktuelle Version: **5.5.08**
 - Zielplattform: Debian 13 und Raspberry Pi OS
 - Backend: Python, FastAPI, Uvicorn, SQLAlchemy
 - Standarddatenbank: PostgreSQL
@@ -30,7 +30,7 @@ Die Dateien `VERSION` und `CHANGELOG.md` dürfen nicht existieren.
 
 ## Aktueller Funktionsstand
 
-Zum System gehören Mitarbeiterverwaltung, Arbeitszeiterfassung, RFID, Dashboard, Rollen und Rechte, Plausibilitätsprüfung, Korrekturworkflow, DSGVO, REST-API, HTTPS, CalDAV/iCal, Reporting, PDF/CSV-Export, E-Mail-Funktionen, Update/Backup, Raspberry-Kiosk, Agent, Heartbeat, Monitoring und Onboarding.
+Zum System gehören Mitarbeiterverwaltung, Arbeitszeiterfassung, RFID, Dashboard, Rollen und Rechte, Plausibilitätsprüfung, Korrekturworkflow, DSGVO, REST-API, HTTPS, CalDAV/iCal, Reporting, PDF/CSV-Export, E-Mail-Funktionen, Update/Backup, Raspberry-Kiosk, Agent, Heartbeat, Monitoring, Onboarding und Systemdiagnose.
 
 ## Architektur und Betrieb
 
@@ -42,7 +42,8 @@ Zum System gehören Mitarbeiterverwaltung, Arbeitszeiterfassung, RFID, Dashboard
 - Standardport: 8000
 - Healthcheck: `/health`
 - Versionsauskunft: `/version`
-- Systemdiagnose: `/system/diagnostics`
+- Systemdiagnose: über **Systemeinstellungen → Wartung → Systemdiagnose**
+- Diagnose-Seite: `/system/diagnostics`
 - Diagnose-API: `/diagnostics` und `/api/v1/diagnostics` (Administrator)
 - Diagnosebericht: `/system/diagnostics/report` (Administrator)
 
@@ -56,22 +57,18 @@ Zum System gehören Mitarbeiterverwaltung, Arbeitszeiterfassung, RFID, Dashboard
 - Migrationen wiederholbar und PostgreSQL-kompatibel ausführen
 - keine produktiven Daten in Pakete oder Repository aufnehmen
 
-## Version 5.5.07
+## Version 5.5.08
 
-Schwerpunkt: Systemdiagnose und Update-Sicherheit.
+Schwerpunkt: Einordnung der Systemdiagnose in die Systemeinstellungen.
 
 Umgesetzt:
 
-- Admin-Menüpunkt und Seite **Systemdiagnose**
-- Diagnose von Anwendungsversion, Python, Plattform und Laufzeit
-- PostgreSQL-Verbindung, Serverversion, Latenz sowie Anzahl Mitarbeiter und Buchungen
-- Prüfung der Pflichtvariablen in `/etc/stempeluhr/stempeluhr.env`
-- Prüfung von Speicherplatz, wichtigen Pfaden und Schreibrechten
-- Diagnosebericht als ZIP ohne Passwörter, Tokens oder vollständige Konfigurationswerte
-- geschützte JSON-Diagnose unter `/diagnostics` und `/api/v1/diagnostics`
-- erweiterte Startup-Checks mit verständlichen Warnungen
-
-Keine Datenbankmodelle wurden geändert; eine Schema-Migration ist für 5.5.07 nicht erforderlich.
+- Systemdiagnose aus der Hauptnavigation entfernt
+- Systemdiagnose im Bereich `Wartung` der Systemeinstellungen integriert
+- direkter Diagnosezugang im Systemstatus der Systemeinstellungen ergänzt
+- Rücklink von der Diagnose zu den Systemeinstellungen ergänzt
+- vorhandene Diagnosefunktionen, APIs und ZIP-Berichte unverändert erhalten
+- keine Datenbankmodelle geändert; keine Schema-Migration erforderlich
 
 ## Debian-Buildsystem
 
@@ -84,10 +81,10 @@ bash scripts/build_release.sh
 Erwartete Artefakte:
 
 ```text
-releases/stempeluhr_5.5.07_all.deb
-releases/stempeluhr_5.5.07_all.deb.sha256
-releases/stempeluhr_5.5.07_build.log
-releases/stempeluhr_5.5.07_BUILD_REPORT.md
+releases/stempeluhr_5.5.08_all.deb
+releases/stempeluhr_5.5.08_all.deb.sha256
+releases/stempeluhr_5.5.08_build.log
+releases/stempeluhr_5.5.08_BUILD_REPORT.md
 ```
 
 Ein Buildbericht ersetzt keinen Installations- und Upgradetest.
@@ -96,9 +93,10 @@ Ein Buildbericht ersetzt keinen Installations- und Upgradetest.
 
 Priorität hoch:
 
-- 5.5.07 bauen und Paketmetadaten prüfen
-- Upgrade von produktiver 5.5.06 auf 5.5.07 testen
-- Systemdiagnose, ZIP-Bericht, `/health` und `/version` prüfen
+- 5.5.08 bauen und Paketmetadaten prüfen
+- Upgrade von produktiver 5.5.06 beziehungsweise 5.5.07 auf 5.5.08 testen
+- Menüführung und Rücknavigation der Systemdiagnose prüfen
+- `/health`, `/version`, Diagnose-API und ZIP-Bericht prüfen
 - Erhalt von Mitarbeitern und Buchungen bestätigen
 - Raspberry-Screenshots unter Wayland/labwc stabilisieren
 - Heartbeat-Status dauerhaft korrekt darstellen
