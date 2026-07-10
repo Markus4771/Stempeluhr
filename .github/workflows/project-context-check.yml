@@ -1,0 +1,51 @@
+name: Projektkontext prüfen
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  context-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Repository auschecken
+        uses: actions/checkout@v4
+
+      - name: Versionsdateien prüfen
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          test -f version.txt
+          test -f README.md
+          test -f changelog.md
+          test -f CHATGPT_PROJEKTKONTEXT.md
+          test -f NEUER_CHAT.md
+
+          VERSION="$(tr -d '[:space:]' < version.txt)"
+
+          if [ -z "$VERSION" ]; then
+            echo "version.txt ist leer."
+            exit 1
+          fi
+
+          echo "Prüfe Dokumentation für Version $VERSION"
+
+          grep -Fq "$VERSION" README.md || {
+            echo "README.md enthält Version $VERSION nicht."
+            exit 1
+          }
+
+          grep -Fq "$VERSION" CHATGPT_PROJEKTKONTEXT.md || {
+            echo "CHATGPT_PROJEKTKONTEXT.md enthält Version $VERSION nicht."
+            exit 1
+          }
+
+          if ! grep -Fq "$VERSION" changelog.md; then
+            echo "WARNUNG: changelog.md enthält Version $VERSION nicht."
+            echo "Bei einem Release muss changelog.md ergänzt werden."
+          fi
+
+          echo "Projektkontext-Prüfung erfolgreich."
