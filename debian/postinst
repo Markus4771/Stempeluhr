@@ -9,6 +9,7 @@ ENV_FILE="$CONFIG_DIR/stempeluhr.env"
 EXAMPLE_ENV="$CONFIG_DIR/stempeluhr.env.example"
 DATA_DIR="/var/lib/stempeluhr"
 LOG_DIR="/var/log/stempeluhr"
+NEW_CONFIG=0
 
 log() {
   printf '[stempeluhr-postinst] %s\n' "$*"
@@ -27,6 +28,7 @@ install -d -m 0750 -o "$APP_USER" -g "$APP_GROUP" "$DATA_DIR" "$LOG_DIR"
 install -d -m 0750 -o root -g "$APP_GROUP" "$CONFIG_DIR"
 
 if [[ ! -f "$ENV_FILE" ]]; then
+  NEW_CONFIG=1
   DB_PASSWORD="$(openssl rand -hex 24)"
   cat > "$ENV_FILE" <<EOF
 DATABASE_TYPE=postgresql
@@ -56,40 +58,46 @@ DATABASE_NAME="${DATABASE_NAME:-stempeluhr}"
 DATABASE_USER="${DATABASE_USER:-stempeluhr}"
 DATABASE_PASSWORD="${DATABASE_PASSWORD:-}"
 DATABASE_HOST="${DATABASE_HOST:-127.0.0.1}"
+DATABASE_PORT="${DATABASE_PORT:-5432}"
+
+if [[ ! "$DATABASE_USER" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]]; then
+  echo "Ungültiger DATABASE_USER in $ENV_FILE" >&2
+  exit 1
+fi
+if [[ ! "$DATABASE_NAME" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]]; then
+  echo "Ungültiger DATABASE_NAME in $ENV_FILE" >&2
+  exit 1
+fi
 
 if [[ "$DATABASE_HOST" == "127.0.0.1" || "$DATABASE_HOST" == "localhost" ]]; then
   if command -v psql >/dev/null 2>&1 && id postgres >/dev/null 2>&1; then
-    if [[ -z "$DATABASE_PASSWORD" || "$DATABASE_PASSWORD" == "BITTE_SICHER_SETZEN" ]]; then
-      DATABASE_PASSWORD="$(openssl rand -hex 24)"
-      sed -i "s/^DATABASE_PASSWORD=.*/DATABASE_PASSWORD=$DATABASE_PASSWORD/" "$ENV_FILE"
-    fi
-
-    if [[ ! "$DATABASE_USER" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]]; then
-      echo "Ungültiger DATABASE_USER in $ENV_FILE" >&2
-      exit 1
-    fi
-    if [[ ! "$DATABASE_NAME" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]]; then
-      echo "Ungültiger DATABASE_NAME in $ENV_FILE" >&2
-      exit 1
-    fi
-
-    # SQL-Stringliterale verwenden verdoppelte Hochkommas als Escape-Sequenz.
-    SQL_PASSWORD="${DATABASE_PASSWORD//\'/\'\'}"
-
     ROLE_EXISTS="$(runuser -u postgres -- psql -tAc "SELECT 1 FROM pg_roles WHERE rolname='$DATABASE_USER'" postgres || true)"
+    DB_EXISTS="$(runuser -u postgres -- psql -tAc "SELECT 1 FROM pg_database WHERE datname='$DATABASE_NAME'" postgres || true)"
+
     if [[ "$ROLE_EXISTS" != "1" ]]; then
+      [[ -n "$DATABASE_PASSWORD" && "$DATABASE_PASSWORD" != "BITTE_SICHER_SETZEN" ]] || {
+        echo "DATABASE_PASSWORD fehlt für die Neuinstallation." >&2
+        exit 1
+      }
+      SQL_PASSWORD="${DATABASE_PASSWORD//\'/\'\'}"
       runuser -u postgres -- psql -v ON_ERROR_STOP=1 postgres -c "CREATE ROLE \"$DATABASE_USER\" LOGIN PASSWORD '$SQL_PASSWORD';"
-    else
+      log "PostgreSQL-Rolle wurde neu angelegt."
+    elif [[ "$NEW_CONFIG" == "1" ]]; then
+      SQL_PASSWORD="${DATABASE_PASSWORD//\'/\'\'}"
       runuser -u postgres -- psql -v ON_ERROR_STOP=1 postgres -c "ALTER ROLE \"$DATABASE_USER\" WITH LOGIN PASSWORD '$SQL_PASSWORD';"
+      log "PostgreSQL-Rolle wurde an die neue Konfiguration angepasst."
+    else
+      log "Vorhandene PostgreSQL-Rolle bleibt unverändert."
     fi
 
-    DB_EXISTS="$(runuser -u postgres -- psql -tAc "SELECT 1 FROM pg_database WHERE datname='$DATABASE_NAME'" postgres || true)"
     if [[ "$DB_EXISTS" != "1" ]]; then
       runuser -u postgres -- createdb --owner="$DATABASE_USER" "$DATABASE_NAME"
+      log "PostgreSQL-Datenbank wurde neu angelegt."
+    else
+      log "Vorhandene PostgreSQL-Datenbank bleibt erhalten."
     fi
 
     runuser -u postgres -- psql -v ON_ERROR_STOP=1 "$DATABASE_NAME" -c "GRANT ALL ON SCHEMA public TO \"$DATABASE_USER\";"
-    log "Lokale PostgreSQL-Rolle und Datenbank sind vorbereitet."
   else
     log "PostgreSQL-Server lokal nicht verfügbar; Datenbankvorbereitung übersprungen."
   fi
@@ -103,13 +111,15 @@ python3 -m venv "$APP_DIR/.venv"
 
 chown -R "$APP_USER:$APP_GROUP" "$APP_DIR"
 
-# Schema nur initialisieren/migrieren; vorhandene Daten werden nicht gelöscht.
-set -a
-# shellcheck disable=SC1090
-. "$ENV_FILE"
-set +a
+# Migration mit sauberer Benutzerumgebung ausführen. Die Anwendung liest ihre
+# Zugangsdaten selbst aus /etc/stempeluhr/stempeluhr.env.
 cd "$APP_DIR"
-runuser -u "$APP_USER" --preserve-environment -- "$APP_DIR/.venv/bin/python" -c 'from app.init_db import init_db; init_db()'
+runuser -u "$APP_USER" -- env \
+  HOME="$APP_DIR" \
+  USER="$APP_USER" \
+  LOGNAME="$APP_USER" \
+  PGSSLMODE="disable" \
+  "$APP_DIR/.venv/bin/python" -c 'from app.init_db import init_db; init_db()'
 
 systemctl daemon-reload
 systemctl enable stempeluhr.service >/dev/null
