@@ -1,3 +1,12 @@
+## 5.5.08
+
+- Systemdiagnose aus der Hauptnavigation entfernt
+- Systemdiagnose in `Systemeinstellungen` unter `Wartung` integriert
+- direkten Diagnosezugang im Systemstatus der Systemeinstellungen ergänzt
+- Rücknavigation von der Diagnose zu den Systemeinstellungen ergänzt
+- Diagnose-API und ZIP-Bericht unverändert erhalten
+- keine Änderungen an Datenbankmodellen oder produktiven Daten
+
 ## 5.5.07
 
 - neue Admin-Seite `Systemdiagnose` ergänzt
