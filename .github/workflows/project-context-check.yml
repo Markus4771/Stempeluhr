@@ -24,6 +24,7 @@ jobs:
           test -f changelog.md
           test -f CHATGPT_PROJEKTKONTEXT.md
           test -f NEUER_CHAT.md
+          test -f debian/control
 
           if [ -f VERSION ]; then
             echo "Die veraltete zweite Versionsdatei VERSION darf nicht existieren."
@@ -49,10 +50,17 @@ jobs:
           PY
           )"
 
-          echo "Prüfe Dokumentation und Anwendung für Version $VERSION"
+          DEB_VERSION="$(awk -F': *' '$1 == "Version" {print $2; exit}' debian/control | tr -d '[:space:]')"
+
+          echo "Prüfe Dokumentation, Anwendung und Debian-Paket für Version $VERSION"
 
           if [ "$APP_VERSION" != "$VERSION" ]; then
             echo "Versionskonflikt: version.txt=$VERSION, app/version.py=$APP_VERSION"
+            exit 1
+          fi
+
+          if [ "$DEB_VERSION" != "$VERSION" ]; then
+            echo "Versionskonflikt: version.txt=$VERSION, debian/control=$DEB_VERSION"
             exit 1
           fi
 
