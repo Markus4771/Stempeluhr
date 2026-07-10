@@ -7,7 +7,7 @@
 - Name: **Stempeluhr Professional**
 - Repository: `Markus4771/Stempeluhr`
 - Standardbranch: `main`
-- Aktuelle Version: **5.5.05**
+- Aktuelle Version: **5.5.06**
 - Zielplattform: Debian 13 und Raspberry Pi OS
 - Backend: Python, FastAPI, Uvicorn, SQLAlchemy
 - Standarddatenbank: PostgreSQL
@@ -80,6 +80,9 @@ Zum System gehören unter anderem:
 - Datenbankname standardmäßig `stempeluhr`
 - Anwendungsrolle standardmäßig `stempeluhr`
 - Zugangsdaten nur über geschützte Konfiguration
+- PostgreSQL-Verbindungs-URLs müssen Sonderzeichen in Zugangsdaten sicher verarbeiten
+- lokale Verbindungen dürfen keine Root-Zertifikatsumgebung erben
+- bestehende Rollenpasswörter bei normalen Updates nicht verändern
 - Migrationen wiederholbar und PostgreSQL-kompatibel gestalten
 - neue Spalten mit sicheren Standardwerten einführen
 - keine produktiven Daten in Pakete oder Repository aufnehmen
@@ -94,47 +97,39 @@ Lokaler Build:
 bash scripts/build_release.sh
 ```
 
-Erwartete Artefakte für Version 5.5.05:
+Erwartete Artefakte für Version 5.5.06:
 
 ```text
-releases/stempeluhr_5.5.05_all.deb
-releases/stempeluhr_5.5.05_all.deb.sha256
-releases/stempeluhr_5.5.05_build.log
-releases/stempeluhr_5.5.05_BUILD_REPORT.md
+releases/stempeluhr_5.5.06_all.deb
+releases/stempeluhr_5.5.06_all.deb.sha256
+releases/stempeluhr_5.5.06_build.log
+releases/stempeluhr_5.5.06_BUILD_REPORT.md
 ```
 
-Der Build prüft:
-
-- synchronisierte Versionsangaben
-- sauberen Git-Arbeitsstand
-- Python-Syntax
-- Debian-Paketmetadaten
-- Ausschluss lokaler Daten, Uploads, Datenbanken und Secrets
-- Paketinhalt und SHA256
-- Buildbericht mit Commit, Systemdaten, Paketgröße und Builddauer
+Der Build prüft synchronisierte Versionsangaben, sauberen Git-Arbeitsstand, Python-Syntax, Debian-Paketmetadaten, den Ausschluss lokaler Daten und Secrets sowie Paketinhalt und SHA256.
 
 Ein erfolgreicher Buildbericht ersetzt keinen Installations- und Upgradetest auf einem Testsystem.
 
-## Version 5.5.05
+## Version 5.5.06
 
-Schwerpunkt: Repository- und Releasequalität.
+Schwerpunkt: Hotfix für den PostgreSQL-Updatepfad.
 
 Änderungen:
 
-- projektspezifischen Debian-Buildprozess erweitert
-- automatischen Buildbericht ergänzt
-- doppelte Changelog-Datei entfernt
-- Versionsprüfungen vereinheitlicht
-- keine Änderung an produktiven Datenbankmodellen oder Zeiterfassungsfunktionen
+- sichere SQLAlchemy-Verbindungs-URL mit korrekter Behandlung von Sonderzeichen
+- lokale PostgreSQL-Verbindungen ohne geerbtes Root-Zertifikatsverzeichnis
+- vorhandene PostgreSQL-Rollenpasswörter bleiben bei Updates unverändert
+- Migration mit sauberer Benutzerumgebung des Dienstkontos
+- bestehende Datenbank und Konfiguration bleiben erhalten
 
 ## Bekannte Probleme und offene Aufgaben
 
 Priorität hoch:
 
-- Debian-Paket 5.5.05 tatsächlich bauen
-- Paketmetadaten und SHA256 prüfen
-- Upgrade von installierter 5.5.04 auf 5.5.05 mit bestehender PostgreSQL-Datenbank testen
-- systemd-Start und `/health` nach Upgrade prüfen
+- Debian-Paket 5.5.06 tatsächlich bauen
+- Upgrade des unvollständig konfigurierten Pakets 5.5.05 auf 5.5.06 testen
+- Paketstatus, systemd-Start und `/health` nach Upgrade prüfen
+- bestehende Mitarbeiter und Buchungen nach Upgrade kontrollieren
 - Raspberry-Screenshots unter Wayland/labwc weiter stabilisieren
 - Heartbeat-Status dauerhaft korrekt darstellen
 - Onboarding gegen tatsächlichen Quellcode und UI vollständig prüfen
