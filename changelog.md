@@ -1,3 +1,11 @@
+## 5.5.05
+
+- Projektspezifischen Debian-Buildprozess erweitert
+- Automatischen Buildbericht mit Version, Git-Commit, Buildzeit, Debian-/Python-Version, Paketgröße und SHA256 ergänzt
+- Doppelte Datei `CHANGELOG.md` bereinigt; verbindlicher Änderungsverlauf bleibt `changelog.md`
+- Versionsprüfung für Anwendung, Dokumentation und Debian-Paket synchronisiert
+- Keine Änderung an produktiven Datenbankmodellen oder Zeiterfassungsfunktionen
+
 ## 5.5.04
 
 - Onboarding aus dem Hauptmenü entfernt
