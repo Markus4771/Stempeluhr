@@ -1,3 +1,10 @@
+## 5.5.09
+
+- Offboarding aus dem Bereich `Wartung` entfernt
+- Offboarding direkt neben Onboarding unter `Systemeinstellungen → Personal & Arbeitszeit` eingeordnet
+- Beschreibung der Systemeinstellungsübersicht angepasst
+- keine Änderungen an Datenbankmodellen oder produktiven Daten
+
 ## 5.5.08
 
 - Systemdiagnose aus der Hauptnavigation entfernt
