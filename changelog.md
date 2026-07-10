@@ -1,3 +1,13 @@
+## 5.5.07
+
+- neue Admin-Seite `Systemdiagnose` ergänzt
+- geschützte Diagnose-API unter `/diagnostics` und `/api/v1/diagnostics`
+- PostgreSQL-Verbindung, Latenz, Serverversion und Datenbestände prüfbar
+- Konfigurationsdatei auf fehlende Pflichtvariablen geprüft
+- Speicherplatz, wichtige Pfade und Schreibrechte geprüft
+- Diagnosebericht als ZIP ohne Passwörter, Tokens oder Secrets ergänzt
+- Startup-Checks um Konfiguration, Speicher und Verzeichnisrechte erweitert
+
 ## 5.5.06
 
 - PostgreSQL-Verbindungs-URL mit `SQLAlchemy URL.create()` sicher aufgebaut
