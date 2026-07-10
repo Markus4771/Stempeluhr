@@ -13,6 +13,7 @@ RELEASE_DIR="$ROOT_DIR/releases"
 DEB_FILE="$RELEASE_DIR/${PACKAGE}_${VERSION}_${ARCH}.deb"
 LOG_FILE="$RELEASE_DIR/${PACKAGE}_${VERSION}_build.log"
 
+mkdir -p "$RELEASE_DIR"
 exec > >(tee "$LOG_FILE") 2>&1
 
 fail() {
@@ -73,8 +74,7 @@ mkdir -p \
   "$PKG_ROOT/etc/systemd/system" \
   "$PKG_ROOT/etc/stempeluhr" \
   "$PKG_ROOT/var/lib/stempeluhr" \
-  "$PKG_ROOT/var/log/stempeluhr" \
-  "$RELEASE_DIR"
+  "$PKG_ROOT/var/log/stempeluhr"
 
 rsync -a \
   --exclude '.git' \
@@ -94,7 +94,6 @@ install -m 0755 debian/postinst "$PKG_ROOT/DEBIAN/postinst"
 install -m 0755 debian/prerm "$PKG_ROOT/DEBIAN/prerm"
 install -m 0644 stempeluhr.service "$PKG_ROOT/etc/systemd/system/stempeluhr.service"
 
-# Leere Konfigurationsvorlage: vorhandene produktive Datei wird bei Updates nicht überschrieben.
 cat > "$PKG_ROOT/etc/stempeluhr/stempeluhr.env.example" <<'EOF'
 DATABASE_TYPE=postgresql
 DATABASE_HOST=127.0.0.1
@@ -110,7 +109,6 @@ chmod 0640 "$PKG_ROOT/etc/stempeluhr/stempeluhr.env.example"
 find "$PKG_ROOT" -type d -exec chmod 0755 {} +
 chmod 0750 "$PKG_ROOT/etc/stempeluhr" "$PKG_ROOT/var/lib/stempeluhr" "$PKG_ROOT/var/log/stempeluhr"
 
-# Sicherheitsprüfung: keine typischen Secrets oder lokalen Daten einpacken.
 if find "$PKG_ROOT/opt/stempeluhr" -type f \( -name '*.env' -o -name '*.db' -o -name '*.sqlite*' \) -print -quit | grep -q .; then
   fail "Paket enthält lokale .env- oder Datenbankdateien"
 fi
