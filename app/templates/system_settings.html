@@ -15,7 +15,7 @@
 
 <section class="card">
     <h2>Übersicht</h2>
-    <p class="muted">Die Einstellungen sind nach Bereichen gruppiert. Wartung enthält Backup, Updates, Systemdiagnose, DSGVO und Offboarding.</p>
+    <p class="muted">Die Einstellungen sind nach Bereichen gruppiert. Onboarding und Offboarding befinden sich gemeinsam unter Personal &amp; Arbeitszeit.</p>
 
     <div class="settings-section">
         <h3>Allgemein</h3>
@@ -34,6 +34,7 @@
             <a class="settings-tile" href="/system/settings/absence-types"><strong>Abwesenheitsarten</strong><span>Urlaub, Krank, Sonstiges und eigene Arten konfigurieren</span></a>
             <a class="settings-tile" href="/system/settings/roles"><strong>Rollen &amp; Rechte</strong><span>Eigene Rollen anlegen, Rechte vergeben und Systemrollen verwalten</span></a>
             <a class="settings-tile" href="/system/settings/onboarding"><strong>Onboarding</strong><span>Einladungsmails, Einmal-Token, Passwort-Ersteinrichtung und Datenschutzbestätigung</span></a>
+            {% if settings.get('module_settings_offboarding_enabled', '1') in ['1', 'true', 'on'] %}<a class="settings-tile" href="/system/settings/offboarding"><strong>Offboarding</strong><span>Austritt, Archivierung, RFID-Freigabe und Mitarbeiter-Neuanfang</span></a>{% endif %}
         </div>
     </div>
 
@@ -64,7 +65,6 @@
             <a class="settings-tile" href="/system/diagnostics"><strong>Systemdiagnose</strong><span>Anwendung, PostgreSQL, Konfiguration, Speicherplatz und Verzeichnisrechte prüfen</span></a>
             <a class="settings-tile" href="/system/developer"><strong>Entwicklerkonsole</strong><span>Modulstatus, Routen, Selbsttest und Logs anzeigen</span></a>
             {% if settings.get('module_settings_dsgvo_enabled', '1') in ['1', 'true', 'on'] %}<a class="settings-tile" href="/system/settings/dsgvo"><strong>DSGVO-Manager</strong><span>Fristen, Vorschau, Archivierung, Anonymisierung und Löschprotokoll</span></a>{% endif %}
-            {% if settings.get('module_settings_offboarding_enabled', '1') in ['1', 'true', 'on'] %}<a class="settings-tile" href="/system/settings/offboarding"><strong>Offboarding</strong><span>Austritt, Archivierung, RFID-Freigabe und Mitarbeiter-Neuanfang</span></a>{% endif %}
         </div>
     </div>
 </section>
