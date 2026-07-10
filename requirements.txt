@@ -1,0 +1,14 @@
+fastapi
+uvicorn[standard]
+sqlalchemy
+psycopg2-binary
+python-dotenv
+jinja2
+python-multipart
+itsdangerous
+passlib[bcrypt]
+reportlab
+requests
+caldav
+icalendar
+recurring-ical-events
