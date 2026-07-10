@@ -6,6 +6,7 @@
     <h2>Systemstatus</h2>
     <div class="system-health-grid">
         <div class="system-health-box"><strong>Version</strong><span class="badge-ok">{{ app_version }}</span></div>
+        <div class="system-health-box"><strong>Einrichtung</strong><a href="/setup">Assistent öffnen</a></div>
         <div class="system-health-box"><strong>Updates</strong><a href="/system/settings/updates">DEB-Update öffnen</a></div>
         <div class="system-health-box"><strong>Backup</strong><a href="/system/settings/backup">Backup &amp; Restore öffnen</a></div>
         <div class="system-health-box"><strong>Systemdiagnose</strong><a href="/system/diagnostics">Diagnose öffnen</a></div>
@@ -15,7 +16,7 @@
 
 <section class="card">
     <h2>Übersicht</h2>
-    <p class="muted">Die Einstellungen sind nach Bereichen gruppiert. Onboarding und Offboarding befinden sich gemeinsam unter Personal &amp; Arbeitszeit.</p>
+    <p class="muted">Die Einstellungen sind nach Bereichen gruppiert. Onboarding und Offboarding befinden sich gemeinsam unter Personal &amp; Arbeitszeit. Der Einrichtungsassistent ist unter Wartung erreichbar.</p>
 
     <div class="settings-section">
         <h3>Allgemein</h3>
@@ -60,6 +61,7 @@
     <div class="settings-section settings-section-maintenance">
         <h3>Wartung</h3>
         <div class="settings-menu">
+            <a class="settings-tile" href="/setup"><strong>Einrichtungsassistent</strong><span>Grundkonfiguration schrittweise prüfen, speichern und abschließen</span></a>
             {% if settings.get('module_settings_backup_enabled', '1') in ['1', 'true', 'on'] %}<a class="settings-tile" href="/system/settings/backup"><strong>Backup &amp; Restore</strong><span>Backup-Zeit, Aufbewahrung, manuelle Sicherung und Wiederherstellung</span></a>{% endif %}
             <a class="settings-tile" href="/system/settings/updates"><strong>Updates</strong><span>DEB-Paket hochladen, Installation starten und Protokoll ansehen</span></a>
             <a class="settings-tile" href="/system/diagnostics"><strong>Systemdiagnose</strong><span>Anwendung, PostgreSQL, Konfiguration, Speicherplatz und Verzeichnisrechte prüfen</span></a>
