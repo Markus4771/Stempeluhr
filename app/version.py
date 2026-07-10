@@ -1,22 +1,15 @@
-"""Zentrale Versionsinformationen fuer Stempeluhr Professional.
-
-5.2.30: Dieses Modul ist absichtlich fehlertolerant. Aeltere Updates haben
-teilweise nur ``version.txt`` aktualisiert oder beim Import fehlende Helfer
-verursacht. Deshalb bleiben die bisherigen Konstanten erhalten und zusaetzliche
-Hilfsfunktionen pruefen Datei- und Laufzeitversion ohne Startabbruch.
-"""
+"""Zentrale Versionsinformationen fuer Stempeluhr Professional."""
 from __future__ import annotations
 
 from pathlib import Path
 from typing import Any, Dict, Tuple
 
 APP_NAME = "Stempeluhr Professional"
-APP_VERSION = "5.5.04"
+APP_VERSION = "5.5.05"
 VERSION_FILE_NAME = "version.txt"
 
 
 def _project_root() -> Path:
-    """Gibt das Projektverzeichnis zurueck, auch wenn der Importpfad abweicht."""
     try:
         return Path(__file__).resolve().parents[1]
     except Exception:
@@ -43,11 +36,6 @@ def read_version_file(default: str = "") -> str:
 
 
 def write_version_file(path: str | Path | None = None) -> bool:
-    """Schreibt die aktuelle Version in version.txt.
-
-    Rueckgabe statt Exception, damit Startup/Updates nicht an fehlenden Rechten
-    scheitern. Paketinstallation und Update-Skripte koennen die Funktion nutzen.
-    """
     try:
         target = Path(path) if path else get_version_file_path()
         target.write_text(APP_VERSION + "\n", encoding="utf-8")
