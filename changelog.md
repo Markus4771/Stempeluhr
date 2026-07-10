@@ -1,3 +1,16 @@
+## 5.6.00
+
+- Einrichtungsassistent als achtstufigen Wizard neu aufgebaut
+- Fortschrittsanzeige, Zurück/Weiter-Navigation und Wiederaufnahme ergänzt
+- Unternehmensdaten, Sprache und Zeitzone im Assistenten konfigurierbar
+- Administrator- und PostgreSQL-Prüfung ergänzt
+- Arbeitszeit, E-Mail, API, HTTPS und Backup im Assistenten zusammengeführt
+- Raspberry-Status integriert, bestehende Dashboard-Kachel unverändert gelassen
+- Abschlussprüfung mit vorhandener Systemdiagnose und Warnungsübersicht ergänzt
+- Einrichtungsassistent aus der Hauptnavigation entfernt und unter `Systemeinstellungen → Wartung` eingeordnet
+- bestehende Daten und Konfigurationen werden nicht überschrieben
+- keine Schema-Migration erforderlich
+
 ## 5.5.09
 
 - Offboarding aus dem Bereich `Wartung` entfernt
