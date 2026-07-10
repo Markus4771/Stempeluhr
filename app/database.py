@@ -1,8 +1,10 @@
 import os
 from pathlib import Path
+
 from dotenv import load_dotenv
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, DeclarativeBase
+from sqlalchemy.engine import URL
+from sqlalchemy.orm import DeclarativeBase, sessionmaker
 
 ENV_PATHS = [
     Path("/etc/stempeluhr/stempeluhr.env"),
@@ -17,15 +19,26 @@ DATABASE_TYPE = os.getenv("DATABASE_TYPE", "postgresql").lower()
 
 if DATABASE_TYPE == "postgresql":
     DB_HOST = os.getenv("DATABASE_HOST", "127.0.0.1")
-    DB_PORT = os.getenv("DATABASE_PORT", "5432")
+    DB_PORT = int(os.getenv("DATABASE_PORT", "5432"))
     DB_NAME = os.getenv("DATABASE_NAME", "stempeluhr")
     DB_USER = os.getenv("DATABASE_USER", "stempeluhr")
     DB_PASSWORD = os.getenv("DATABASE_PASSWORD", "stempeluhr_passwort_aendern")
 
-    DATABASE_URL = (
-        f"postgresql+psycopg2://{DB_USER}:{DB_PASSWORD}"
-        f"@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+    # URL.create kodiert Sonderzeichen in Benutzername und Passwort korrekt.
+    DATABASE_URL = URL.create(
+        drivername="postgresql+psycopg2",
+        username=DB_USER,
+        password=DB_PASSWORD,
+        host=DB_HOST,
+        port=DB_PORT,
+        database=DB_NAME,
     )
+
+    connect_args = {}
+    if DB_HOST in {"127.0.0.1", "localhost"}:
+        # Lokale Verbindungen benötigen kein TLS und dürfen nicht von einer
+        # geerbten Root-Umgebung auf /root/.postgresql verwiesen werden.
+        connect_args["sslmode"] = "disable"
 
     engine = create_engine(
         DATABASE_URL,
@@ -33,22 +46,25 @@ if DATABASE_TYPE == "postgresql":
         pool_size=10,
         max_overflow=20,
         pool_recycle=1800,
+        connect_args=connect_args,
     )
 else:
     DATABASE_URL = "sqlite:////opt/stempeluhr/data/stempeluhr.db"
     engine = create_engine(
         DATABASE_URL,
-        connect_args={"check_same_thread": False}
+        connect_args={"check_same_thread": False},
     )
 
 SessionLocal = sessionmaker(
     autocommit=False,
     autoflush=False,
-    bind=engine
+    bind=engine,
 )
+
 
 class Base(DeclarativeBase):
     pass
+
 
 def get_db():
     db = SessionLocal()
