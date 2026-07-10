@@ -7,30 +7,17 @@
 - Name: **Stempeluhr Professional**
 - Repository: `Markus4771/Stempeluhr`
 - Standardbranch: `main`
-- Aktuelle Version: **5.5.06**
+- Aktuelle Version: **5.5.07**
 - Zielplattform: Debian 13 und Raspberry Pi OS
 - Backend: Python, FastAPI, Uvicorn, SQLAlchemy
 - Standarddatenbank: PostgreSQL
 - Installation: Debian-Paket
 
-## Ziel
+## Ziel und verbindliche Regeln
 
-Professionelle, updatefähige und datenschutzorientierte Zeiterfassung für Raspberry-Pi-Terminals und Linux-Server. Bestehende Daten und Konfigurationen müssen Updates zuverlässig überstehen.
+Professionelle, updatefähige und datenschutzorientierte Zeiterfassung für Raspberry-Pi-Terminals und Linux-Server. PostgreSQL bleibt Standarddatenbank. Bestehende Daten und Konfigurationen dürfen bei Updates nicht gelöscht werden. Secrets gehören niemals ins Repository oder in Diagnoseberichte. Debian 13, Raspberry Pi OS, Wayland und labwc sind zu berücksichtigen.
 
-## Verbindliche Regeln
-
-1. Immer auf dem echten aktuellen Repository-Stand arbeiten.
-2. PostgreSQL bleibt die produktive Standarddatenbank.
-3. Keine Umstellung auf SQLite ohne ausdrücklichen Auftrag.
-4. Bestehende Daten bei Installation, Update oder Deinstallation nicht automatisch löschen.
-5. Vor Schemaänderungen sichere, idempotente Migrationen vorsehen.
-6. Vorhandene Funktionen nur auf ausdrücklichen Auftrag entfernen.
-7. Debian 13, Raspberry Pi OS, Wayland und labwc berücksichtigen.
-8. Der Raspberry-Agent läuft typischerweise als User-Systemdienst des Benutzers `pi`.
-9. Secrets und echte Passwörter niemals ins Repository schreiben.
-10. `.deb`, ZIP oder Release nur als fertig bezeichnen, wenn das Artefakt tatsächlich gebaut und geprüft wurde.
-
-## Bei jeder neuen Version aktualisieren
+Bei jeder neuen Version synchron aktualisieren:
 
 - `version.txt`
 - `app/version.py`
@@ -39,57 +26,54 @@ Professionelle, updatefähige und datenschutzorientierte Zeiterfassung für Rasp
 - `changelog.md`
 - `CHATGPT_PROJEKTKONTEXT.md`
 
-Die Datei `VERSION` darf nicht existieren. Der verbindliche Änderungsverlauf ist ausschließlich `changelog.md`; eine zusätzliche Datei `CHANGELOG.md` darf nicht existieren.
+Die Dateien `VERSION` und `CHANGELOG.md` dürfen nicht existieren.
 
 ## Aktueller Funktionsstand
 
-Zum System gehören unter anderem:
-
-- Mitarbeiterverwaltung
-- Arbeitszeiterfassung und RFID-Buchung
-- Dashboard
-- Rollen- und Rechteverwaltung
-- Plausibilitätsprüfung und Korrekturworkflow
-- individuelle Pausenregel pro Mitarbeiter
-- DSGVO-Funktionen
-- REST-API mit Schutzmechanismen
-- HTTPS und Zertifikatsverwaltung
-- CalDAV- und iCal-Feiertage
-- Monatsreporting, PDF- und CSV-Export
-- Teamstatistik und Fehlzeitenanalyse
-- automatische E-Mails
-- Update- und Backupfunktionen
-- Raspberry-Kioskmodus mit Chromium
-- Raspberry-Agent, Heartbeat und Monitoring-Grundlage
-- Onboarding mit Einladungslink, Passwort-Erstsetzung und Datenschutzbestätigung
+Zum System gehören Mitarbeiterverwaltung, Arbeitszeiterfassung, RFID, Dashboard, Rollen und Rechte, Plausibilitätsprüfung, Korrekturworkflow, DSGVO, REST-API, HTTPS, CalDAV/iCal, Reporting, PDF/CSV-Export, E-Mail-Funktionen, Update/Backup, Raspberry-Kiosk, Agent, Heartbeat, Monitoring und Onboarding.
 
 ## Architektur und Betrieb
 
-- Installation gewöhnlich unter `/opt/stempeluhr`
-- Konfiguration unter `/etc/stempeluhr/stempeluhr.env`
-- variable Daten unter `/var/lib/stempeluhr`
-- Logs im systemd-Journal und unter `/var/log/stempeluhr`
-- Webdienst: `stempeluhr.service`
-- Raspberry-Agent: User-Systemdienst `stempeluhr-agent.service`
+- Anwendung: `/opt/stempeluhr`
+- Konfiguration: `/etc/stempeluhr/stempeluhr.env`
+- variable Daten: `/var/lib/stempeluhr`
+- Logs: systemd-Journal und `/var/log/stempeluhr`
+- Dienst: `stempeluhr.service`
 - Standardport: 8000
 - Healthcheck: `/health`
 - Versionsauskunft: `/version`
+- Systemdiagnose: `/system/diagnostics`
+- Diagnose-API: `/diagnostics` und `/api/v1/diagnostics` (Administrator)
+- Diagnosebericht: `/system/diagnostics/report` (Administrator)
 
 ## Datenbankregeln
 
-- Datenbankname standardmäßig `stempeluhr`
-- Anwendungsrolle standardmäßig `stempeluhr`
-- Zugangsdaten nur über geschützte Konfiguration
-- PostgreSQL-Verbindungs-URLs müssen Sonderzeichen in Zugangsdaten sicher verarbeiten
+- Standarddatenbank und Rolle: `stempeluhr`
+- Zugangsdaten ausschließlich aus geschützter Konfiguration
+- SQLAlchemy-Verbindungen müssen Sonderzeichen sicher verarbeiten
 - lokale Verbindungen dürfen keine Root-Zertifikatsumgebung erben
-- bestehende Rollenpasswörter bei normalen Updates nicht verändern
-- Migrationen wiederholbar und PostgreSQL-kompatibel gestalten
-- neue Spalten mit sicheren Standardwerten einführen
+- Rollenpasswörter bei normalen Updates nicht verändern
+- Migrationen wiederholbar und PostgreSQL-kompatibel ausführen
 - keine produktiven Daten in Pakete oder Repository aufnehmen
 
-## Debian-Buildsystem
+## Version 5.5.07
 
-Das Buildsystem gehört ausschließlich zu diesem Projekt.
+Schwerpunkt: Systemdiagnose und Update-Sicherheit.
+
+Umgesetzt:
+
+- Admin-Menüpunkt und Seite **Systemdiagnose**
+- Diagnose von Anwendungsversion, Python, Plattform und Laufzeit
+- PostgreSQL-Verbindung, Serverversion, Latenz sowie Anzahl Mitarbeiter und Buchungen
+- Prüfung der Pflichtvariablen in `/etc/stempeluhr/stempeluhr.env`
+- Prüfung von Speicherplatz, wichtigen Pfaden und Schreibrechten
+- Diagnosebericht als ZIP ohne Passwörter, Tokens oder vollständige Konfigurationswerte
+- geschützte JSON-Diagnose unter `/diagnostics` und `/api/v1/diagnostics`
+- erweiterte Startup-Checks mit verständlichen Warnungen
+
+Keine Datenbankmodelle wurden geändert; eine Schema-Migration ist für 5.5.07 nicht erforderlich.
+
+## Debian-Buildsystem
 
 Lokaler Build:
 
@@ -97,62 +81,38 @@ Lokaler Build:
 bash scripts/build_release.sh
 ```
 
-Erwartete Artefakte für Version 5.5.06:
+Erwartete Artefakte:
 
 ```text
-releases/stempeluhr_5.5.06_all.deb
-releases/stempeluhr_5.5.06_all.deb.sha256
-releases/stempeluhr_5.5.06_build.log
-releases/stempeluhr_5.5.06_BUILD_REPORT.md
+releases/stempeluhr_5.5.07_all.deb
+releases/stempeluhr_5.5.07_all.deb.sha256
+releases/stempeluhr_5.5.07_build.log
+releases/stempeluhr_5.5.07_BUILD_REPORT.md
 ```
 
-Der Build prüft synchronisierte Versionsangaben, sauberen Git-Arbeitsstand, Python-Syntax, Debian-Paketmetadaten, den Ausschluss lokaler Daten und Secrets sowie Paketinhalt und SHA256.
+Ein Buildbericht ersetzt keinen Installations- und Upgradetest.
 
-Ein erfolgreicher Buildbericht ersetzt keinen Installations- und Upgradetest auf einem Testsystem.
-
-## Version 5.5.06
-
-Schwerpunkt: Hotfix für den PostgreSQL-Updatepfad.
-
-Änderungen:
-
-- sichere SQLAlchemy-Verbindungs-URL mit korrekter Behandlung von Sonderzeichen
-- lokale PostgreSQL-Verbindungen ohne geerbtes Root-Zertifikatsverzeichnis
-- vorhandene PostgreSQL-Rollenpasswörter bleiben bei Updates unverändert
-- Migration mit sauberer Benutzerumgebung des Dienstkontos
-- bestehende Datenbank und Konfiguration bleiben erhalten
-
-## Bekannte Probleme und offene Aufgaben
+## Offene Aufgaben
 
 Priorität hoch:
 
-- Debian-Paket 5.5.06 tatsächlich bauen
-- Upgrade des unvollständig konfigurierten Pakets 5.5.05 auf 5.5.06 testen
-- Paketstatus, systemd-Start und `/health` nach Upgrade prüfen
-- bestehende Mitarbeiter und Buchungen nach Upgrade kontrollieren
-- Raspberry-Screenshots unter Wayland/labwc weiter stabilisieren
+- 5.5.07 bauen und Paketmetadaten prüfen
+- Upgrade von produktiver 5.5.06 auf 5.5.07 testen
+- Systemdiagnose, ZIP-Bericht, `/health` und `/version` prüfen
+- Erhalt von Mitarbeitern und Buchungen bestätigen
+- Raspberry-Screenshots unter Wayland/labwc stabilisieren
 - Heartbeat-Status dauerhaft korrekt darstellen
-- Onboarding gegen tatsächlichen Quellcode und UI vollständig prüfen
 
 Priorität mittel:
 
-- API-Endpunkte und Schemata dokumentieren
+- API-Dokumentation vervollständigen
 - Testabdeckung für Login, Buchung, Plausibilität, Onboarding und Update erhöhen
 - Backup- und Rollbacktests ergänzen
-- optional `lintian` in den Paketbuild integrieren
+- optional `lintian` integrieren
 
 ## Releasefreigabe
 
-Eine Version gilt erst als freigegeben, wenn mindestens Folgendes bestätigt ist:
-
-1. Versionsdateien und Dokumentation stimmen überein.
-2. Buildskript lief erfolgreich.
-3. `.deb`, SHA256, Buildlog und Buildbericht sind vorhanden.
-4. Paketmetadaten wurden geprüft.
-5. Neuinstallation oder Upgrade wurde auf Debian getestet.
-6. `stempeluhr.service` startet erfolgreich.
-7. `/health` meldet die erwartete Version und eine funktionsfähige PostgreSQL-Verbindung.
-8. Bestehende Daten sind nach dem Upgrade weiterhin vorhanden.
+Eine Version gilt erst als freigegeben, wenn Versionen und Dokumentation übereinstimmen, `.deb`/SHA256/Buildlog/Buildbericht vorhanden sind, das Upgrade getestet wurde, der Dienst läuft, `/health` die erwartete Version meldet und bestehende Daten erhalten sind.
 
 ## Startanweisung für neue Chats
 
