@@ -7,7 +7,7 @@
 - Name: **Stempeluhr Professional**
 - Repository: `Markus4771/Stempeluhr`
 - Standardbranch: `main`
-- Aktuelle Version: **5.5.08**
+- Aktuelle Version: **5.5.09**
 - Zielplattform: Debian 13 und Raspberry Pi OS
 - Backend: Python, FastAPI, Uvicorn, SQLAlchemy
 - Standarddatenbank: PostgreSQL
@@ -30,7 +30,7 @@ Die Dateien `VERSION` und `CHANGELOG.md` dürfen nicht existieren.
 
 ## Aktueller Funktionsstand
 
-Zum System gehören Mitarbeiterverwaltung, Arbeitszeiterfassung, RFID, Dashboard, Rollen und Rechte, Plausibilitätsprüfung, Korrekturworkflow, DSGVO, REST-API, HTTPS, CalDAV/iCal, Reporting, PDF/CSV-Export, E-Mail-Funktionen, Update/Backup, Raspberry-Kiosk, Agent, Heartbeat, Monitoring, Onboarding und Systemdiagnose.
+Zum System gehören Mitarbeiterverwaltung, Arbeitszeiterfassung, RFID, Dashboard, Rollen und Rechte, Plausibilitätsprüfung, Korrekturworkflow, DSGVO, REST-API, HTTPS, CalDAV/iCal, Reporting, PDF/CSV-Export, E-Mail-Funktionen, Update/Backup, Raspberry-Kiosk, Agent, Heartbeat, Monitoring, Onboarding, Offboarding und Systemdiagnose.
 
 ## Architektur und Betrieb
 
@@ -42,6 +42,7 @@ Zum System gehören Mitarbeiterverwaltung, Arbeitszeiterfassung, RFID, Dashboard
 - Standardport: 8000
 - Healthcheck: `/health`
 - Versionsauskunft: `/version`
+- Onboarding und Offboarding: unter **Systemeinstellungen → Personal & Arbeitszeit**
 - Systemdiagnose: über **Systemeinstellungen → Wartung → Systemdiagnose**
 - Diagnose-Seite: `/system/diagnostics`
 - Diagnose-API: `/diagnostics` und `/api/v1/diagnostics` (Administrator)
@@ -57,17 +58,16 @@ Zum System gehören Mitarbeiterverwaltung, Arbeitszeiterfassung, RFID, Dashboard
 - Migrationen wiederholbar und PostgreSQL-kompatibel ausführen
 - keine produktiven Daten in Pakete oder Repository aufnehmen
 
-## Version 5.5.08
+## Version 5.5.09
 
-Schwerpunkt: Einordnung der Systemdiagnose in die Systemeinstellungen.
+Schwerpunkt: logischere Einordnung von Onboarding und Offboarding.
 
 Umgesetzt:
 
-- Systemdiagnose aus der Hauptnavigation entfernt
-- Systemdiagnose im Bereich `Wartung` der Systemeinstellungen integriert
-- direkter Diagnosezugang im Systemstatus der Systemeinstellungen ergänzt
-- Rücklink von der Diagnose zu den Systemeinstellungen ergänzt
-- vorhandene Diagnosefunktionen, APIs und ZIP-Berichte unverändert erhalten
+- Offboarding aus dem Wartungsbereich entfernt
+- Offboarding direkt neben Onboarding unter `Personal & Arbeitszeit` eingeordnet
+- Beschreibung der Systemeinstellungsübersicht angepasst
+- bestehende Berechtigungs- und Modulsteuerung für Offboarding erhalten
 - keine Datenbankmodelle geändert; keine Schema-Migration erforderlich
 
 ## Debian-Buildsystem
@@ -81,10 +81,10 @@ bash scripts/build_release.sh
 Erwartete Artefakte:
 
 ```text
-releases/stempeluhr_5.5.08_all.deb
-releases/stempeluhr_5.5.08_all.deb.sha256
-releases/stempeluhr_5.5.08_build.log
-releases/stempeluhr_5.5.08_BUILD_REPORT.md
+releases/stempeluhr_5.5.09_all.deb
+releases/stempeluhr_5.5.09_all.deb.sha256
+releases/stempeluhr_5.5.09_build.log
+releases/stempeluhr_5.5.09_BUILD_REPORT.md
 ```
 
 Ein Buildbericht ersetzt keinen Installations- und Upgradetest.
@@ -93,10 +93,10 @@ Ein Buildbericht ersetzt keinen Installations- und Upgradetest.
 
 Priorität hoch:
 
-- 5.5.08 bauen und Paketmetadaten prüfen
-- Upgrade von produktiver 5.5.06 beziehungsweise 5.5.07 auf 5.5.08 testen
-- Menüführung und Rücknavigation der Systemdiagnose prüfen
-- `/health`, `/version`, Diagnose-API und ZIP-Bericht prüfen
+- 5.5.09 bauen und Paketmetadaten prüfen
+- Upgrade von produktiver 5.5.08 auf 5.5.09 testen
+- Position von Onboarding und Offboarding in den Systemeinstellungen prüfen
+- `/health` und `/version` prüfen
 - Erhalt von Mitarbeitern und Buchungen bestätigen
 - Raspberry-Screenshots unter Wayland/labwc stabilisieren
 - Heartbeat-Status dauerhaft korrekt darstellen
