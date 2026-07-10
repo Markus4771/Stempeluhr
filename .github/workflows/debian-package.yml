@@ -38,12 +38,16 @@ jobs:
         run: |
           VERSION="$(tr -d '[:space:]' < version.txt)"
           DEB="releases/stempeluhr_${VERSION}_all.deb"
+          REPORT="releases/stempeluhr_${VERSION}_BUILD_REPORT.md"
           test -f "$DEB"
           test -f "$DEB.sha256"
+          test -f "$REPORT"
           test "$(dpkg-deb -f "$DEB" Package)" = "stempeluhr"
           test "$(dpkg-deb -f "$DEB" Version)" = "$VERSION"
           dpkg-deb --contents "$DEB" | grep -Fq './opt/stempeluhr/app/main.py'
           dpkg-deb --contents "$DEB" | grep -Fq './etc/systemd/system/stempeluhr.service'
+          sha256sum -c "$DEB.sha256"
+          grep -Fq 'Status: **erfolgreich**' "$REPORT"
 
       - name: Build-Artefakt hochladen
         uses: actions/upload-artifact@v4
@@ -53,5 +57,6 @@ jobs:
             releases/*.deb
             releases/*.sha256
             releases/*_build.log
+            releases/*_BUILD_REPORT.md
           if-no-files-found: error
           retention-days: 14
