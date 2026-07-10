@@ -9,3 +9,5 @@ backups/
 *.db
 *.sqlite*
 *.log
+/build/
+/releases/
