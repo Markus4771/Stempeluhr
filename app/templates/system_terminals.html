@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header-actions">
+    <h1>Terminalverwaltung</h1>
+    <div class="header-buttons">
+        <a class="button secondary" href="/system/settings/terminals/help">Terminal-Hilfe</a>
+        <a class="button secondary" href="/system/settings/api">API-Einstellungen</a>
+    </div>
+</div>
+
+{% if saved %}<div class="alert success">Einstellungen gespeichert.</div>{% endif %}
+{% if new_key %}
+<section class="card warning">
+    <h2>Neuer Terminal-Key</h2>
+    <p><strong>Diesen Schlüssel jetzt kopieren.</strong> Er wird später nicht erneut angezeigt.</p>
+    <pre>{{ new_key }}</pre>
+</section>
+{% endif %}
+
+<section class="card">
+    <h2>Neues Raspberry-Terminal anlegen</h2>
+    <form method="post" action="/system/settings/terminals/create" class="settings-grid">
+        <label>Name<br><input name="name" placeholder="z. B. Werkstatt" required></label>
+        <label>Standort<br><input name="location" placeholder="z. B. Halle 1"></label>
+        <label>Beschreibung<br><input name="description" placeholder="RFID-Terminal Eingang Werkstatt"></label>
+        <label class="check-row"><input type="checkbox" name="offline_buffer_enabled" value="1" checked> Offline-Puffer am Client erlauben</label>
+        <div><button class="btn primary" type="submit">Terminal anlegen</button></div>
+    </form>
+</section>
+
+<section class="card wide-table">
+    <h2>Terminalstatus</h2>
+    <table>
+        <thead><tr><th>Status</th><th>Code</th><th>Name</th><th>Standort</th><th>Aktiv</th><th>Offline-Puffer</th><th>Zeitsync</th><th>Zeitabweichung</th><th>Letzter Zeitsync</th><th>Letzter Kontakt</th><th>IP</th><th>Version</th><th>Aktionen</th></tr></thead>
+        <tbody>
+        {% for t in terminals %}
+        <tr>
+            <td>{% if t.last_seen %}🟢{% else %}⚪{% endif %}</td>
+            <td>{{ t.terminal_code or '-' }}</td>
+            <td>{{ t.name }}</td>
+            <td>{{ t.location or '-' }}</td>
+            <td>{{ 'Ja' if t.active else 'Nein' }}</td>
+            <td>{{ 'Ja' if t.offline_buffer_enabled else 'Nein' }}</td>
+            <td>{{ 'Ja' if t.time_sync_enabled else 'Nein' }}</td>
+            <td>{% if t.time_offset_seconds is not none %}{{ '%.3f'|format(t.time_offset_seconds) }} s{% else %}-{% endif %}{% if t.time_status %}<br><small>{{ t.time_status }}</small>{% endif %}</td>
+            <td>{{ t.last_time_sync.strftime('%d.%m.%Y %H:%M') if t.last_time_sync else 'noch nie' }}</td>
+            <td>{{ t.last_seen.strftime('%d.%m.%Y %H:%M') if t.last_seen else 'noch nie' }}</td>
+            <td>{{ t.last_ip or '-' }}</td>
+            <td>{{ t.app_version or '-' }}</td>
+            <td class="actions">
+                <form method="post" action="/system/settings/terminals/{{ t.id }}/toggle" style="display:inline"><button class="btn" type="submit">{{ 'Deaktivieren' if t.active else 'Aktivieren' }}</button></form>
+                <form method="post" action="/system/settings/terminals/{{ t.id }}/new-key" style="display:inline" onsubmit="return confirm('Neuen Terminal-Key erzeugen? Der alte Key funktioniert danach nicht mehr.')"><button class="btn" type="submit">Neuer Key</button></form>
+                <form method="post" action="/system/settings/terminals/{{ t.id }}/time-sync-toggle" style="display:inline"><button class="btn" type="submit">Zeitsync {{ 'aus' if t.time_sync_enabled else 'ein' }}</button></form>
+                <form method="post" action="/system/settings/terminals/{{ t.id }}/delete" style="display:inline" onsubmit="return confirm('Terminal deaktivieren?')"><button class="btn danger" type="submit">Deaktivieren</button></form>
+            </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="13">Noch keine Terminals vorhanden.</td></tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</section>
+
+<section class="card">
+    <h2>Client-Anbindung</h2>
+    <p>Jeder Raspberry-Client verwendet seinen Terminal-Key für die Terminal-API.</p>
+    <pre>Authorization: Bearer tk_stempeluhr_...</pre>
+    <p>RFID-Buchung über:</p>
+    <pre>POST /api/v1/terminals/rfid/book</pre>
+    <p>Zeitsynchronisation über:</p>
+    <pre>GET /api/v1/terminals/time
+POST /api/v1/terminals/time/report</pre>
+</section>
+{% endblock %}

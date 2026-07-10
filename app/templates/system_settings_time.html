@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Uhrzeit &amp; Zeitserver</h1>
+
+{% if message %}
+<section class="card notice"><strong>{{ message }}</strong></section>
+{% endif %}
+
+<section class="card settings-card">
+    <h2>Aktuelle Zeit</h2>
+    <table>
+        <tr><th>Wert</th><th>Status</th></tr>
+        <tr><td>Serverzeit</td><td>{{ current_time }}</td></tr>
+        <tr><td>Zeitzone</td><td>{{ settings.get('time_timezone', 'Europe/Berlin') }}</td></tr>
+        <tr><td>Letzte NTP-Synchronisation</td><td>{{ settings.get('time_last_sync', 'Noch nicht durchgeführt') }}</td></tr>
+        <tr><td>Letzter NTP-Test</td><td>{{ settings.get('time_last_test', 'Noch nicht getestet') }}</td></tr>
+    </table>
+</section>
+
+<section class="card settings-card">
+    <h2>NTP-Zeitserver</h2>
+    <form method="post" action="/system/settings/time/save" class="form-grid employee-form">
+        <label>
+            <span>NTP-Synchronisation aktiv</span>
+            <input type="checkbox" name="time_ntp_enabled" value="1" {% if settings.get('time_ntp_enabled', '1') in ['1','true','on','ja'] %}checked{% endif %}>
+        </label>
+        <label>
+            <span>NTP-Server</span>
+            <input type="text" name="time_ntp_server" value="{{ settings.get('time_ntp_server', 'de.pool.ntp.org') }}" placeholder="de.pool.ntp.org">
+        </label>
+        <label>
+            <span>NTP-Port</span>
+            <input type="number" name="time_ntp_port" value="{{ settings.get('time_ntp_port', '123') }}" min="1" max="65535">
+        </label>
+        <label>
+            <span>Abfrageintervall</span>
+            <select name="time_sync_interval_minutes">
+                {% set interval = settings.get('time_sync_interval_minutes', '1440') %}
+                <option value="5" {% if interval == '5' %}selected{% endif %}>5 Minuten</option>
+                <option value="15" {% if interval == '15' %}selected{% endif %}>15 Minuten</option>
+                <option value="30" {% if interval == '30' %}selected{% endif %}>30 Minuten</option>
+                <option value="60" {% if interval == '60' %}selected{% endif %}>1 Stunde</option>
+                <option value="360" {% if interval == '360' %}selected{% endif %}>6 Stunden</option>
+                <option value="720" {% if interval == '720' %}selected{% endif %}>12 Stunden</option>
+                <option value="1440" {% if interval == '1440' %}selected{% endif %}>24 Stunden</option>
+            </select>
+        </label>
+        <label>
+            <span>Zeitzone</span>
+            <input type="text" name="time_timezone" value="{{ settings.get('time_timezone', 'Europe/Berlin') }}" placeholder="Europe/Berlin">
+        </label>
+        <label>
+            <span>Terminale vom Server synchronisieren</span>
+            <input type="checkbox" name="time_sync_terminals" value="1" {% if settings.get('time_sync_terminals', '0') in ['1','true','on','ja'] %}checked{% endif %}>
+        </label>
+        <label>
+            <span>Warnung bei Terminal-Zeitabweichung ab Sekunden</span>
+            <input type="number" name="terminal_time_max_offset_seconds" value="{{ settings.get('terminal_time_max_offset_seconds', '5') }}" min="1" max="300">
+        </label>
+        <div class="form-actions">
+            <button class="button" type="submit">Einstellungen speichern</button>
+            <a class="button secondary" href="/system/settings">Zurück</a>
+        </div>
+    </form>
+</section>
+
+<section class="card settings-card">
+    <h2>Aktionen</h2>
+    <div class="button-row">
+        <form method="post" action="/system/settings/time/test" style="display:inline;"><button class="button secondary" type="submit">NTP-Server testen</button></form>
+        <form method="post" action="/system/settings/time/sync" style="display:inline;"><button class="button" type="submit">Zeit jetzt synchronisieren</button></form>
+    </div>
+    <p class="muted">Hinweis: Das Setzen der Systemzeit benötigt auf Linux normalerweise Root-/sudo-Rechte. Wenn keine Rechte vorhanden sind, wird eine Meldung angezeigt.</p>
+</section>
+
+<section class="card settings-card">
+    <h2>Manuelle Zeitkorrektur</h2>
+    <form method="post" action="/system/settings/time/manual" class="form-grid employee-form">
+        <label>
+            <span>Manuelle Zeitkorrektur erlauben</span>
+            <input type="checkbox" name="time_allow_manual" value="1" {% if settings.get('time_allow_manual', '0') in ['1','true','on','ja'] %}checked{% endif %}>
+        </label>
+        <label>
+            <span>Datum</span>
+            <input type="date" name="manual_date" value="{{ today }}">
+        </label>
+        <label>
+            <span>Uhrzeit</span>
+            <input type="time" name="manual_time" value="{{ now_time }}" step="1">
+        </label>
+        <div class="form-actions">
+            <button class="button danger" type="submit">Zeit manuell setzen</button>
+        </div>
+    </form>
+</section>
+
+<section class="card settings-card">
+    <h2>Hilfe</h2>
+    <p>Trage hier den NTP-Server frei ein, zum Beispiel <code>de.pool.ntp.org</code>, <code>ptbtime1.ptb.de</code> oder einen internen Zeitserver wie <code>192.168.132.10</code>.</p>
+    <p>Für mehrere Raspberry-Terminals ist eine gemeinsame Zeitbasis wichtig, damit Buchungen korrekt sortiert und ausgewertet werden.</p>
+    <p>Client-Endpunkte: <code>GET /api/v1/terminals/time</code> liefert die Serverzeit, <code>POST /api/v1/terminals/time/report</code> meldet die gemessene Abweichung zurück.</p>
+</section>
+{% endblock %}

@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>System</h1>
+<section class="card">
+    <h2>Weiterleitung</h2>
+    <p>Der Menüpunkt System wurde entfernt. Die Unterpunkte sind direkt im Menü erreichbar.</p>
+    <a class="button" href="/system/settings">Systemeinstellungen</a>
+    <a class="button" href="/system/privacy">Datenschutz</a>
+    <a class="button" href="/system/audit">Audit-Protokoll</a>
+</section>
+<script>
+setTimeout(function() {
+    window.location.href = "/system/settings";
+}, 500);
+</script>
+{% endblock %}

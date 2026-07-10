@@ -1,0 +1,167 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Auswertung & Reporting</h1>
+
+<section class="card">
+<h2>Wochen-, Monats- und Jahresauswertung</h2>
+<form method="get" action="/reports" class="form-grid">
+<label>Mitarbeiter</label>
+<select name="employee_id">
+{% if can_select_all %}<option value="0">Alle sichtbaren Mitarbeiter</option>{% endif %}
+{% for emp in employees %}
+<option value="{{ emp.id }}" {% if filters.employee_id == emp.id %}selected{% endif %}>{{ emp.last_name }}, {{ emp.first_name }} ({{ emp.employee_number }})</option>
+{% endfor %}
+</select>
+<label>Zeitraum</label>
+<select name="period">
+<option value="week" {% if filters.period == 'week' %}selected{% endif %}>Aktuelle Woche</option>
+<option value="month" {% if filters.period == 'month' %}selected{% endif %}>Aktueller Monat</option>
+<option value="year" {% if filters.period == 'year' %}selected{% endif %}>Aktuelles Jahr</option>
+<option value="custom" {% if filters.period == 'custom' %}selected{% endif %}>Benutzerdefiniert</option>
+</select>
+<label>Von</label>
+<input type="date" name="date_from" value="{{ filters.date_from }}">
+<label>Bis</label>
+<input type="date" name="date_to" value="{{ filters.date_to }}">
+<button>Berechnen</button>
+</form>
+
+<p class="help-text">
+Automatische Pausenregelung:
+{% if break_settings.enabled %}
+aktiv. Automatischer Pausenabzug wird in der Spalte „Auto-Pause“ angezeigt.
+{% else %}
+inaktiv. Es werden nur manuell gebuchte Pausen abgezogen.
+{% endif %}
+</p>
+
+<div class="actions" style="display:flex; gap:10px; flex-wrap:wrap; margin:12px 0;">
+<a class="button" href="/reports/export.csv?employee_id={{ filters.employee_id }}&period={{ filters.period }}&date_from={{ filters.date_from }}&date_to={{ filters.date_to }}">CSV / Excel exportieren</a>
+<a class="button" target="_blank" href="/reports/print?employee_id={{ filters.employee_id }}&period={{ filters.period }}&date_from={{ filters.date_from }}&date_to={{ filters.date_to }}">PDF-Druckansicht öffnen</a>
+<a class="button" href="/worktime-account?employee_id={{ filters.employee_id }}&period={{ filters.period }}&date_from={{ filters.date_from }}&date_to={{ filters.date_to }}">Arbeitszeitkonto</a>
+</div>
+
+<div class="summary-box">
+<strong>Gesamt +/-:</strong> {{ '%.2f'|format(worktime_totals.overtime_hours) }} Stunden
+&nbsp; | &nbsp;<strong>Netto:</strong> {{ '%.2f'|format(worktime_totals.net_hours) }} Stunden
+&nbsp; | &nbsp;<strong>Soll:</strong> {{ '%.2f'|format(worktime_totals.target_hours) }} Stunden
+</div>
+
+<table>
+<tr>
+<th>Datum</th><th>Mitarbeiter</th><th>Soll</th><th>Brutto</th><th>Manuelle Pause</th><th>Auto-Pause</th><th>Pause gesamt</th><th>Netto</th><th>Tag +/-</th><th>Status</th>
+</tr>
+{% for row in worktime_rows %}
+<tr>
+<td>{{ row.date.strftime('%d.%m.%Y') }}</td>
+<td>{{ row.employee_name }}</td>
+<td>{{ '%.2f'|format(row.target_hours) }}</td>
+<td>{{ '%.2f'|format(row.gross_hours) }}</td>
+<td>{{ '%.2f'|format(row.manual_break_hours) }}</td>
+<td>{{ '%.2f'|format(row.auto_break_hours) }}</td>
+<td>{{ '%.2f'|format(row.break_hours) }}</td>
+<td><strong>{{ '%.2f'|format(row.net_hours) }}</strong></td>
+<td>{{ '%.2f'|format(row.overtime_hours) }}</td>
+<td>{% if row.incomplete %}<span class="warn-text">unvollständig</span>{% else %}OK{% endif %}</td>
+</tr>
+{% endfor %}
+<tr>
+<th colspan="2">Summe</th>
+<th>{{ '%.2f'|format(worktime_totals.target_hours) }}</th>
+<th>{{ '%.2f'|format(worktime_totals.gross_hours) }}</th>
+<th>{{ '%.2f'|format(worktime_totals.manual_break_hours) }}</th>
+<th>{{ '%.2f'|format(worktime_totals.auto_break_hours) }}</th>
+<th>{{ '%.2f'|format(worktime_totals.break_hours) }}</th>
+<th>{{ '%.2f'|format(worktime_totals.net_hours) }}</th>
+<th>{{ '%.2f'|format(worktime_totals.overtime_hours) }}</th>
+<th></th>
+</tr>
+</table>
+</section>
+
+
+{% if mail_status == 'sent' %}<div class="alert success">Report wurde per E-Mail versendet.</div>{% endif %}
+{% if mail_status == 'failed' %}<div class="alert error">Report konnte nicht per E-Mail versendet werden. Bitte SMTP-Einstellungen und Mitarbeiter-E-Mail prüfen.</div>{% endif %}
+
+<section class="card">
+<h2>Mitarbeiter-Monatsreport per E-Mail</h2>
+<p class="help-text">Mitarbeiter können ihren eigenen Report für den gewählten Monat per E-Mail an die hinterlegte Adresse senden lassen. Administrator/Personal kann zusätzlich den automatischen Monatsversand konfigurieren.</p>
+<form method="post" action="/reports/email" class="form-grid">
+<input type="hidden" name="employee_id" value="{{ filters.employee_id }}">
+<input type="hidden" name="period" value="{{ filters.period }}">
+<input type="hidden" name="date_from" value="{{ filters.date_from }}">
+<input type="hidden" name="date_to" value="{{ filters.date_to }}">
+<label>Gewählter Zeitraum</label>
+<div>{{ filters.date_from }} bis {{ filters.date_to }}</div>
+<button>Meinen/gewählten Report per E-Mail senden</button>
+</form>
+{% if can_select_all %}
+<hr>
+<h3>Automatischer Monatsversand</h3>
+<form method="post" action="/reports/monthly-settings" class="form-grid">
+<label>Aktiv</label>
+<select name="enabled"><option value="1" {% if monthly_reporting.enabled %}selected{% endif %}>Ja</option><option value="0" {% if not monthly_reporting.enabled %}selected{% endif %}>Nein</option></select>
+<label>Versandtag</label><input type="number" min="1" max="28" name="day" value="{{ monthly_reporting.day }}">
+<label>Uhrzeit</label><input type="time" name="run_time" value="{{ monthly_reporting.time }}">
+<label>Durchschnitt aus Monaten</label><input type="number" min="1" max="24" name="average_months" value="{{ monthly_reporting.average_months }}">
+<button>Einstellungen speichern</button>
+</form>
+<form method="post" action="/reports/monthly-send-all" class="form-grid" style="margin-top:12px;">
+<label>Jahr</label><input type="number" name="year" placeholder="leer = Vormonat">
+<label>Monat</label><input type="number" min="1" max="12" name="month" placeholder="leer = Vormonat">
+<button>Monatsreport jetzt an alle Mitarbeiter senden</button>
+</form>
+{% endif %}
+</section>
+
+<section class="card">
+<h2>Teamstatistik</h2>
+<table>
+<tr><th>Mitarbeiter</th><th>Soll</th><th>Ist / Netto</th><th>Pausen</th><th>Saldo +/-</th><th>Unvollständige Tage</th></tr>
+{% for row in team_stats %}
+<tr>
+<td>{{ row.employee_name }}</td>
+<td>{{ '%.2f'|format(row.target_hours) }}</td>
+<td>{{ '%.2f'|format(row.net_hours) }}</td>
+<td>{{ '%.2f'|format(row.break_hours) }}</td>
+<td><strong>{{ '%.2f'|format(row.overtime_hours) }}</strong></td>
+<td>{% if row.incomplete_days %}<span class="warn-text">{{ row.incomplete_days }}</span>{% else %}0{% endif %}</td>
+</tr>
+{% endfor %}
+</table>
+</section>
+
+<section class="card">
+<h2>Fehlzeitenanalyse</h2>
+<table>
+<tr><th>Mitarbeiter</th><th>Art</th><th>Status</th><th>Anzahl</th><th>Tage</th></tr>
+{% for row in absence_summary %}
+<tr>
+<td>{{ row.employee_name }}</td>
+<td>{{ row.type }}</td>
+<td>{{ row.status }}</td>
+<td>{{ row.count }}</td>
+<td>{{ '%.2f'|format(row.days) }}</td>
+</tr>
+{% else %}
+<tr><td colspan="5">Keine Abwesenheiten im gewählten Zeitraum.</td></tr>
+{% endfor %}
+</table>
+</section>
+
+<section class="card">
+<h2>Letzte Buchungen</h2>
+<table>
+<tr><th>Zeit</th><th>Mitarbeiter</th><th>Typ</th><th>Methode</th><th>Terminal</th></tr>
+{% for e in entries %}
+<tr>
+<td>{{ e.timestamp.strftime("%d.%m.%Y %H:%M:%S") }}</td>
+<td>{{ e.employee.first_name }} {{ e.employee.last_name }}</td>
+<td>{{ e.entry_type }}</td>
+<td>{{ e.method }}</td>
+<td>{{ e.terminal or "" }}</td>
+</tr>
+{% endfor %}
+</table>
+</section>
+{% endblock %}

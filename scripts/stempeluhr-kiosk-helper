@@ -1,0 +1,36 @@
+#!/bin/bash
+set -euo pipefail
+cmd="${1:-}"
+case "$cmd" in
+  exists)
+    path="${2:-}"
+    [ -n "$path" ] || exit 2
+    if [ -e "$path" ]; then echo 1; else echo 0; fi
+    ;;
+  read)
+    path="${2:-}"
+    [ -n "$path" ] || exit 2
+    if [ -r "$path" ]; then cat "$path"; else exit 3; fi
+    ;;
+  write)
+    path="${2:-}"
+    user="${3:-pi}"
+    content="${4:-}"
+    [ -n "$path" ] || exit 2
+    case "$path" in
+      /home/*/.config/labwc/autostart|/home/*/.config/lxsession/LXDE-pi/autostart) ;;
+      *) echo "Ungültiger Autostart-Pfad: $path" >&2; exit 4 ;;
+    esac
+    home="/home/$user"
+    if [ ! -d "$home" ]; then echo "Benutzer-Home fehlt: $home" >&2; exit 5; fi
+    mkdir -p "$(dirname "$path")"
+    printf '%s\n' "$content" > "$path"
+    chmod 0755 "$path"
+    chown -R "$user:$user" "$home/.config" || true
+    echo "OK"
+    ;;
+  *)
+    echo "Nutzung: stempeluhr-kiosk-helper exists|read|write ..." >&2
+    exit 1
+    ;;
+esac

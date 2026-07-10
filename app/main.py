@@ -1,0 +1,197 @@
+from fastapi import FastAPI, Request
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, PlainTextResponse
+from fastapi.staticfiles import StaticFiles
+from starlette.middleware.sessions import SessionMiddleware
+from starlette.exceptions import HTTPException as StarletteHTTPException
+import logging
+import threading
+import time
+from datetime import datetime, timedelta
+
+from app.init_db import init_db
+from app.routes import web, api, api_v1, roles_rights
+from app.version import APP_NAME, APP_VERSION, get_app_version, get_version_info
+from app.core.config import SECRET_KEY, STATIC_DIR
+from app.database import SessionLocal
+from app.services.network_security import access_allowed, https_should_redirect
+from app.services.settings_service import get_setting
+from app.services.startup_checks import run_startup_checks
+from app.modules.loader import load_module_routers
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger("stempeluhr")
+
+app = FastAPI(title=APP_NAME, version=APP_VERSION)
+
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=SECRET_KEY,
+    same_site="lax",
+    https_only=False,
+)
+
+app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
+
+app.include_router(web.router)
+app.include_router(api.router)
+app.include_router(api_v1.router)
+app.include_router(roles_rights.router)
+
+# 5.2.07: Modul-Lader im sicheren Kompatibilitätsmodus.
+# Bestehende Legacy-Routen bleiben aktiv; der Lader prüft Module, registriert
+# aber noch keine Router automatisch.
+app.state.module_loader_results = load_module_routers(app, register=False)
+
+
+
+def dsgvo_scheduler_loop():
+    """Einfacher interner DSGVO-Nachtlauf ohne externe Abhängigkeit.
+
+    Prüft minütlich, ob der konfigurierte Zeitpunkt erreicht ist. Pro Tag wird
+    höchstens ein automatischer Lauf ausgeführt.
+    """
+    last_run_date = None
+    while True:
+        try:
+            db = SessionLocal()
+            try:
+                web.ensure_dsgvo_settings(db)
+                enabled = str(get_setting(db, "dsgvo_enabled", "false")).lower() in ["true", "1", "on"]
+                run_time = str(get_setting(db, "dsgvo_run_time", "02:00") or "02:00")[:5]
+                now = datetime.now()
+                if enabled and now.strftime("%H:%M") == run_time and last_run_date != now.date():
+                    mode = get_setting(db, "dsgvo_mode", "archive_anonymize")
+                    web.run_dsgvo_cleanup(db, "SYSTEM", mode, False)
+                    last_run_date = now.date()
+            finally:
+                db.close()
+        except Exception:
+            logger.exception("DSGVO scheduler failed")
+        time.sleep(60)
+
+
+def caldav_scheduler_loop():
+    """Synchronisiert aktive CalDAV-Konten im Hintergrund.
+
+    5.2.12: Der Lauf ist bewusst leichtgewichtig und prüft nur alle 15 Minuten,
+    ob ein Konto laut eigenem Intervall fällig ist. Fehler werden im
+    CalDAV-Synchronisationsprotokoll gespeichert und stoppen den Dienst nicht.
+    """
+    while True:
+        try:
+            from app.routes.caldav_accounts import sync_due_caldav_accounts
+            db = SessionLocal()
+            try:
+                sync_due_caldav_accounts(db)
+            finally:
+                db.close()
+        except Exception:
+            logger.exception("CalDAV scheduler failed")
+        time.sleep(900)
+
+
+
+def plausibility_scheduler_loop():
+    """5.2.31: Robuster Tageslauf fuer Plausibilitaets-E-Mails.
+
+    Der Tick laeuft jede Minute, versendet aber nur einmal pro Tag ab der in
+    den Plausibilitaets-Einstellungen gespeicherten Uhrzeit. Der Tagesstatus
+    wird in PostgreSQL protokolliert, damit nach Neustarts keine Doppelmail
+    entsteht.
+    """
+    while True:
+        try:
+            from app.services.plausibility import plausibility_scheduler_tick
+            db = SessionLocal()
+            try:
+                result = plausibility_scheduler_tick(db)
+                if result.get("status") not in {"waiting", "already_done"}:
+                    logger.info("Plausibility scheduler: %s", result)
+            finally:
+                db.close()
+        except Exception:
+            logger.exception("Plausibility scheduler failed")
+        time.sleep(60)
+
+def monthly_reporting_scheduler_loop():
+    """5.2.16: automatischer Monatsreport per E-Mail.
+
+    Prüft minütlich, ob der konfigurierte Versandzeitpunkt erreicht ist.
+    Versendet standardmäßig den Report für den Vormonat.
+    """
+    while True:
+        try:
+            from app.routes.reports import monthly_reporting_scheduler_tick
+            db = SessionLocal()
+            try:
+                monthly_reporting_scheduler_tick(db)
+            finally:
+                db.close()
+        except Exception:
+            logger.exception("Monthly reporting scheduler failed")
+        time.sleep(60)
+
+@app.middleware("http")
+async def network_security_middleware(request: Request, call_next):
+    db = SessionLocal()
+    try:
+        if https_should_redirect(request, db):
+            https_url = request.url.replace(scheme="https")
+            return RedirectResponse(str(https_url), status_code=307)
+        allowed, reason = access_allowed(request, db)
+        if not allowed:
+            return PlainTextResponse(f"Zugriff nicht erlaubt: {reason}", status_code=403)
+    finally:
+        db.close()
+    return await call_next(request)
+
+@app.on_event("startup")
+def startup():
+    app.state.startup_checks = run_startup_checks()
+    if not app.state.startup_checks.get("ok"):
+        logger.warning("Startup checks reported warnings: %s", app.state.startup_checks)
+    init_db()
+    threading.Thread(target=dsgvo_scheduler_loop, daemon=True).start()
+    threading.Thread(target=caldav_scheduler_loop, daemon=True).start()
+    threading.Thread(target=monthly_reporting_scheduler_loop, daemon=True).start()
+    threading.Thread(target=plausibility_scheduler_loop, daemon=True).start()
+
+@app.exception_handler(StarletteHTTPException)
+async def http_exception_handler(request: Request, exc: StarletteHTTPException):
+    if exc.status_code == 404:
+        return HTMLResponse("<h1>Seite nicht gefunden</h1><p><a href='/'>Zurück zum Dashboard</a></p>", status_code=404)
+    return JSONResponse({"detail": exc.detail}, status_code=exc.status_code)
+
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(request: Request, exc: Exception):
+    logger.exception("Unhandled error on %s", request.url.path)
+    return HTMLResponse(
+        "<h1>Interner Fehler</h1>"
+        "<p>Der Fehler wurde im Server-Log protokolliert.</p>"
+        "<p><a href='/'>Zurück zum Dashboard</a></p>",
+        status_code=500,
+    )
+
+@app.get("/health")
+def health():
+    checks = getattr(app.state, "startup_checks", None) or run_startup_checks()
+    return {"status": "ok" if checks.get("ok") else "warning", "version": get_app_version(), "database": "postgresql", "startup": checks}
+
+@app.get("/version")
+def version():
+    return get_version_info()
+
+
+# Update-System
+try:
+    from app.routes import updates
+    app.include_router(updates.router)
+except Exception as exc:
+    print("Update-Router konnte nicht geladen werden:", exc)
+
+# CalDAV-Konten / externe Kalender
+try:
+    from app.routes import caldav_accounts
+    app.include_router(caldav_accounts.router)
+except Exception as exc:
+    print("CalDAV-Konten-Router konnte nicht geladen werden:", exc)

@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header-actions">
+  <div>
+    <h1>Abwesenheit korrigieren</h1>
+    <p class="page-subtitle">Änderungen werden dokumentiert. Bereits genehmigte genehmigungspflichtige Abwesenheiten werden erneut zur Freigabe vorgelegt.</p>
+  </div>
+  <div class="header-buttons"><a class="button secondary" href="/vacation/my">Zurück</a></div>
+</div>
+{% if error %}<div class="error-box">{{ error }}</div>{% endif %}
+<section class="card settings-card">
+<form method="post" action="/vacation/{{ vacation_request.id }}/edit" class="settings-form">
+  <div class="settings-grid">
+    <div class="form-field">
+      <label>Von</label>
+      <input type="date" name="start_date" value="{{ vacation_request.start_date.isoformat() }}" required>
+    </div>
+    <div class="form-field">
+      <label>Bis</label>
+      <input type="date" name="end_date" value="{{ vacation_request.end_date.isoformat() }}" required>
+    </div>
+    <div class="form-field">
+      <label>Abwesenheitsart</label>
+      <select name="request_type" required>
+        {% for t in absence_types %}
+          <option value="{{ t.code }}" {% if t.code == vacation_request.request_type %}selected{% endif %}>{{ t.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="form-field checkbox-field">
+      <label><input type="checkbox" name="half_day" value="on" {% if vacation_request.half_day %}checked{% endif %}> Halber Tag</label>
+    </div>
+  </div>
+  <div class="form-field">
+    <label>Beschreibung / Grund bei Sonstiges</label>
+    <textarea name="custom_reason" rows="3">{{ vacation_request.custom_reason or '' }}</textarea>
+  </div>
+  <div class="form-field">
+    <label>Kommentar</label>
+    <textarea name="comment" rows="3">{{ vacation_request.comment or '' }}</textarea>
+  </div>
+  <div class="form-field">
+    <label>Korrekturgrund / Dokumentation</label>
+    <textarea name="correction_reason" rows="3" placeholder="Warum wird die Abwesenheit korrigiert?"></textarea>
+    <p class="help-text">Dieser Text wird im Audit-Protokoll gespeichert.</p>
+  </div>
+  <div class="form-actions">
+    <button type="submit">Korrektur speichern</button>
+    <a class="button secondary" href="/vacation/my">Abbrechen</a>
+  </div>
+</form>
+</section>
+{% endblock %}

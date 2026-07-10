@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Buchung ändern</h1>
+
+<section class="card">
+    <h2>Aktuelle Buchung</h2>
+    <table>
+        <tr><th>ID</th><td>{{ entry.id }}</td></tr>
+        <tr><th>Mitarbeiter</th><td>{{ entry.employee.first_name }} {{ entry.employee.last_name }}</td></tr>
+        <tr><th>Zeit</th><td>{{ entry.timestamp.strftime("%d.%m.%Y %H:%M:%S") }}</td></tr>
+        <tr><th>Typ</th><td>{{ entry.entry_type }}</td></tr>
+        <tr><th>Quelle</th><td>{{ entry.method }}</td></tr>
+        <tr><th>History</th><td><a href="/corrections/{{ entry.id }}/history">Änderungshistorie anzeigen</a></td></tr>
+    </table>
+</section>
+
+<section class="card">
+    <h2>Korrektur</h2>
+    {% if error %}
+    <div class="error-box">{{ error }}</div>
+    {% endif %}
+
+    <form action="/corrections/{{ entry.id }}/edit" method="post" class="form-grid">
+        <label>Mitarbeiter</label>
+        <select name="employee_id" required>
+            {% for e in employees %}
+            <option value="{{ e.id }}" {% if entry.employee_id == e.id %}selected{% endif %}>
+                {{ e.employee_number }} - {{ e.first_name }} {{ e.last_name }}
+            </option>
+            {% endfor %}
+        </select>
+
+        <label>Datum</label>
+        <input type="date" name="timestamp_date" value="{{ entry.timestamp.strftime('%Y-%m-%d') }}" required>
+
+        <label>Uhrzeit</label>
+        <input type="time" name="timestamp_time" value="{{ entry.timestamp.strftime('%H:%M') }}" required>
+
+        <label>Buchungsart</label>
+        <select name="entry_type" required>
+            <option value="kommen" {% if entry.entry_type == "kommen" %}selected{% endif %}>Kommen</option>
+            <option value="gehen" {% if entry.entry_type == "gehen" %}selected{% endif %}>Gehen</option>
+            <option value="pause_start" {% if entry.entry_type == "pause_start" %}selected{% endif %}>Pause Start</option>
+            <option value="pause_ende" {% if entry.entry_type == "pause_ende" %}selected{% endif %}>Pause Ende</option>
+        </select>
+
+        <label>Quelle</label>
+        <input name="method" value="manual_correction">
+
+        <label>Terminal</label>
+        <input name="terminal" value="{{ entry.terminal or '' }}">
+
+        <label>Notiz</label>
+        <input name="note" value="{{ entry.note or '' }}">
+
+        <label>Grund der Korrektur</label>
+        <input name="reason" required placeholder="Warum wird diese Buchung geändert?">
+
+        <button>Korrektur speichern</button>
+        <a class="button secondary" href="/corrections">Abbrechen</a>
+    </form>
+</section>
+
+<section class="card">
+    <p>Korrekturen sind aktuell für die letzten <strong>{{ correction_days_back }}</strong> Tage erlaubt.</p>
+</section>
+{% endblock %}

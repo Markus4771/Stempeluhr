@@ -1,0 +1,2 @@
+# Stempeluhr Web-Update: erlaubt nur den Web-Update-Runner ohne Passwort.
+stempeluhr ALL=(root) NOPASSWD: /usr/local/sbin/stempeluhr-web-update-run *

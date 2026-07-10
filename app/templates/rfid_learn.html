@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>RFID am Raspberry anlernen</h1>
+
+<section class="card learn-card">
+    <h2>{{ employee.first_name }} {{ employee.last_name }}</h2>
+    <p><strong>Mitarbeiternummer:</strong> {{ employee.employee_number }}</p>
+    <p><strong>Aktueller RFID-Code:</strong> {{ employee.rfid_code or "Noch keiner hinterlegt" }}</p>
+
+    {% if error %}
+    <div class="error-box">{{ error }}</div>
+    {% endif %}
+
+    <div class="message-box">
+        <h3>Lernmodus ist aktiv</h3>
+        <p>Bitte jetzt zum Raspberry Pi gehen und dort den RFID-Chip am Leser scannen.</p>
+        <p>Die RFID-Nummer wird dann automatisch diesem Mitarbeiter zugewiesen.</p>
+        {% if started_at %}<p><small>Gestartet: {{ started_at }}</small></p>{% endif %}
+    </div>
+
+    <div class="button-row">
+        <a class="button secondary" href="/admin">Zur Mitarbeiterliste</a>
+        <a class="button danger" href="/admin/employees/{{ employee.id }}/rfid-learn/cancel">Lernmodus abbrechen</a>
+    </div>
+</section>
+
+{% endblock %}

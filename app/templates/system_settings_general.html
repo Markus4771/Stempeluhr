@@ -1,0 +1,181 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Allgemeine Einstellungen</h1>
+<section class="card settings-card">
+{% if saved %}<div class="success-box">{{ message or 'Einstellungen gespeichert.' }}</div>{% endif %}
+{% if error %}<div class="error-box">{{ error }}</div>{% endif %}
+<form action="/system/settings/general" method="post" enctype="multipart/form-data" class="settings-form">
+
+  <div class="settings-section">
+    <h2>Firma</h2>
+    <div class="settings-grid">
+      <div class="form-field">
+        <label>Firmenname</label>
+        <input name="company_name" value="{{ settings.get('company_name', '') }}" placeholder="Firmenname">
+      </div>
+      <div class="form-field">
+        <label>Logo hochladen</label>
+        <input name="logo_file" type="file" accept=".png,.jpg,.jpeg,.webp,.gif,.svg">
+      </div>
+    </div>
+  </div>
+
+  <div class="settings-section">
+    <h2>Mitarbeiter & Korrektur</h2>
+    <div class="settings-grid">
+      <div class="form-field">
+        <label>Mitarbeiternummer Stellenanzahl</label>
+        <input name="employee_number_length" type="number" min="1" max="20" step="1" value="{{ settings.get('employee_number_length', '4') }}" required>
+        <p class="help-text">Legt fest, wie viele Ziffern eine Mitarbeiternummer haben muss. Beispiel: 3 = 001, 002, 123.</p>
+      </div>
+      <div class="form-field">
+        <label>Rückwirkende Korrektur in Tagen</label>
+        <input name="correction_days_back" type="number" min="0" max="365" value="{{ settings.get('correction_days_back', '14') }}">
+        <p class="help-text">Begrenzt, wie weit Buchungskorrekturen rückwirkend angelegt werden dürfen.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="settings-section">
+    <h2>Buchung & Anzeige</h2>
+    <div class="settings-grid">
+      <div class="form-field">
+        <label>Zeit bis Automatikbuchung / Weiterschalten</label>
+        <div class="input-with-unit"><input name="booking_auto_delay_seconds" type="number" min="1" max="30" step="1" value="{{ settings.get('booking_auto_delay_seconds', '3') }}" required><span>Sekunden</span></div>
+        <p class="help-text">Wartezeit nach RFID-Scan oder Schnellbuchung, bevor automatisch gebucht wird.</p>
+      </div>
+      <div class="form-field">
+        <label>Dauer der kurzen Statusseite nach Buchung</label>
+        <div class="input-with-unit"><input name="booking_status_display_seconds" type="number" min="1" max="60" step="1" value="{{ settings.get('booking_status_display_seconds', '5') }}" required><span>Sekunden</span></div>
+        <p class="help-text">Wie lange die Erfolgsmeldung nach dem Stempeln angezeigt wird.</p>
+      </div>
+      <div class="form-field">
+        <label>Name des Abwesenheits</label>
+        <input name="absence_calendar_name" value="{{ settings.get('absence_calendar_name', 'Abwesenheit') }}" placeholder="Abwesenheit">
+        <p class="help-text">Dieser Name wird in der Stempeluhr und im CalDAV/ICS-Export verwendet.</p>
+      </div>
+      <div class="form-field checkbox-field">
+        <label><input type="checkbox" name="holiday_ics_import_enabled" value="1" {% if settings.get('holiday_ics_import_enabled', '1') in ['1', 'true', 'on'] %}checked{% endif %}> Feiertagsimport aus ICS-Dateien erlauben</label>
+        <p class="help-text">Wenn deaktiviert, kann keine ICS-Datei für Feiertage importiert werden.</p>
+      </div>
+      <div class="form-field checkbox-field">
+        <label><input type="checkbox" name="holiday_ics_expiry_warning_enabled" value="1" {% if settings.get('holiday_ics_expiry_warning_enabled', '1') in ['1', 'true', 'on'] %}checked{% endif %}> Warnmail senden, wenn der Feiertagskalender abläuft</label>
+        <p class="help-text">Empfänger: Administratoren, Personal und Teamleiter mit E-Mail-Adresse.</p>
+      </div>
+      <div class="form-field">
+        <label>Warnung vor Ablauf in Tagen</label>
+        <input name="holiday_ics_warn_days" type="number" min="1" max="365" value="{{ settings.get('holiday_ics_warn_days', '45') }}">
+      </div>
+    </div>
+  </div>
+
+  <div class="settings-section">
+    <h2>Pausen</h2>
+    <div class="form-field checkbox-field">
+      <label><input type="checkbox" name="auto_break_enabled" value="1" {% if settings.get('auto_break_enabled', '0') == '1' %}checked{% endif %}> Automatische Pausenregelung in der Arbeitszeitberechnung anwenden</label>
+      <p class="help-text">Die genauen Pausenregeln stellst du unter Systemeinstellungen → Pausenregelung ein.</p>
+    </div>
+  </div>
+
+
+  <div class="settings-section">
+    <h2>Systemeinstellungs-Untermenüs</h2>
+    <p class="help-text">Hier kannst du festlegen, welche Untermenüs unter Systemeinstellungen sichtbar sein sollen. Allgemeine Einstellungen bleiben immer aktiv, damit diese Steuerung jederzeit erreichbar bleibt.</p>
+    <div class="settings-grid module-toggle-grid">
+      {% set modules = [
+        ('module_settings_departments_enabled', 'Abteilungen'),
+        ('module_settings_plausibility_enabled', 'Plausibilitätsprüfung'),
+        ('module_settings_breaks_enabled', 'Pausenregelung'),
+        ('module_settings_backup_enabled', 'Backup'),
+        ('module_settings_email_enabled', 'E-Mail'),
+        ('module_settings_caldav_enabled', 'CalDAV'),
+        ('module_settings_api_enabled', 'API'),
+        ('module_settings_terminals_enabled', 'Terminalverwaltung'),
+        ('module_settings_time_enabled', 'Uhrzeit & Zeitserver'),
+        ('module_settings_https_enabled', 'HTTPS & Zertifikate'),
+        ('module_settings_security_enabled', 'Sicherheit & Netzwerkzugriff'),
+        ('module_settings_offboarding_enabled', 'Offboarding'),
+        ('module_settings_dsgvo_enabled', 'DSGVO-Manager')
+      ] %}
+      {% for key, label in modules %}
+      <div class="form-field checkbox-field compact-checkbox">
+        <label><input type="checkbox" name="{{ key }}" value="1" {% if settings.get(key, '1') in ['1', 'true', 'on'] %}checked{% endif %}> {{ label }}</label>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="settings-section">
+    <h2>Fester Admin / Notfallzugang</h2>
+    <div class="settings-grid">
+      <div class="form-field">
+        <label>Neues Passwort für festen Admin <code>admin</code></label>
+        <input name="fixed_admin_password" type="password" placeholder="Leer lassen = nicht ändern">
+        <p class="help-text">Nur ändern, wenn du das Notfallpasswort bewusst neu setzen möchtest.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="form-actions">
+    <button>Speichern</button>
+    <a class="button secondary" href="/system/settings">Zurück</a>
+  </div>
+</form>
+</section>
+
+<section class="card settings-card">
+<h2>Aktuelles Logo</h2>
+{% if settings.get("logo_path") %}
+<p>{{ settings.get("logo_path") }}</p>
+<img src="{{ settings.get('logo_path') }}" class="company-logo-preview">
+{% else %}
+<p>Es ist noch kein Logo hinterlegt.</p>
+{% endif %}
+</section>
+
+<section class="card settings-card danger-card">
+<h2>Arbeitszeiten auf Neuanfang zurücksetzen</h2>
+<p class="help-text">Diese Funktion löscht nur Arbeitszeitdaten: Buchungen, Korrekturen, Plausibilitätsfälle und gespeicherte Arbeitszeitkonten. Mitarbeiter, Rollen, Einstellungen, Urlaub/Abwesenheiten und Admin-Zugang bleiben erhalten.</p>
+<p class="warning-box"><strong>Achtung:</strong> Diese Aktion ist nicht rückgängig zu machen. Bitte vorher ein Backup erstellen.</p>
+<form action="/system/settings/general/reset-worktimes" method="post" class="settings-form" onsubmit="return confirm('Arbeitszeiten wirklich auf Neuanfang zurücksetzen? Diese Aktion kann nicht rückgängig gemacht werden.');">
+  <div class="settings-grid">
+    <div class="form-field">
+      <label>Admin-Passwort</label>
+      <input name="confirm_password" type="password" required>
+    </div>
+    <div class="form-field">
+      <label>Bestätigung</label>
+      <input name="confirm_text" placeholder="ARBEITSZEITEN ZURÜCKSETZEN" required>
+      <p class="help-text">Bitte exakt <code>ARBEITSZEITEN ZURÜCKSETZEN</code> eingeben.</p>
+    </div>
+  </div>
+  <div class="form-actions">
+    <button class="danger" type="submit">Arbeitszeiten zurücksetzen</button>
+  </div>
+</form>
+</section>
+
+
+<section class="card settings-card danger-card">
+<h2>Testphase: Bewegungsdaten löschen</h2>
+<p class="help-text">Diese Funktion löscht Buchungen, Korrekturen, Abwesenheiten, Plausibilitätsfälle, Feiertagsimporte und Arbeitszeitkonten. Mitarbeiter, Rollen, Einstellungen und Admin-Zugang bleiben erhalten.</p>
+<p class="warning-box"><strong>Achtung:</strong> Diese Aktion ist nicht rückgängig zu machen. Vor produktiver Nutzung nur mit aktuellem Backup verwenden.</p>
+<form action="/system/settings/general/delete-test-data" method="post" class="settings-form" onsubmit="return confirm('Testdaten wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.');">
+  <div class="settings-grid">
+    <div class="form-field">
+      <label>Admin-Passwort</label>
+      <input name="confirm_password" type="password" required>
+    </div>
+    <div class="form-field">
+      <label>Bestätigung</label>
+      <input name="confirm_text" placeholder="TESTDATEN LÖSCHEN" required>
+      <p class="help-text">Bitte exakt <code>TESTDATEN LÖSCHEN</code> eingeben.</p>
+    </div>
+  </div>
+  <div class="form-actions">
+    <button class="danger" type="submit">Testdaten löschen</button>
+  </div>
+</form>
+</section>
+
+{% endblock %}

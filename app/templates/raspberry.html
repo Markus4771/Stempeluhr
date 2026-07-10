@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="de">
+<head>
+    <meta charset="utf-8">
+    <title>Raspberry Stempeluhr</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="/static/style.css" rel="stylesheet">
+</head>
+<body class="kiosk">
+    <h1>Stempeluhr</h1>
+
+    <div id="autoInfo" class="auto-info">
+        {% if pending_rfid_employee %}
+        RFID-Lernmodus aktiv: Chip für {{ pending_rfid_employee.first_name }} {{ pending_rfid_employee.last_name }} scannen.
+        {% else %}
+        RFID scannen. Danach {{ auto_delay_seconds|default(3) }} Sekunden Zeit für Auswahl.
+        {% endif %}
+    </div>
+
+    <form action="/book" method="post" class="kiosk-form" id="rfidForm"><input type="hidden" name="return_to" value="/raspberry">
+        <input name="rfid_code" id="rfidInput" class="rfid-input" autofocus autocomplete="off" placeholder="RFID scannen">
+
+        <div class="kiosk-buttons">
+            <button name="entry_type" value="kommen">Kommen</button>
+            <button name="entry_type" value="gehen" class="danger">Gehen</button>
+            <button name="entry_type" value="pause_start">Pause Start</button>
+            <button name="entry_type" value="pause_ende" class="warn">Pause Ende</button>
+        </div>
+    </form>
+
+    <form action="/raspberry/rfid-scan" method="post" id="autoForm" style="display:none;">
+        <input name="rfid_code" id="autoRfidInput">
+    </form>
+
+    <div class="kiosk-links">
+        <a href="/admin">Admin</a>
+        <a href="/reports">Auswertung</a>
+        <a href="/corrections">Korrektur</a>
+    </div>
+
+<script>
+const AUTO_DELAY_SECONDS = {{ auto_delay_seconds|default(3) }};
+const AUTO_DELAY_MS = AUTO_DELAY_SECONDS * 1000;
+const input = document.getElementById("rfidInput");
+const form = document.getElementById("rfidForm");
+const autoForm = document.getElementById("autoForm");
+const autoRfidInput = document.getElementById("autoRfidInput");
+const autoInfo = document.getElementById("autoInfo");
+
+let autoTimer = null;
+let countdownTimer = null;
+let inputPauseTimer = null;
+let remaining = {{ auto_delay_seconds|default(3) }};
+let learnActive = {{ 'true' if pending_rfid_employee else 'false' }};
+let learnEmployeeName = "{% if pending_rfid_employee %}{{ pending_rfid_employee.first_name }} {{ pending_rfid_employee.last_name }}{% endif %}";
+
+function clearAutoTimers() {
+    if (autoTimer) clearTimeout(autoTimer);
+    if (countdownTimer) clearInterval(countdownTimer);
+    autoTimer = null;
+    countdownTimer = null;
+}
+
+function setLearnStatus(active, name) {
+    learnActive = active;
+    learnEmployeeName = name || "";
+    if (learnActive) {
+        autoInfo.textContent = "RFID-Lernmodus aktiv: Chip für " + learnEmployeeName + " scannen.";
+    } else if (!input.value.trim()) {
+        autoInfo.textContent = "RFID scannen. Danach {{ auto_delay_seconds|default(3) }} Sekunden Zeit für Auswahl.";
+    }
+}
+
+async function pollLearnStatus() {
+    try {
+        const res = await fetch("/api/rfid-learn/status", {cache: "no-store"});
+        if (!res.ok) return;
+        const data = await res.json();
+        setLearnStatus(Boolean(data.active), data.employee ? data.employee.name : "");
+    } catch (e) {
+        // Kiosk soll bei Netzwerkfehlern nicht blockieren.
+    }
+}
+
+function submitRfidScanNow(message) {
+    const code = input.value.trim();
+    if (!code) return;
+    clearAutoTimers();
+    autoRfidInput.value = code;
+    autoInfo.textContent = message || "RFID wird verarbeitet ...";
+    autoForm.submit();
+}
+
+function startAutoBooking() {
+    const code = input.value.trim();
+    if (!code) return;
+
+    clearAutoTimers();
+
+    if (learnActive) {
+        submitRfidScanNow("RFID wird für " + learnEmployeeName + " gespeichert ...");
+        return;
+    }
+
+    remaining = AUTO_DELAY_SECONDS;
+    autoInfo.textContent = "RFID erkannt. Automatische Buchung in " + remaining + " Sekunden ...";
+
+    countdownTimer = setInterval(() => {
+        remaining -= 1;
+        if (remaining > 0) {
+            autoInfo.textContent = "RFID erkannt. Automatische Buchung in " + remaining + " Sekunden ...";
+        }
+    }, 1000);
+
+    autoTimer = setTimeout(() => {
+        submitRfidScanNow("Automatische Buchung wird ausgeführt ...");
+    }, AUTO_DELAY_MS);
+}
+
+// Der RFID-Reader sendet am Ende Enter.
+// Enter wird nicht als normales Formular-Submit benutzt, sondern startet die Verarbeitung.
+input.addEventListener("keydown", function(e) {
+    if (e.key === "Enter") {
+        e.preventDefault();
+        input.value = input.value.trim();
+        startAutoBooking();
+        return false;
+    }
+});
+
+// Falls ein Reader kein Enter sendet, startet die Automatik auch nach kurzer Eingabepause.
+input.addEventListener("input", function() {
+    if (inputPauseTimer) clearTimeout(inputPauseTimer);
+    inputPauseTimer = setTimeout(() => {
+        if (input.value.trim().length > 0) {
+            startAutoBooking();
+        }
+    }, 500);
+});
+
+// Wenn am PC der Lernmodus gestartet wird, erkennt das offene Raspberry-Kioskfenster das ohne Neuladen.
+pollLearnStatus();
+// RFID-Lernstatus ruhiger abfragen: nur wenn die Seite sichtbar ist, alle 5 Sekunden.
+let learnPollTimer = null;
+function startLearnPolling() {
+    if (learnPollTimer) return;
+    learnPollTimer = setInterval(() => {
+        if (!document.hidden) {
+            pollLearnStatus();
+        }
+    }, 5000);
+}
+function stopLearnPolling() {
+    if (learnPollTimer) {
+        clearInterval(learnPollTimer);
+        learnPollTimer = null;
+    }
+}
+document.addEventListener("visibilitychange", () => {
+    if (document.hidden) {
+        stopLearnPolling();
+    } else {
+        pollLearnStatus();
+        startLearnPolling();
+    }
+});
+startLearnPolling();
+window.addEventListener("load", () => input.focus());
+document.addEventListener("click", () => input.focus());
+</script>
+</body>
+</html>

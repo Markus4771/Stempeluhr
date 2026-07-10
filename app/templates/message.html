@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="card center">
+    <h1>{{ title }}</h1>
+    <p class="big">{{ message }}</p>
+    <a class="button" href="{{ return_to or '/' }}">Zurück</a>
+    <a class="button" href="/raspberry">Raspberry</a>
+</section>
+
+<script>
+const STATUS_DISPLAY_SECONDS = {{ status_display_seconds|default(5) }};
+setTimeout(function() {
+    window.location.href = "{{ return_to or '/' }}";
+}, STATUS_DISPLAY_SECONDS * 1000);
+</script>
+{% endblock %}

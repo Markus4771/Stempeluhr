@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Datenschutzbestimmungen bestätigen</h1>
+<section class="card login-card">
+    {% if error %}<div class="error-box">{{ error }}</div>{% endif %}
+    <p>Bitte bestätige die aktuellen Datenschutzbestimmungen, bevor du die Stempeluhr nutzt.</p>
+    <form method="post" action="/onboarding/privacy">
+        <h3>Datenschutzbestimmungen Version {{ privacy_version }}</h3>
+        <div class="info-box privacy-text">{{ privacy_text }}</div>
+        <label class="checkbox-field"><input type="checkbox" name="privacy_accept" required> Ich habe die Datenschutzbestimmungen gelesen und stimme zu.</label>
+        <button class="full-button">Bestätigen</button>
+    </form>
+</section>
+{% endblock %}

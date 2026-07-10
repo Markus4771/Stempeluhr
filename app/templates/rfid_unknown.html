@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="de">
+<head>
+    <meta charset="utf-8">
+    <title>RFID unbekannt</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="/static/style.css" rel="stylesheet">
+</head>
+<body class="kiosk error-screen">
+    <div class="error-panel">
+        <h1>RFID unbekannt</h1>
+        <p>{{ message }}</p>
+        <p class="rfid-code">Gelesener Code: {{ rfid_code }}</p>
+        <p class="small-text">Rückkehr zur Stempeluhr...</p>
+    </div>
+
+<script>
+setTimeout(function() {
+    window.location.href = "{{ return_to or '/raspberry' }}";
+}, ({{ status_display_seconds|default(5) }}) * 1000);
+</script>
+</body>
+</html>

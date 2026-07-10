@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header-actions">
+    <div>
+        <h1>Abwesenheit Genehmigungen</h1>
+        <p class="page-subtitle">Offene Vorgänge enthalten neue Anträge und Löschanträge.</p>
+        {% if is_teamleader_view %}<p class="page-subtitle">Du siehst hier nur Anträge von Mitarbeitern aus deinen zugeordneten Abteilungen.</p>{% endif %}
+    </div>
+    <a class="button secondary" href="/vacation">Zurück</a>
+</div>
+<section class="card filter-card">
+<form action="/vacation/approvals" method="get" class="filter-row">
+<label>Status
+<select name="status">
+<option value="offen" {% if status == 'offen' %}selected{% endif %}>Offene Vorgänge</option>
+<option value="beantragt" {% if status == 'beantragt' %}selected{% endif %}>Neue Anträge</option>
+<option value="loeschung_beantragt" {% if status == 'loeschung_beantragt' %}selected{% endif %}>Löschung beantragt</option>
+<option value="genehmigt" {% if status == 'genehmigt' %}selected{% endif %}>Genehmigt</option>
+<option value="abgelehnt" {% if status == 'abgelehnt' %}selected{% endif %}>Abgelehnt</option>
+<option value="alle" {% if status == 'alle' or status == '' %}selected{% endif %}>Alle</option>
+</select>
+</label>
+<button>Filtern</button>
+</form>
+</section>
+<section class="card">
+<div class="table-wrap">
+<table class="compact-table absence-table approvals-table">
+<tr><th>Mitarbeiter</th><th>Zeitraum</th><th>Art</th><th>Beschreibung</th><th>Tage</th><th>Status</th><th>Aktion</th></tr>
+{% for r in requests %}
+<tr>
+<td>{{ r.employee.first_name }} {{ r.employee.last_name }}</td>
+<td>{{ r.start_date.strftime('%d.%m.%Y') }} - {{ r.end_date.strftime('%d.%m.%Y') }}</td>
+<td>{% if r.request_type == 'sonstiges' %}Sonstiges{% elif r.request_type == 'abwesenheit' %}Urlaub{% else %}{{ r.request_type }}{% endif %}</td>
+<td class="text-cell">{% if r.request_type == 'sonstiges' %}{{ r.custom_reason or '' }}{% else %}{{ r.comment or '' }}{% endif %}</td>
+<td>{{ r.days }}</td>
+<td><span class="status-badge status-{{ r.status }}">{{ r.status }}</span></td>
+<td>
+<form action="/vacation/approvals/{{ r.id }}/decide" method="post" class="approval-action-form">
+<input name="decision_comment" placeholder="Kommentar">
+<div class="approval-buttons">
+<button class="small-button" name="decision" value="genehmigt">{% if r.status == 'loeschung_beantragt' %}Löschung genehmigen{% else %}Genehmigen{% endif %}</button>
+<button class="small-button danger" name="decision" value="abgelehnt">{% if r.status == 'loeschung_beantragt' %}Löschung ablehnen{% else %}Ablehnen{% endif %}</button>
+</div>
+</form>
+</td>
+</tr>
+{% endfor %}
+{% if not requests %}
+<tr><td colspan="7" class="empty-state">Keine Anträge gefunden.</td></tr>
+{% endif %}
+</table>
+</div>
+</section>
+{% endblock %}

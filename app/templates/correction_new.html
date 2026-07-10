@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Zeiteintrag hinzufügen</h1>
+
+<section class="card">
+    <p>Hier kann ein fehlender Eintrag nachträglich angelegt werden. Jeder neue Eintrag wird automatisch als korrigiert markiert und in der History protokolliert.</p>
+    {% if error %}
+    <div class="error-box">{{ error }}</div>
+    {% endif %}
+
+    <form action="/corrections/new" method="post" class="form-grid">
+        <label>Mitarbeiter</label>
+        <select name="employee_id" required>
+            {% for e in employees %}
+            <option value="{{ e.id }}">{{ e.employee_number }} - {{ e.first_name }} {{ e.last_name }}</option>
+            {% endfor %}
+        </select>
+
+        <label>Datum</label>
+        <input type="date" name="timestamp_date" value="{{ today }}" required>
+
+        <label>Uhrzeit</label>
+        <input type="time" name="timestamp_time" value="{{ now_time }}" required>
+
+        <label>Buchungsart</label>
+        <select name="entry_type" required>
+            <option value="kommen">Kommen</option>
+            <option value="gehen">Gehen</option>
+            <option value="pause_start">Pause Start</option>
+            <option value="pause_ende">Pause Ende</option>
+        </select>
+
+        <label>Quelle</label>
+        <input name="method" value="manual_add">
+
+        <label>Terminal</label>
+        <input name="terminal" value="Korrektur-Menü">
+
+        <label>Notiz</label>
+        <input name="note" placeholder="Optional">
+
+        <label>Grund</label>
+        <input name="reason" required placeholder="Warum wird dieser Eintrag hinzugefügt?">
+
+        <button>Eintrag hinzufügen</button>
+        <a class="button secondary" href="/corrections">Abbrechen</a>
+    </form>
+</section>
+{% endblock %}

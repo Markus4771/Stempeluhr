@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header-actions">
+    <h1>Hilfe: Raspberry-Clients / Multi-Terminal</h1>
+    <div class="header-buttons"><a class="button secondary" href="/system/settings/terminals">Zur Terminalverwaltung</a></div>
+</div>
+
+<section class="card">
+    <h2>Was ist ein Terminal?</h2>
+    <p>Ein Terminal ist ein zusätzlicher Raspberry Pi mit RFID-Leser und Bildschirm. Der Raspberry speichert keine Stammdaten dauerhaft, sondern sendet Buchungen über die API an den zentralen Stempeluhr-Server.</p>
+</section>
+
+<section class="card">
+    <h2>Ablauf</h2>
+    <ol>
+        <li>Terminal in der Stempeluhr anlegen.</li>
+        <li>Terminal-Key einmalig kopieren.</li>
+        <li>Raspberry-Client mit Serveradresse und Terminal-Key konfigurieren.</li>
+        <li>Client sendet Heartbeat und RFID-Buchungen an den Server.</li>
+    </ol>
+</section>
+
+<section class="card">
+    <h2>Wichtige API-Endpunkte</h2>
+    <pre>GET  /api/v1/terminals/me
+POST /api/v1/terminals/heartbeat
+POST /api/v1/terminals/rfid/book
+POST /api/v1/terminals/offline/sync
+GET  /api/v1/terminals/status</pre>
+</section>
+
+<section class="card">
+    <h2>Beispiel RFID-Buchung</h2>
+    <pre>curl -X POST \
+-H "Authorization: Bearer tk_stempeluhr_..." \
+-H "Content-Type: application/json" \
+-d '{"rfid_code":"123456789"}' \
+http://10.0.0.48:8000/api/v1/terminals/rfid/book</pre>
+</section>
+
+<section class="card">
+    <h2>Offline-Puffer</h2>
+    <p>Wenn der Server nicht erreichbar ist, kann der Raspberry-Client Buchungen lokal puffern. Sobald der Server wieder erreichbar ist, sendet der Client diese über <code>/api/v1/terminals/offline/sync</code> nach.</p>
+</section>
+
+<section class="card warning">
+    <h2>Sicherheit</h2>
+    <ul>
+        <li>Terminal-Key geheim halten.</li>
+        <li>Pro Raspberry einen eigenen Terminal-Key verwenden.</li>
+        <li>Terminals nur im internen Netz oder per VPN betreiben.</li>
+        <li>Verlorene Terminals sofort deaktivieren oder Key erneuern.</li>
+    </ul>
+</section>
+{% endblock %}

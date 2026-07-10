@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header-actions">
+    <div>
+        <h1>Meine Abwesenheiten</h1>
+        <p class="page-subtitle">Hier kannst du deine eigenen Abwesenheiten ansehen und korrigieren. Jede Korrektur wird dokumentiert.</p>
+    </div>
+    <div class="header-buttons">
+        <a class="button" href="/vacation/request">Neuer Antrag</a>
+        <a class="button secondary" href="/vacation">Zurück</a>
+    </div>
+</div>
+<section class="card">
+<div class="table-wrap">
+<table class="compact-table absence-table">
+<tr><th>Zeitraum</th><th>Art</th><th>Beschreibung</th><th>Tage</th><th>Status</th><th>Kommentar</th><th>Entscheidung</th><th>Aktion</th></tr>
+{% for r in requests %}
+<tr>
+<td>{{ r.start_date.strftime('%d.%m.%Y') }} - {{ r.end_date.strftime('%d.%m.%Y') }}</td>
+<td>{{ absence_labels.get(r.request_type, r.request_type) }}</td>
+<td class="text-cell">{% if r.request_type == 'sonstiges' %}{{ r.custom_reason or '' }}{% else %}—{% endif %}</td>
+<td>{{ r.days }}</td>
+<td><span class="status-badge status-{{ r.status }}">{{ r.status }}</span></td>
+<td class="text-cell">{{ r.comment or '' }}</td>
+<td class="text-cell">{{ r.decision_comment or '' }}</td>
+<td>{% if r.status != 'storniert' %}<a class="button small" href="/vacation/{{ r.id }}/edit">Korrigieren</a> <a class="button small danger" href="/vacation/{{ r.id }}/delete">Löschen</a>{% else %}—{% endif %}</td>
+</tr>
+{% endfor %}
+{% if not requests %}
+<tr><td colspan="8" class="empty-state">Keine Anträge vorhanden.</td></tr>
+{% endif %}
+</table>
+</div>
+</section>
+{% endblock %}

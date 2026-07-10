@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Login</h1>
+
+<section class="card login-card">
+    {% if error %}
+    <div class="error-box">{{ error }}</div>
+    {% endif %}
+
+    <form action="/login" method="post">
+        <label>Mitarbeiternummer</label>
+        <input name="employee_number" required autofocus>
+
+        <label>Passwort</label>
+        <input name="password" type="password" required>
+
+        <button class="full-button">Anmelden</button>
+    </form>
+
+    <p class="hint login-links">
+        <a href="/password-forgot">Passwort vergessen?</a>
+    </p>
+
+    <p class="hint">
+        Standard-Admin: <strong>admin</strong> / <strong>admin123</strong>
+    </p>
+</section>
+{% endblock %}

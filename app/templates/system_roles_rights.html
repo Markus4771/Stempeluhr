@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Systemeinstellungen · Rollen &amp; Rechte</h1>
+
+<div class="grid">
+    <div class="card">
+        <h2>Neue Rolle</h2>
+        <form method="post" action="/system/settings/roles/create">
+            <label>Name</label>
+            <input type="text" name="name" placeholder="z. B. Schichtleiter Produktion" required>
+            <label>Rechte kopieren von</label>
+            <select name="copy_from_role_id">
+                <option value="0">Keine Rechte übernehmen</option>
+                {% for role in roles %}
+                <option value="{{ role.id }}">{{ role.name }}</option>
+                {% endfor %}
+            </select>
+            <button type="submit" class="btn btn-primary">Rolle anlegen</button>
+        </form>
+    </div>
+
+    <div class="card">
+        <h2>Standardrechte</h2>
+        <p class="muted">Setzt Administrator, Personal, Teamleiter und Mitarbeiter auf die vorgesehenen Standardrechte zurück.</p>
+        <form method="post" action="/system/settings/roles/defaults">
+            <button type="submit" class="btn">Standardrechte wiederherstellen</button>
+        </form>
+    </div>
+</div>
+
+<div class="card">
+    <h2>Rollenübersicht</h2>
+    <table>
+        <tr><th>Rolle</th><th>Typ</th><th>Benutzer</th><th>Aktion</th></tr>
+        {% for role in roles %}
+        <tr {% if selected_role and selected_role.id == role.id %}class="selected"{% endif %}>
+            <td><strong>{{ role.name }}</strong><br><span class="muted">{{ role.description or "" }}</span></td>
+            <td>{{ "Systemrolle" if role.name in system_roles else "Eigene Rolle" }}</td>
+            <td>{{ counts.get(role.id, 0) }}</td>
+            <td><a class="btn" href="/system/settings/roles?role_id={{ role.id }}">Rechte bearbeiten</a></td>
+        </tr>
+        {% endfor %}
+    </table>
+</div>
+
+{% if selected_role %}
+<div class="card">
+    <h2>Rechte bearbeiten: {{ selected_role.name }}</h2>
+
+    {% if selected_role.name not in system_roles %}
+    <form method="post" action="/system/settings/roles/{{ selected_role.id }}/rename" class="inline-form">
+        <label>Rolle umbenennen</label>
+        <input type="text" name="name" value="{{ selected_role.name }}" required>
+        <button type="submit" class="btn">Umbenennen</button>
+    </form>
+    {% endif %}
+
+    <form method="post" action="/system/settings/roles/{{ selected_role.id }}/permissions">
+        <div class="settings-section">
+            <h3>Berechtigungen</h3>
+            <div class="permission-grid">
+                {% for key, label in permissions.items() %}
+                <label class="check-row">
+                    <input type="checkbox" name="permissions" value="{{ key }}" {% if key in selected_permissions %}checked{% endif %}>
+                    <span><strong>{{ label }}</strong><br><small>{{ key }}</small></span>
+                </label>
+                {% endfor %}
+            </div>
+        </div>
+        <button type="submit" class="btn btn-primary">Rechte speichern</button>
+    </form>
+
+    {% if selected_role.name not in system_roles and counts.get(selected_role.id, 0) == 0 %}
+    <hr>
+    <form method="post" action="/system/settings/roles/{{ selected_role.id }}/delete" onsubmit="return confirm('Diese Rolle wirklich löschen?');">
+        <button type="submit" class="btn btn-danger">Rolle löschen</button>
+    </form>
+    {% endif %}
+</div>
+{% endif %}
+{% endblock %}

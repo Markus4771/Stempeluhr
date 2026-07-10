@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Entwicklerkonsole</h1>
+<p class="muted">Diagnose- und Entwicklungswerkzeuge für Administratoren. Diese Seite verändert keine Daten.</p>
+
+<section class="card">
+    <h2>Systeminformationen</h2>
+    <div class="system-health-grid">
+        <div class="system-health-box"><strong>Version</strong><span class="badge-ok">{{ version.version }}</span></div>
+        <div class="system-health-box"><strong>Build</strong><span>{{ version.build or '-' }}</span></div>
+        <div class="system-health-box"><strong>Paket</strong><span>{{ package.package }} {{ package.version }}</span></div>
+        <div class="system-health-box"><strong>Dienst</strong><span class="badge-ok">{{ system.service }}</span></div>
+        <div class="system-health-box"><strong>Python</strong><span>{{ system.python }}</span></div>
+        <div class="system-health-box"><strong>Host</strong><span>{{ system.hostname }}</span></div>
+        <div class="system-health-box"><strong>System</strong><span>{{ system.platform }}</span></div>
+        <div class="system-health-box"><strong>Speicher</strong><span>{{ system.disk.free_gb }} GB frei / {{ system.disk.total_gb }} GB</span></div>
+    </div>
+</section>
+
+<section class="card">
+    <h2>Modulmanager</h2>
+    <p class="muted">Aktueller Stand der Modularisierung.</p>
+    <table>
+        <tr><th>Modul</th><th>Status</th><th>Alt</th><th>Neu</th><th>Hinweis</th></tr>
+        {% for module in modules %}
+        <tr>
+            <td><strong>{{ module.title }}</strong><br><span class="muted">{{ module.key }}</span></td>
+            <td><span class="badge-ok">{{ module.status }}</span></td>
+            <td>{{ module.legacy_path }}</td>
+            <td>{{ module.module_path }}</td>
+            <td>{{ module.note }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+</section>
+<section class="card">
+    <h2>Modul-Lader</h2>
+    <p class="muted">Import-Status der neuen Modulstruktur. In 5.2.07 bleibt die automatische Routerregistrierung im Kompatibilitätsmodus deaktiviert.</p>
+    <table>
+        <tr><th>Modul</th><th>Import</th><th>Router</th><th>Nachricht</th></tr>
+        {% for item in module_loader %}
+        <tr>
+            <td><strong>{{ item.title }}</strong><br><span class="muted">{{ item.key }}</span></td>
+            <td>{% if item.loaded %}<span class="badge-ok">OK</span>{% else %}<span class="badge-bad">Fehler</span>{% endif %}</td>
+            <td>{{ item.router_path or '-' }}</td>
+            <td>{{ item.message }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+</section>
+
+<section class="card"><h2>Plugin-System</h2><p class="muted">Das Plugin-System wurde in Version 5.5.0 deaktiviert. Integrationen erfolgen über die REST-API.</p></section>
+
+
+<section class="card">
+    <h2>Automatische Navigation</h2>
+    <p class="muted">Vorschau der künftig aus Modulen erzeugten Navigation.</p>
+    <table>
+        <tr><th>Reihenfolge</th><th>Eintrag</th><th>URL</th><th>Modul</th><th>Rollen</th></tr>
+        {% for nav in navigation %}
+        <tr>
+            <td>{{ nav.order }}</td>
+            <td>{{ nav.label }}</td>
+            <td><code>{{ nav.href }}</code></td>
+            <td>{{ nav.module }}</td>
+            <td>{{ nav.required_roles | join(', ') }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+</section>
+
+<section class="card">
+    <h2>Zentrale Berechtigungen</h2>
+    <p class="muted">Gemeinsame Rechtebasis für die schrittweise Vereinheitlichung der Rollenprüfung.</p>
+    <table>
+        <tr><th>Recht</th><th>Beschreibung</th><th>Rollen</th></tr>
+        {% for perm in permissions %}
+        <tr>
+            <td><code>{{ perm.key }}</code></td>
+            <td>{{ perm.title }}</td>
+            <td>{{ perm.allowed_roles | join(', ') }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+</section>
+
+<section class="card">
+    <h2>Selbsttest</h2>
+    <div class="settings-menu">
+        <a class="button" href="/system/developer/selftest" target="_blank">Selbsttest als JSON öffnen</a>
+        <a class="button" href="/system/developer/routes" target="_blank">Routen als JSON öffnen</a>
+    </div>
+    <table>
+        <tr><th>Prüfung</th><th>Status</th><th>Details</th></tr>
+        {% for check in checks %}
+        <tr>
+            <td>{{ check.name }}</td>
+            <td>{% if check.ok %}<span class="badge-ok">OK</span>{% else %}<span class="badge-bad">Fehler</span>{% endif %}</td>
+            <td>{{ check.detail }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+</section>
+
+<section class="card">
+    <h2>Registrierte Routen</h2>
+    <p class="muted">FastAPI-Routenübersicht. Hilfreich nach Modulverschiebungen.</p>
+    <table>
+        <tr><th>Methode</th><th>Pfad</th><th>Name</th></tr>
+        {% for route in routes %}
+        <tr><td>{{ route.methods }}</td><td><code>{{ route.path }}</code></td><td>{{ route.name }}</td></tr>
+        {% endfor %}
+    </table>
+</section>
+
+<section class="card">
+    <h2>Logdateien</h2>
+    {% if logs %}
+    <table>
+        <tr><th>Datei</th><th>Größe</th><th>Geändert</th><th>Aktion</th></tr>
+        {% for log in logs %}
+        <tr>
+            <td>{{ log.name }}<br><span class="muted">{{ log.path }}</span></td>
+            <td>{{ log.size_kb }} KB</td>
+            <td>{{ log.modified }}</td>
+            <td><a class="button" href="/system/developer/log/{{ log.name }}" target="_blank">Anzeigen</a></td>
+        </tr>
+        {% endfor %}
+    </table>
+    {% else %}
+    <p class="muted">Keine Logdateien gefunden.</p>
+    {% endif %}
+</section>
+{% endblock %}

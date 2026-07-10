@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Raspberry-Monitor</h1>
+<section class="card">
+  <div class="form-actions">
+    <a class="button" href="/system/raspberry-monitor">Aktualisieren</a>
+    <a class="button secondary" href="/api/v1/raspberry/clients" target="_blank">API öffnen</a>
+    <a class="button secondary" href="/system/monitoring">System-Monitoring</a>
+  </div>
+</section>
+<section class="card">
+  <h2>Kiosk-Terminals</h2>
+  <div class="table-wrap">
+  <table class="table employee-table">
+    <thead><tr>
+      <th>Raspberry</th><th>Online</th><th>Chromium</th><th>URL</th><th>CPU/RAM</th><th>Letzter Kontakt</th><th>Screenshot</th><th>Aktionen</th>
+    </tr></thead>
+    <tbody>
+    {% for c in clients %}
+      {% set online = is_online(c) %}
+      <tr>
+        <td><strong>{{ c.hostname }}</strong><br><small>{{ c.ip_address or 'keine IP' }} · Agent {{ c.agent_version or '-' }}</small></td>
+        <td><span class="badge {{ 'ok' if online else 'inactive' }}">{{ 'Online' if online else 'Offline' }}</span></td>
+        <td><span class="badge {{ 'ok' if c.chromium_running else 'danger' }}">{{ 'läuft' if c.chromium_running else 'aus' }}</span></td>
+        <td><small>{{ c.kiosk_url or '-' }}</small></td>
+        <td>{{ c.cpu_percent or 0 }}% / {{ c.ram_percent or 0 }}%<br><small>{{ c.temperature or '' }}</small></td>
+        <td>{{ c.last_seen.strftime('%d.%m.%Y %H:%M:%S') if c.last_seen else '-' }}<br><small>{{ c.uptime or '' }}</small></td>
+        <td>{% if c.last_screenshot_path %}<a class="button small secondary" href="/system/raspberry-monitor/screenshot/{{ c.id }}" target="_blank">anzeigen</a>{% else %}<span class="badge inactive">keiner</span>{% endif %}</td>
+        <td>
+          <form method="post" action="/system/raspberry-monitor/{{ c.id }}/command" class="inline-actions">
+            <button class="button small" name="command" value="screenshot">Screenshot</button>
+            <button class="button small secondary" name="command" value="restart_chromium">Chromium neu</button>
+            <button class="button small secondary" name="command" value="clear_cache">Cache löschen</button>
+          </form>
+          {% if c.command_result %}<small>{{ c.command_result }}</small>{% endif %}
+        </td>
+      </tr>
+    {% else %}
+      <tr><td colspan="8">Noch kein Raspberry-Heartbeat empfangen.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</section>
+<section class="card">
+  <h2>Hinweis</h2>
+  <p>Der Raspberry-Agent sendet regelmäßig einen Heartbeat. Screenshot- und Neustartbefehle werden vom Agent beim nächsten Heartbeat abgeholt.</p>
+</section>
+{% endblock %}

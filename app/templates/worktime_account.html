@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Arbeitszeitkonto</h1>
+
+<section class="card">
+<h2>Überstunden / Minuszeit</h2>
+<p class="help-text">Das Arbeitszeitkonto berechnet Ist-Zeit minus Soll-Zeit. CalDAV-Feiertage, halbe Feiertage, gelöschte Buchungen und die automatische Pausenregelung werden berücksichtigt.</p>
+<form method="get" action="/worktime-account" class="form-grid">
+<label>Mitarbeiter</label>
+<select name="employee_id">
+{% if can_select_all %}<option value="0">Alle sichtbaren Mitarbeiter</option>{% endif %}
+{% for emp in employees %}
+<option value="{{ emp.id }}" {% if filters.employee_id == emp.id %}selected{% endif %}>{{ emp.last_name }}, {{ emp.first_name }} ({{ emp.employee_number }})</option>
+{% endfor %}
+</select>
+<label>Zeitraum</label>
+<select name="period">
+<option value="week" {% if filters.period == 'week' %}selected{% endif %}>Aktuelle Woche</option>
+<option value="month" {% if filters.period == 'month' %}selected{% endif %}>Aktueller Monat</option>
+<option value="year" {% if filters.period == 'year' %}selected{% endif %}>Aktuelles Jahr</option>
+<option value="custom" {% if filters.period == 'custom' %}selected{% endif %}>Benutzerdefiniert</option>
+</select>
+<label>Von</label><input type="date" name="date_from" value="{{ filters.date_from }}">
+<label>Bis</label><input type="date" name="date_to" value="{{ filters.date_to }}">
+<button>Berechnen</button>
+</form>
+
+<div class="summary-grid">
+<div class="summary-card"><span>Soll</span><strong>{{ '%.2f'|format(account_totals.target_hours) }} h</strong></div>
+<div class="summary-card"><span>Ist</span><strong>{{ '%.2f'|format(account_totals.actual_hours) }} h</strong></div>
+<div class="summary-card"><span>Pause</span><strong>{{ '%.2f'|format(account_totals.break_hours) }} h</strong></div>
+<div class="summary-card"><span>Plus</span><strong class="ok-text">+{{ '%.2f'|format(account_totals.plus_hours) }} h</strong></div>
+<div class="summary-card"><span>Minus</span><strong class="warn-text">-{{ '%.2f'|format(account_totals.minus_hours) }} h</strong></div>
+<div class="summary-card"><span>Saldo</span><strong>{{ '%+.2f'|format(account_totals.saldo_hours) }} h</strong></div>
+</div>
+</section>
+
+<section class="card">
+<h2>Saldo je Mitarbeiter</h2>
+<div class="table-wrap">
+<table>
+<tr><th>Mitarbeiter</th><th>Nr.</th><th>Soll</th><th>Ist</th><th>Pause</th><th>Plus</th><th>Minus</th><th>Saldo</th><th>Hinweise</th></tr>
+{% for row in account_rows %}
+<tr>
+<td>{{ row.employee_name }}</td>
+<td>{{ row.employee_number }}</td>
+<td>{{ '%.2f'|format(row.target_hours) }}</td>
+<td>{{ '%.2f'|format(row.actual_hours) }}</td>
+<td>{{ '%.2f'|format(row.break_hours) }}</td>
+<td class="ok-text">+{{ '%.2f'|format(row.plus_hours) }}</td>
+<td class="warn-text">-{{ '%.2f'|format(row.minus_hours) }}</td>
+<td><strong>{{ '%+.2f'|format(row.saldo_hours) }}</strong></td>
+<td>{% if row.incomplete_days %}<span class="warn-text">{{ row.incomplete_days }} unvollständige Tage</span>{% else %}OK{% endif %}</td>
+</tr>
+{% endfor %}
+<tr><th colspan="2">Summe</th><th>{{ '%.2f'|format(account_totals.target_hours) }}</th><th>{{ '%.2f'|format(account_totals.actual_hours) }}</th><th>{{ '%.2f'|format(account_totals.break_hours) }}</th><th>+{{ '%.2f'|format(account_totals.plus_hours) }}</th><th>-{{ '%.2f'|format(account_totals.minus_hours) }}</th><th>{{ '%+.2f'|format(account_totals.saldo_hours) }}</th><th></th></tr>
+</table>
+</div>
+</section>
+
+<section class="card">
+<h2>Monatsübersicht</h2>
+<div class="table-wrap">
+<table>
+<tr><th>Mitarbeiter</th><th>Monat</th><th>Soll</th><th>Ist</th><th>Pause</th><th>Saldo</th></tr>
+{% for row in monthly_rows %}
+<tr>
+<td>{{ row.employee_name }}</td>
+<td>{{ '%02d'|format(row.month) }}.{{ row.year }}</td>
+<td>{{ '%.2f'|format(row.target_hours) }}</td>
+<td>{{ '%.2f'|format(row.actual_hours) }}</td>
+<td>{{ '%.2f'|format(row.break_hours) }}</td>
+<td><strong>{{ '%+.2f'|format(row.saldo_hours) }}</strong></td>
+</tr>
+{% endfor %}
+</table>
+</div>
+</section>
+{% endblock %}

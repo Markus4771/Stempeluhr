@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="page-header">
+    <div>
+        <h1>Abwesenheitsantrag</h1>
+        <p class="page-subtitle">Neuen Antrag stellen. Abwesenheitsarten werden in den Systemeinstellungen gepflegt.</p>
+    </div>
+    <a class="button secondary" href="/vacation">Zurück</a>
+</section>
+{% if error %}<div class="alert error">{{ error }}</div>{% endif %}
+<section class="card">
+<form action="/vacation/request" method="post" class="form-grid employee-form absence-form">
+    <div class="form-field">
+        <label for="start_date">Von</label>
+        <input id="start_date" type="date" name="start_date" required>
+    </div>
+    <div class="form-field">
+        <label for="end_date">Bis</label>
+        <input id="end_date" type="date" name="end_date" required>
+    </div>
+    <div class="form-field">
+        <label for="request_type">Art</label>
+        <select name="request_type" id="request_type" required>
+            {% for item in absence_types %}
+                <option value="{{ item.code }}" data-requires-text="{{ '1' if item.requires_text else '0' }}">{{ item.name }}</option>
+            {% endfor %}
+        </select>
+        {% if not absence_types %}
+            <small class="muted">Keine aktive Abwesenheitsart vorhanden. Bitte Systemeinstellungen prüfen.</small>
+        {% endif %}
+    </div>
+    <div class="form-field checkbox-field compact-checkbox">
+        <label><input type="checkbox" name="half_day"> Halbtag</label>
+    </div>
+
+    <div class="form-field wide-field is-hidden" id="custom_reason_field">
+        <label for="custom_reason">Beschreibung <span class="required">*</span></label>
+        <textarea name="custom_reason" id="custom_reason" rows="4" maxlength="500" placeholder="Bitte den Grund kurz beschreiben"></textarea>
+        <div class="field-footer">
+            <small class="muted">Mindestens 5 Zeichen, maximal 500 Zeichen.</small>
+            <small class="char-counter"><span id="custom_reason_count">0</span>/500</small>
+        </div>
+    </div>
+
+    <div class="form-field wide-field">
+        <label for="comment">Kommentar</label>
+        <textarea id="comment" name="comment" rows="4" placeholder="Optionaler Kommentar für Personal/Teamleitung"></textarea>
+    </div>
+    <div class="form-actions">
+        <button>Antrag senden</button>
+        <a class="button secondary" href="/vacation">Abbrechen</a>
+    </div>
+</form>
+</section>
+<script>
+(function () {
+    const typeSelect = document.getElementById("request_type");
+    const reasonField = document.getElementById("custom_reason_field");
+    const reasonInput = document.getElementById("custom_reason");
+    const counter = document.getElementById("custom_reason_count");
+
+    function updateCounter() {
+        counter.textContent = reasonInput.value.length;
+    }
+
+    function updateCustomReason() {
+        const selected = typeSelect.options[typeSelect.selectedIndex];
+        const enabled = selected && selected.dataset.requiresText === "1";
+        reasonField.classList.toggle("is-hidden", !enabled);
+        reasonInput.required = enabled;
+        if (!enabled) {
+            reasonInput.value = "";
+        }
+        updateCounter();
+    }
+
+    typeSelect.addEventListener("change", updateCustomReason);
+    reasonInput.addEventListener("input", updateCounter);
+    updateCustomReason();
+})();
+</script>
+{% endblock %}

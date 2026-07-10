@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header-actions">
+    <h1>Kalender-Hilfe</h1>
+    <div class="header-buttons">
+        <a class="button secondary" href="/system/settings/caldav">Zurück zur Kalenderverwaltung</a>
+        <a class="button secondary" href="/system/settings">Systemeinstellungen</a>
+    </div>
+</div>
+
+<section class="card">
+    <h2>Grundprinzip: IN und OUT</h2>
+    <p><strong>Feiertagskalender = Import IN:</strong> Feiertage werden in die Stempeluhr eingelesen und beeinflussen die Arbeitszeitberechnung.</p>
+    <p><strong>Abwesenheitskalender = Export OUT:</strong> Genehmigte Abwesenheiten werden aus der Stempeluhr für Thunderbird, Outlook, Nextcloud, Smartphones usw. bereitgestellt.</p>
+</section>
+
+<section class="card" id="holidays">
+    <h2>Hilfe: Feiertagskalender</h2>
+    <p>Der Feiertagskalender ist eine Eingangsquelle. Die Daten kommen entweder von einem CalDAV-Server oder aus einer iCal-Datei.</p>
+    <ul>
+        <li><strong>CalDAV:</strong> Server-URL, Benutzer, App-Passwort und Kalender-URL eintragen. Danach „Jetzt importieren“ oder „Alle aktiven Feiertagsimporte synchronisieren“ verwenden.</li>
+        <li><strong>iCal-Datei:</strong> .ics-Datei auswählen und importieren.</li>
+        <li><strong>Alle Feiertage löschen:</strong> löscht die lokal gespeicherten Feiertage, damit der Import sauber neu aufgebaut werden kann.</li>
+        <li><strong>Arbeitszeitberechnung:</strong> aktive Feiertage reduzieren die Sollzeit, wenn diese Option aktiviert ist.</li>
+    </ul>
+</section>
+
+<section class="card" id="absence">
+    <h2>Hilfe: Abwesenheitskalender</h2>
+    <p>Der Abwesenheitskalender ist ein Ausgangskalender. Er wird von externen Programmen abonniert und nicht zurück in die Stempeluhr importiert.</p>
+    <ul>
+        <li>Der Kalendername ist frei wählbar. Standard ist <strong>Abwesenheit</strong>.</li>
+        <li>Benutzer und Passwort/Token können aktiviert werden, damit der Kalender nicht nur über den Link geschützt ist.</li>
+        <li>Der iCal-Link kann in Thunderbird, Outlook, Nextcloud oder auf Smartphones als Internetkalender abonniert werden.</li>
+        <li>Der Kalender ist bewusst <strong>nur lesend</strong>. Änderungen in Thunderbird oder Outlook werden nicht in die Stempeluhr zurückgeschrieben.</li>
+    </ul>
+</section>
+
+<section class="card">
+    <h2>Thunderbird</h2>
+    <ol>
+        <li>Kalender öffnen.</li>
+        <li>Neuer Kalender → Im Netzwerk.</li>
+        <li>iCal-Link aus der Stempeluhr einfügen.</li>
+        <li>Falls aktiviert: Benutzer und Passwort eintragen.</li>
+        <li>Kalendername prüfen und speichern.</li>
+    </ol>
+</section>
+
+<section class="card">
+    <h2>Outlook / Nextcloud</h2>
+    <p>In Outlook den iCal-Link als Internetkalender abonnieren. In Nextcloud kann der Link als Kalender-Abonnement eingebunden werden.</p>
+    <p>Wenn ein Kalenderprogramm keine Passwortabfrage unterstützt, kann weiterhin der Token im iCal-Link verwendet werden.</p>
+</section>
+
+<section class="card warning">
+    <h2>Sicherheit</h2>
+    <ul>
+        <li>Für externe CalDAV-Server immer App-Passwörter verwenden.</li>
+        <li>Den Abwesenheitskalender möglichst mit Benutzer/Passwort schützen.</li>
+        <li>Bei Zugriff außerhalb des lokalen Netzes HTTPS verwenden.</li>
+        <li>Bei Verdacht auf Missbrauch den Feed-Token erneuern und das Passwort ändern.</li>
+    </ul>
+</section>
+{% endblock %}

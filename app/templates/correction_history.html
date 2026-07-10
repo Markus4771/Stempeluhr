@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>History zur Buchung #{{ entry.id }}</h1>
+
+<section class="card">
+    <h2>Aktueller Eintrag</h2>
+    <table>
+        <tr><th>Mitarbeiter</th><td>{{ entry.employee.first_name }} {{ entry.employee.last_name }}</td></tr>
+        <tr><th>Zeit</th><td>{{ entry.timestamp.strftime("%d.%m.%Y %H:%M:%S") }}</td></tr>
+        <tr><th>Typ</th><td>{{ entry.entry_type }}</td></tr>
+        <tr><th>Quelle</th><td>{{ entry.method }}</td></tr>
+        <tr><th>Terminal</th><td>{{ entry.terminal or "" }}</td></tr>
+        <tr><th>Notiz</th><td>{{ entry.note or "" }}</td></tr>
+        <tr><th>Korrigiert</th><td>{{ "Ja" if entry.corrected else "Nein" }}</td></tr>
+    </table>
+</section>
+
+<section class="card">
+    <h2>Änderungshistorie</h2>
+    {% if history %}
+    <table>
+        <tr>
+            <th>Zeit</th>
+            <th>Geändert von</th>
+            <th>Grund</th>
+            <th>Alter Wert</th>
+            <th>Neuer Wert</th>
+            <th>Status</th>
+        </tr>
+        {% for h in history %}
+        <tr>
+            <td>{{ h.changed_at.strftime("%d.%m.%Y %H:%M:%S") }}</td>
+            <td>{{ h.changed_by }}</td>
+            <td>{{ h.reason }}</td>
+            <td><pre>{{ h.old_value or "" }}</pre></td>
+            <td><pre>{{ h.new_value or "" }}</pre></td>
+            <td>{{ h.status }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+    {% else %}
+    <p>Für diesen Eintrag gibt es noch keine Korrektur-History.</p>
+    {% endif %}
+
+    <p>
+        <a class="button" href="/corrections/{{ entry.id }}/edit">Eintrag ändern</a>
+        <a class="button secondary" href="/corrections">Zurück</a>
+    </p>
+</section>
+{% endblock %}

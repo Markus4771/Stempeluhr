@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header-actions">
+    <h1>E-Mail-Einstellungen</h1>
+    <div class="header-buttons">
+        <a class="button secondary" href="/system/settings/email/help">E-Mail-Hilfe</a>
+        <a class="button secondary" href="/system/settings">Zurück</a>
+    </div>
+</div>
+
+<section class="card">
+    {% if saved or message %}
+    <div class="success-box">{{ message or "Einstellungen gespeichert." }}</div>
+    {% endif %}
+    {% if error %}
+    <div class="error-box">{{ error }}</div>
+    {% endif %}
+
+    <form action="/system/settings/email" method="post" class="form-grid employee-form">
+        <div class="form-section-title">SMTP</div>
+
+        <div class="form-field checkbox-field">
+            <label><input name="email_enabled" type="checkbox" {% if settings.get('email_enabled') == 'true' %}checked{% endif %}> E-Mail-Versand aktivieren</label>
+        </div>
+
+        <div class="form-field">
+            <label>SMTP-Server</label>
+            <input name="email_smtp_host" value="{{ settings.get('email_smtp_host', '') }}" placeholder="smtp.office365.com / smtp.gmail.com / mail.firma.de">
+        </div>
+
+        <div class="form-field">
+            <label>SMTP-Port</label>
+            <input name="email_smtp_port" type="number" min="1" max="65535" value="{{ settings.get('email_smtp_port', '587') }}">
+        </div>
+
+        <div class="form-field">
+            <label>SMTP-Benutzer</label>
+            <input name="email_smtp_user" value="{{ settings.get('email_smtp_user', '') }}">
+        </div>
+
+        <div class="form-field">
+            <label>SMTP-Passwort</label>
+            <input name="email_smtp_password" type="password" placeholder="Leer lassen = nicht ändern">
+        </div>
+
+        <div class="form-section-title">Absender</div>
+
+        <div class="form-field">
+            <label>Absenderadresse</label>
+            <input name="email_from_address" type="email" value="{{ settings.get('email_from_address', '') }}">
+        </div>
+
+        <div class="form-field">
+            <label>Absendername</label>
+            <input name="email_from_name" value="{{ settings.get('email_from_name', 'Stempeluhr') }}">
+        </div>
+
+        <div class="form-section-title">Verschlüsselung</div>
+
+        <div class="form-field checkbox-field">
+            <label><input name="email_use_tls" type="checkbox" {% if settings.get('email_use_tls', 'true') == 'true' %}checked{% endif %}> STARTTLS verwenden</label>
+        </div>
+
+        <div class="form-field checkbox-field">
+            <label><input name="email_use_ssl" type="checkbox" {% if settings.get('email_use_ssl') == 'true' %}checked{% endif %}> SSL direkt verwenden</label>
+        </div>
+
+        <div class="form-section-title">Test</div>
+
+        <div class="form-field">
+            <label>Test-Empfänger</label>
+            <input name="email_test_recipient" type="email" value="{{ settings.get('email_test_recipient', '') }}">
+        </div>
+
+        <div class="form-actions">
+            <button>Einstellungen speichern</button>
+            <a class="button secondary" href="/system/settings">Zurück</a>
+        </div>
+    </form>
+</section>
+
+<section class="card">
+    <h2>Testversand</h2>
+    <form action="/system/settings/email/test" method="post">
+        <button>Test-E-Mail senden</button>
+    </form>
+</section>
+{% endblock %}

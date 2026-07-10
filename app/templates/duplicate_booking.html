@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="de">
+<head>
+    <meta charset="utf-8">
+    <title>Doppelbuchung</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="/static/style.css" rel="stylesheet">
+</head>
+<body class="kiosk warn-screen">
+    <div class="warn-panel">
+        <h1>Doppelbuchung</h1>
+        <p>{{ employee.first_name }} {{ employee.last_name }}</p>
+        <p>Die letzte Buchung war erst vor kurzer Zeit.</p>
+        <p class="warn-code">
+            Letzte Buchung: {{ last.entry_type }}<br>
+            {{ last.timestamp.strftime("%d.%m.%Y %H:%M:%S") }}
+        </p>
+        <p class="small-text">Es wurde nichts gespeichert.</p>
+    </div>
+
+<script>
+setTimeout(function() {
+    window.location.href = "{{ return_to or '/raspberry' }}";
+}, ({{ status_display_seconds|default(5) }}) * 1000);
+</script>
+</body>
+</html>

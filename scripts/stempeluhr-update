@@ -1,0 +1,192 @@
+#!/bin/bash
+set -Eeuo pipefail
+
+APP_DIR="${APP_DIR:-/opt/stempeluhr}"
+APP_USER="${APP_USER:-stempeluhr}"
+SERVICE_NAME="${SERVICE_NAME:-stempeluhr}"
+BACKUP_DIR="${BACKUP_DIR:-/var/backups/stempeluhr}"
+LOG_DIR="${LOG_DIR:-/var/log/stempeluhr}"
+LOG_FILE="$LOG_DIR/update.log"
+TMP_BASE="/tmp/stempeluhr_update"
+ZIP_FILE="${1:-}"
+DATE="$(date +%Y-%m-%d_%H-%M-%S)"
+ROLLBACK_ARCHIVE=""
+DB_BACKUP=""
+
+log(){ echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" | tee -a "$LOG_FILE"; }
+fail(){ log "FEHLER: $*"; rollback || true; exit 1; }
+
+rollback(){
+    log "Rollback wird vorbereitet..."
+    systemctl stop "$SERVICE_NAME" >/dev/null 2>&1 || true
+    if [ -n "${ROLLBACK_ARCHIVE:-}" ] && [ -f "$ROLLBACK_ARCHIVE" ]; then
+        log "Alten Programmstand wiederherstellen: $ROLLBACK_ARCHIVE"
+        rm -rf "$APP_DIR"
+        mkdir -p "$(dirname "$APP_DIR")"
+        tar -xzf "$ROLLBACK_ARCHIVE" -C "$(dirname "$APP_DIR")"
+        chown -R "$APP_USER:$APP_USER" "$APP_DIR" || true
+    fi
+    if [ -n "${DB_BACKUP:-}" ] && [ -f "$DB_BACKUP" ] && command -v psql >/dev/null 2>&1; then
+        log "Datenbank-Restore wird aus Sicherheitsgründen NICHT automatisch ausgeführt. Backup: $DB_BACKUP"
+    fi
+    systemctl daemon-reload || true
+    systemctl start "$SERVICE_NAME" >/dev/null 2>&1 || true
+}
+
+usage(){
+    echo "Verwendung: sudo stempeluhr-update /pfad/zur/update.zip"
+    echo "Beispiel: sudo stempeluhr-update /home/markus/stempeluhr_update.zip"
+}
+
+if [ "$(id -u)" -ne 0 ]; then
+    echo "Bitte mit sudo/root starten."
+    usage
+    exit 1
+fi
+if [ -z "$ZIP_FILE" ]; then usage; exit 1; fi
+if [ ! -f "$ZIP_FILE" ]; then echo "ZIP-Datei nicht gefunden: $ZIP_FILE"; exit 1; fi
+case "$ZIP_FILE" in *.zip) ;; *) echo "Bitte eine .zip Datei angeben."; exit 1;; esac
+
+mkdir -p "$BACKUP_DIR" "$LOG_DIR"
+touch "$LOG_FILE"
+chmod 664 "$LOG_FILE" || true
+
+log "============================================================"
+log "Stempeluhr Update gestartet: $ZIP_FILE"
+log "App-Verzeichnis: $APP_DIR"
+
+for cmd in unzip rsync tar; do
+    command -v "$cmd" >/dev/null 2>&1 || fail "Benötigtes Programm fehlt: $cmd"
+done
+
+TMP_DIR="${TMP_BASE}_${DATE}"
+rm -rf "$TMP_DIR"
+mkdir -p "$TMP_DIR"
+trap 'rm -rf "$TMP_DIR"' EXIT
+
+log "[1/10] Dienst stoppen"
+systemctl stop "$SERVICE_NAME" >/dev/null 2>&1 || true
+
+log "[2/10] Programm-Backup erstellen"
+if [ -d "$APP_DIR" ]; then
+    ROLLBACK_ARCHIVE="$BACKUP_DIR/stempeluhr_app_before_update_$DATE.tar.gz"
+    tar -czf "$ROLLBACK_ARCHIVE" -C "$(dirname "$APP_DIR")" "$(basename "$APP_DIR")" || fail "Programm-Backup fehlgeschlagen"
+    log "Programm-Backup: $ROLLBACK_ARCHIVE"
+else
+    log "Hinweis: $APP_DIR existiert noch nicht, Programm-Backup übersprungen."
+fi
+
+log "[3/10] Datenbank-Backup erstellen"
+if command -v pg_dump >/dev/null 2>&1; then
+    DB_NAME="${DB_NAME:-stempeluhr}"
+    DB_BACKUP="$BACKUP_DIR/stempeluhr_db_before_update_$DATE.sql.gz"
+    if sudo -u postgres pg_dump "$DB_NAME" | gzip > "$DB_BACKUP" 2>>"$LOG_FILE"; then
+        log "Datenbank-Backup: $DB_BACKUP"
+    else
+        log "Warnung: Datenbank-Backup fehlgeschlagen oder Datenbank nicht erreichbar."
+        rm -f "$DB_BACKUP" || true
+        DB_BACKUP=""
+    fi
+else
+    log "Hinweis: pg_dump nicht vorhanden, DB-Backup übersprungen."
+fi
+
+log "[4/10] ZIP entpacken"
+unzip -q "$ZIP_FILE" -d "$TMP_DIR" || fail "ZIP konnte nicht entpackt werden"
+SRC_DIR="$(find "$TMP_DIR" -type d -name app -printf '%h\n' | head -n 1 || true)"
+[ -n "$SRC_DIR" ] || fail "Kein app-Verzeichnis im Update-ZIP gefunden"
+[ -f "$SRC_DIR/requirements.txt" ] || log "Warnung: requirements.txt fehlt im Update-ZIP"
+
+NEW_VERSION="unbekannt"
+if [ -f "$SRC_DIR/version.txt" ]; then
+    NEW_VERSION="$(tr -d '\r\n ' < "$SRC_DIR/version.txt")"
+elif [ -f "$SRC_DIR/app/version.py" ]; then
+    NEW_VERSION="$(grep -E '^APP_VERSION' "$SRC_DIR/app/version.py" | sed -E "s/.*=[[:space:]]*['\"]([^'\"]+)['\"].*/\1/" || true)"
+fi
+log "Gefundene Update-Version: ${NEW_VERSION:-unbekannt}"
+
+log "[5/10] Dateien kopieren"
+mkdir -p "$APP_DIR"
+rsync -a --delete \
+    --exclude '.venv/' \
+    --exclude '.env' \
+    --exclude 'backups/' \
+    --exclude 'data/' \
+    --exclude 'uploads/updates/' \
+    --exclude '__pycache__/' \
+    --exclude '*.pyc' \
+    "$SRC_DIR"/ "$APP_DIR"/ || fail "Dateien konnten nicht kopiert werden"
+find "$APP_DIR" -type d -name '__pycache__' -prune -exec rm -rf {} + 2>/dev/null || true
+find "$APP_DIR" -type f -name '*.pyc' -delete 2>/dev/null || true
+
+log "[6/10] Rechte setzen und Update-Befehl installieren"
+chown -R "$APP_USER:$APP_USER" "$APP_DIR" || true
+chmod +x "$APP_DIR/scripts/"*.sh 2>/dev/null || true
+chmod +x "$APP_DIR/scripts/stempeluhr-update" 2>/dev/null || true
+chmod +x "$APP_DIR/updates/migrations/"*.py 2>/dev/null || true
+if [ -f "$APP_DIR/scripts/stempeluhr-update" ]; then
+    install -m 755 "$APP_DIR/scripts/stempeluhr-update" /usr/local/bin/stempeluhr-update
+fi
+if [ -f "$APP_DIR/scripts/stempeluhr-web-update-run" ]; then
+    install -m 755 "$APP_DIR/scripts/stempeluhr-web-update-run" /usr/local/bin/stempeluhr-web-update-run
+fi
+if [ -f "$APP_DIR/scripts/stempeluhr-update.sudoers" ]; then
+    install -m 440 "$APP_DIR/scripts/stempeluhr-update.sudoers" /etc/sudoers.d/stempeluhr-update
+fi
+
+cat >/etc/sudoers.d/stempeluhr-update <<'SUDOERS'
+# Stempeluhr Web-Update: Weboberfläche darf nur den abgesicherten Wrapper starten.
+stempeluhr ALL=(root) NOPASSWD: /usr/local/bin/stempeluhr-web-update-run *
+SUDOERS
+chmod 440 /etc/sudoers.d/stempeluhr-update
+visudo -cf /etc/sudoers.d/stempeluhr-update >/dev/null 2>&1 || true
+
+log "[7/10] Python-Umgebung prüfen"
+if [ ! -d "$APP_DIR/.venv" ]; then
+    python3 -m venv "$APP_DIR/.venv" || fail "Python venv konnte nicht erstellt werden"
+fi
+"$APP_DIR/.venv/bin/python" -m pip install --upgrade pip >>"$LOG_FILE" 2>&1 || fail "pip Upgrade fehlgeschlagen"
+if [ -f "$APP_DIR/requirements.txt" ]; then
+    "$APP_DIR/.venv/bin/pip" install -r "$APP_DIR/requirements.txt" >>"$LOG_FILE" 2>&1 || fail "Python-Abhängigkeiten konnten nicht installiert werden"
+fi
+
+log "[8/10] Importtest und Datenbank-Migration"
+cd "$APP_DIR"
+export PYTHONPATH="$APP_DIR"
+"$APP_DIR/.venv/bin/python" -m compileall -q "$APP_DIR/app" || fail "Python Compile-Check fehlgeschlagen"
+"$APP_DIR/.venv/bin/python" -c 'from app.version import APP_NAME, APP_VERSION; import app.main; print(APP_NAME, APP_VERSION)' >>"$LOG_FILE" 2>&1 || fail "App-Import fehlgeschlagen"
+if [ -f "$APP_DIR/scripts/db_migrate.py" ]; then
+    sudo -u "$APP_USER" env PYTHONPATH="$APP_DIR" "$APP_DIR/.venv/bin/python" "$APP_DIR/scripts/db_migrate.py" >>"$LOG_FILE" 2>&1 || fail "db_migrate.py fehlgeschlagen"
+else
+    sudo -u "$APP_USER" env PYTHONPATH="$APP_DIR" "$APP_DIR/.venv/bin/python" -m app.init_db >>"$LOG_FILE" 2>&1 || fail "init_db fehlgeschlagen"
+fi
+
+log "[9/10] systemd aktualisieren"
+if [ -f "$APP_DIR/systemd/stempeluhr.service" ]; then
+    cp "$APP_DIR/systemd/stempeluhr.service" /etc/systemd/system/stempeluhr.service
+fi
+systemctl daemon-reload || true
+systemctl enable "$SERVICE_NAME" >/dev/null 2>&1 || true
+
+log "[10/10] Dienst starten und Healthcheck prüfen"
+systemctl restart "$SERVICE_NAME" || fail "Dienst konnte nicht gestartet werden"
+READY=0
+for i in $(seq 1 45); do
+    if curl -fsS http://127.0.0.1:8000/health >>"$LOG_FILE" 2>/dev/null; then
+        READY=1
+        break
+    fi
+    if ! systemctl is-active --quiet "$SERVICE_NAME"; then
+        fail "Dienst ist nach dem Start beendet"
+    fi
+    sleep 1
+done
+[ "$READY" -eq 1 ] || fail "Healthcheck /health war nicht erreichbar"
+
+if [ -x "$APP_DIR/scripts/selftest.sh" ]; then
+    "$APP_DIR/scripts/selftest.sh" >>"$LOG_FILE" 2>&1 || log "Warnung: Selftest meldet Probleme, Dienst läuft aber."
+fi
+
+log "Update erfolgreich abgeschlossen. Version: ${NEW_VERSION:-unbekannt}"
+log "Logdatei: $LOG_FILE"
+echo "Fertig. Log: $LOG_FILE"

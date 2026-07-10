@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Onboarding</h1>
+
+<div class="subnav">
+    <a class="button secondary" href="/system/settings">Systemeinstellungen</a>
+    <a class="button secondary" href="/admin">Mitarbeiter</a>
+</div>
+
+<section class="card">
+    <h2>Einladungen und Datenschutz</h2>
+    {% if message %}<div class="success-box">{{ message }}</div>{% endif %}
+    {% if error %}<div class="error-box">{{ error }}</div>{% endif %}
+
+    <form method="post" action="/system/settings/onboarding" class="form-grid">
+        <div class="form-field checkbox-field">
+            <label><input type="checkbox" name="onboarding_enabled" {% if settings.enabled in ['true','1','on','ja'] %}checked{% endif %}> Onboarding-Einladungen aktiv</label>
+            <small>Administratoren können neuen Mitarbeitern eine Einladungsmail mit Einmal-Token senden.</small>
+        </div>
+
+        <div class="form-field">
+            <label>Token gültig für Stunden</label>
+            <input type="number" min="1" max="336" name="onboarding_token_hours" value="{{ settings.token_hours }}">
+        </div>
+
+        <div class="form-field">
+            <label>Betreff der Einladung</label>
+            <input name="onboarding_email_subject" value="{{ settings.email_subject }}">
+        </div>
+
+        <div class="form-field form-field-full">
+            <label>Mailtext</label>
+            <textarea name="onboarding_email_body" rows="8">{{ settings.email_body }}</textarea>
+            <small>Platzhalter: {name}, {link}, {hours}</small>
+        </div>
+
+        <div class="form-field">
+            <label>Datenschutz-Version</label>
+            <input name="onboarding_privacy_version" value="{{ settings.privacy_version }}">
+            <small>Bei Änderung der Version müssen Mitarbeiter erneut zustimmen.</small>
+        </div>
+
+        <div class="form-field form-field-full">
+            <label>Datenschutztext für erste Anmeldung</label>
+            <textarea name="onboarding_privacy_text" rows="8">{{ settings.privacy_text }}</textarea>
+        </div>
+
+        <div class="form-actions">
+            <button>Speichern</button>
+        </div>
+    </form>
+</section>
+
+<section class="card">
+    <h2>Onboarding-Protokoll</h2>
+    {% if tokens %}
+    <table>
+        <tr><th>Zeitpunkt</th><th>Mitarbeiter</th><th>E-Mail</th><th>Status</th><th>Gültig bis</th><th>Fehler</th></tr>
+        {% for t in tokens %}
+        <tr>
+            <td>{{ t.sent_at.strftime('%d.%m.%Y %H:%M') if t.sent_at else t.created_at.strftime('%d.%m.%Y %H:%M') }}</td>
+            <td>{{ t.employee.first_name }} {{ t.employee.last_name }}</td>
+            <td>{{ t.employee.email or '—' }}</td>
+            <td><span class="small-badge {% if t.status == 'completed' %}badge-ok{% elif t.status == 'mail_failed' %}badge-error{% else %}badge-muted{% endif %}">{{ t.status }}</span></td>
+            <td>{{ t.expires_at.strftime('%d.%m.%Y %H:%M') if t.expires_at else '—' }}</td>
+            <td>{{ t.error_message or '' }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+    {% else %}
+    <p class="muted">Noch keine Einladungen vorhanden.</p>
+    {% endif %}
+</section>
+{% endblock %}

@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Rollback-System</h1>
+<section class="card">
+  <form method="post" action="/system/rollback/restore-point">
+    <button class="button" type="submit">Wiederherstellungspunkt erstellen</button>
+  </form>
+  {% if message %}<p>{{ message.message }} {{ message.file }}</p>{% endif %}
+</section>
+<section class="card">
+  <h2>Vorhandene Update-Backups</h2>
+  <table class="table"><tr><th>Datei</th><th>Zeit</th><th>Größe</th></tr>
+  {% for b in backups %}<tr><td>{{ b.name }}</td><td>{{ b.mtime }}</td><td>{{ b.size }}</td></tr>{% endfor %}
+  </table>
+  <p>Die Wiederherstellung selbst bleibt absichtlich als Root-Skript geschützt, damit kein versehentlicher Restore aus der Weboberfläche passiert.</p>
+</section>
+{% endblock %}

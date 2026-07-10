@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header-actions">
+    <h1>API-Hilfe</h1>
+    <div class="header-buttons">
+        <a class="button secondary" href="/system/settings/api">Zurück zu API-Einstellungen</a>
+        <a class="button secondary" href="/docs" target="_blank">Swagger / OpenAPI öffnen</a>
+    </div>
+</div>
+
+<section class="card">
+    <h2>Was ist die API?</h2>
+    <p>Die API ist eine Schnittstelle, über die externe Programme auf die Stempeluhr zugreifen können.</p>
+    <p>Typische Anwendungen sind n8n, Home Assistant, Grafana, ERP-Systeme, eigene Skripte oder Auswertungen.</p>
+</section>
+
+<section class="card">
+    <h2>API-Status</h2>
+    <div class="stat-grid">
+        <div class="stat-box"><span>{{ 'Ja' if api_enabled else 'Nein' }}</span><label>API aktiviert</label></div>
+        <div class="stat-box"><span>{{ active_tokens }}</span><label>aktive API-Keys</label></div>
+        <div class="stat-box"><span>{{ last_used or '-' }}</span><label>letzte Nutzung</label></div>
+        <div class="stat-box"><span>v1</span><label>API-Version</label></div>
+    </div>
+</section>
+
+<section class="card">
+    <h2>Grundablauf</h2>
+    <ol class="help-list">
+        <li>API in den API-Einstellungen aktivieren.</li>
+        <li>API-Key erstellen und die Rechte festlegen.</li>
+        <li>Den API-Key direkt kopieren. Er wird danach nicht erneut angezeigt.</li>
+        <li>Den API-Key bei jedem Aufruf als Header mitsenden.</li>
+    </ol>
+</section>
+
+<section class="card">
+    <h2>Authentifizierung</h2>
+    <p>Der API-Key kann auf zwei Arten gesendet werden.</p>
+    <h3>Variante 1: X-API-Key</h3>
+    <pre>X-API-Key: sk_stempeluhr_...</pre>
+    <h3>Variante 2: Authorization Bearer</h3>
+    <pre>Authorization: Bearer sk_stempeluhr_...</pre>
+</section>
+
+<section class="card">
+    <h2>Beispiele mit curl</h2>
+    <h3>API-Status / Health</h3>
+    <pre>curl http://10.0.0.48:8000/api/v1/health</pre>
+
+    <h3>Dashboard abrufen</h3>
+    <pre>curl -H "Authorization: Bearer API_KEY" \
+http://10.0.0.48:8000/api/v1/dashboard</pre>
+
+    <h3>Mitarbeiter abrufen</h3>
+    <pre>curl -H "Authorization: Bearer API_KEY" \
+http://10.0.0.48:8000/api/v1/employees</pre>
+
+    <h3>Buchung erzeugen</h3>
+    <pre>curl -X POST \
+-H "Authorization: Bearer API_KEY" \
+-H "Content-Type: application/json" \
+-d '{"employee_number":"1001","type":"kommen"}' \
+http://10.0.0.48:8000/api/v1/bookings</pre>
+</section>
+
+<section class="card">
+    <h2>n8n Beispiel</h2>
+    <p>In n8n einen <strong>HTTP Request</strong> Node verwenden:</p>
+    <table>
+        <tr><th>Einstellung</th><th>Wert</th></tr>
+        <tr><td>Methode</td><td>GET</td></tr>
+        <tr><td>URL</td><td><code>http://10.0.0.48:8000/api/v1/dashboard</code></td></tr>
+        <tr><td>Header</td><td><code>Authorization: Bearer API_KEY</code></td></tr>
+    </table>
+</section>
+
+<section class="card">
+    <h2>Home Assistant Beispiel</h2>
+    <pre>rest:
+  - resource: http://10.0.0.48:8000/api/v1/dashboard
+    headers:
+      Authorization: Bearer API_KEY</pre>
+</section>
+
+<section class="card warning">
+    <h2>Sicherheitshinweise</h2>
+    <ul class="help-list">
+        <li>API-Key wie ein Passwort behandeln.</li>
+        <li>API nur im internen Netzwerk oder über VPN verwenden.</li>
+        <li>Nur die benötigten Rechte vergeben: Lesen oder Schreiben.</li>
+        <li>IP-Filter verwenden, wenn das Zielsystem eine feste IP hat.</li>
+        <li>Ablaufdatum für externe Integrationen setzen.</li>
+        <li>API-Logging aktiviert lassen.</li>
+    </ul>
+</section>
+{% endblock %}

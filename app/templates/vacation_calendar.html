@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>{{ absence_calendar_name or "Abwesenheit" }} {{ month }}/{{ year }}</h1>
+<section class="card">
+<form action="/vacation/calendar" method="get" class="form-grid">
+<input name="year" type="number" value="{{ year }}">
+<input name="month" type="number" min="1" max="12" value="{{ month }}">
+<select name="department_id">
+<option value="0">Alle Abteilungen</option>
+{% for d in departments %}
+<option value="{{ d.id }}" {% if department_id == d.id %}selected{% endif %}>{{ d.name }}</option>
+{% endfor %}
+</select>
+<button>Anzeigen</button>
+</form>
+</section>
+
+<section class="card">
+<h2>Kalenderansicht</h2>
+<p class="muted">In jedem Kalendereintrag werden Mitarbeitername und Abwesenheitsgrund direkt angezeigt. Details erscheinen zusätzlich als Tooltip.</p>
+<div class="absence-calendar">
+  <div class="absence-calendar-head">Mo</div>
+  <div class="absence-calendar-head">Di</div>
+  <div class="absence-calendar-head">Mi</div>
+  <div class="absence-calendar-head">Do</div>
+  <div class="absence-calendar-head">Fr</div>
+  <div class="absence-calendar-head">Sa</div>
+  <div class="absence-calendar-head">So</div>
+  {% for week in calendar_weeks %}
+    {% for day in week %}
+      {% if day %}
+      <div class="absence-calendar-day {% if day.weekday >= 5 %}weekend{% endif %}">
+        <div class="absence-calendar-date">{{ day.day }}</div>
+        {% for entry in day.entries %}
+          <div class="absence-calendar-entry" title="{{ entry.employee_name }} | {{ entry.reason }} | {{ entry.start_date.strftime('%d.%m.%Y') }} - {{ entry.end_date.strftime('%d.%m.%Y') }}{% if entry.comment %} | {{ entry.comment }}{% endif %}">
+            <strong>{{ entry.employee_name }}</strong>
+            <span>{{ entry.reason }}</span>
+          </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="absence-calendar-day empty"></div>
+      {% endif %}
+    {% endfor %}
+  {% endfor %}
+</div>
+</section>
+
+<section class="card">
+<h2>Genehmigte Abwesenheiten</h2>
+<div class="table-wrap">
+<table class="compact-table absence-table">
+<tr><th>Zeitraum</th><th>Mitarbeiter</th><th>Abwesenheitsgrund</th><th>Tage</th></tr>
+{% for r in requests %}
+<tr>
+<td>{{ r.start_date.strftime('%d.%m.%Y') }} - {{ r.end_date.strftime('%d.%m.%Y') }}</td>
+<td>{{ r.employee.first_name }} {{ r.employee.last_name }}</td>
+<td>{% set reason = absence_labels.get(r.request_type, r.request_type) %}{% if r.request_type == 'sonstiges' and r.custom_reason %}{{ reason }}: {{ r.custom_reason }}{% else %}{{ reason }}{% endif %}</td>
+<td>{{ r.days }}</td>
+</tr>
+{% endfor %}
+{% if not requests %}<tr><td colspan="4" class="empty-state">Keine genehmigten Abwesenheiten in diesem Zeitraum.</td></tr>{% endif %}
+</table>
+</div>
+</section>
+<section class="card">
+<h2>Feiertage</h2>
+<div class="table-wrap">
+<table class="compact-table">
+<tr><th>Datum</th><th>Name</th></tr>
+{% for h in holidays %}
+<tr><td>{{ h.date.strftime('%d.%m.%Y') }}</td><td>{{ h.name }}</td></tr>
+{% endfor %}
+{% if not holidays %}<tr><td colspan="2" class="empty-state">Keine Feiertage in diesem Zeitraum.</td></tr>{% endif %}
+</table>
+</div>
+</section>
+{% endblock %}

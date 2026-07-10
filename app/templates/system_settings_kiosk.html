@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Raspberry Kiosk</h1>
+<section class="card settings-card">
+{% if saved %}<div class="success-box">{{ message or 'Gespeichert.' }}</div>{% endif %}
+{% if error %}<div class="error-box">{{ error }}</div>{% endif %}
+<p class="help-text">Diese Seite richtet den lokalen Raspberry so ein, dass Chromium automatisch im Kiosk-Modus startet. Unterstützt werden Debian 13/Raspberry Pi OS mit <strong>labwc/Wayland</strong> sowie ältere LXDE-Installationen. Standardseite ist <code>/raspberry</code>.</p>
+<form action="/system/settings/kiosk/save" method="post" class="settings-form">
+  <div class="settings-section">
+    <h2>Kiosk-Konfiguration</h2>
+    <div class="settings-grid">
+      <div class="form-field checkbox-field">
+        <label><input type="checkbox" name="kiosk_enabled" value="1" {% if settings.get('kiosk_enabled','1') in ['1','true','on'] %}checked{% endif %}> Kiosk-Modus aktiv</label>
+      </div>
+      <div class="form-field">
+        <label>Kiosk-URL</label>
+        <input name="kiosk_url" value="{{ settings.get('kiosk_url', 'http://10.0.0.48:8000/raspberry') }}">
+        <p class="help-text">Beispiel: <code>http://10.0.0.48:8000/raspberry</code></p>
+      </div>
+      <div class="form-field">
+        <label>Linux-Benutzer</label>
+        <input name="kiosk_user" value="{{ settings.get('kiosk_user', 'pi') }}">
+      </div>
+      <div class="form-field">
+        <label>Browser-Befehl</label>
+        <select name="kiosk_browser">
+          {% set kb = settings.get('kiosk_browser','auto') %}
+          <option value="auto" {% if kb == 'auto' %}selected{% endif %}>Automatisch erkennen (aktuell: {{ browser_auto }})</option>
+          <option value="chromium" {% if kb == 'chromium' %}selected{% endif %}>chromium</option>
+          <option value="chromium-browser" {% if kb == 'chromium-browser' %}selected{% endif %}>chromium-browser</option>
+        </select>
+      </div>
+      <div class="form-field">
+        <label>Desktop / Autostart-Art</label>
+        <select name="kiosk_desktop">
+          {% set kd = settings.get('kiosk_desktop','auto') %}
+          <option value="auto" {% if kd == 'auto' %}selected{% endif %}>Automatisch erkennen (aktuell: {{ desktop_auto }})</option>
+          <option value="labwc" {% if kd == 'labwc' %}selected{% endif %}>labwc / Wayland (Debian 13)</option>
+          <option value="lxde" {% if kd == 'lxde' %}selected{% endif %}>LXDE-pi (ältere Raspberry-Systeme)</option>
+        </select>
+        <p class="help-text">Für dein Debian 13 System ist normalerweise <strong>labwc / Wayland</strong> richtig.</p>
+      </div>
+    </div>
+  </div>
+  <div class="form-actions">
+    <button>Speichern</button>
+    <a class="button secondary" href="/system/settings">Zurück</a>
+  </div>
+</form>
+</section>
+
+<section class="card settings-card">
+<h2>Autostart schreiben</h2>
+<p><strong>Autostart-Datei:</strong> <code>{{ settings.get('kiosk_autostart_path') or resolved_autostart_path }}</code></p>
+<p class="help-text">Erkannter Zielpfad: <code>{{ resolved_autostart_path }}</code></p>
+{% if autostart_status_error %}<div class="warning-box">{{ autostart_status_error }}</div>{% endif %}
+<p><strong>Status Autostart:</strong> {% if autostart_exists %}<span class="badge-ok">vorhanden</span>{% else %}<span class="badge-warn">fehlt</span>{% endif %}</p>
+<p><strong>Chromium-Prozess:</strong> {% if chromium_running %}<span class="badge-ok">läuft</span>{% else %}<span class="badge-warn">nicht gefunden</span>{% endif %}</p>
+{% if chromium_running %}<pre class="log-box">{{ chromium_running }}</pre>{% endif %}
+<p class="help-text">Wenn die Datei fehlt, startet der Raspberry nicht automatisch in Chromium. Der Button erzeugt die Datei mit Bildschirmabschaltung aus und Kiosk-URL.</p>
+<form action="/system/settings/kiosk/write-autostart" method="post" onsubmit="return confirm('Kiosk-Autostart jetzt neu schreiben?');">
+  <button>Autostart neu schreiben</button>
+</form>
+{% if settings.get('kiosk_last_status') %}<p class="help-text">Letzter Status: {{ settings.get('kiosk_last_status') }}</p>{% endif %}
+<h3>Aktueller Inhalt</h3>
+<pre class="log-box">{{ autostart_content or 'Noch keine Autostart-Datei vorhanden.' }}</pre>
+</section>
+
+
+<section class="card settings-card">
+<h2>Raspberry-Agent 5.2.29</h2>
+<p class="help-text">Der neue Agent startet Chromium nicht mehr nur ueber eine einzelne labwc-Datei, sondern ueber systemd-user und einen Fallback-Autostart. Dadurch funktioniert der Kioskmodus besser unter Debian 13 / labwc / Wayland.</p>
+<pre class="log-box">{{ agent_status or 'Noch kein Agent-Status vorhanden.' }}</pre>
+<p>Pruefung auf dem Raspberry:</p>
+<pre>systemctl --user status stempeluhr-agent --no-pager
+cat /var/log/stempeluhr-agent.log
+/opt/stempeluhr/scripts/stempeluhr-raspberry-agent --status</pre>
+</section>
+
+<section class="card settings-card">
+<h2>Hilfe</h2>
+<p>Nach dem Schreiben der Autostart-Datei den Raspberry neu starten:</p>
+<pre>sudo reboot</pre>
+<p>Wenn kein Browser startet, auf dem Raspberry prüfen:</p>
+<pre>which chromium
+which chromium-browser
+pgrep -a chromium
+cat /home/pi/.config/labwc/autostart</pre>
+<p>Bei Debian 13/trixie wird meistens <code>/home/pi/.config/labwc/autostart</code> verwendet. Nach Änderungen ist ein Neustart nötig:</p>
+<pre>sudo reboot</pre>
+</section>
+{% endblock %}

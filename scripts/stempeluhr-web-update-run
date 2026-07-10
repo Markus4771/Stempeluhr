@@ -1,0 +1,239 @@
+#!/bin/bash
+set -u
+
+UPDATE_FILE="${1:-}"
+ALLOWED_DIR="${STEMPELUHR_UPDATE_UPLOAD_DIR:-/var/lib/stempeluhr/uploads/updates}"
+LEGACY_ALLOWED_DIR="/opt/stempeluhr/uploads/updates"
+LOG_DIR="/opt/stempeluhr/logs"
+LOG_FILE="$LOG_DIR/update.log"
+STATUS_FILE="$LOG_DIR/update-status.json"
+APP_DIR="/opt/stempeluhr"
+BACKUP_DIR="$APP_DIR/backups"
+
+mkdir -p "$LOG_DIR" "$ALLOWED_DIR" "$LEGACY_ALLOWED_DIR" "$BACKUP_DIR"
+touch "$LOG_FILE"
+chown stempeluhr:stempeluhr "$LOG_FILE" "$LOG_DIR" "$BACKUP_DIR" 2>/dev/null || true
+chmod 664 "$LOG_FILE" 2>/dev/null || true
+
+json_escape(){ printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g'; }
+set_status(){
+  STATE="$(json_escape "${1:-}")"
+  MSG="$(json_escape "${2:-}")"
+  PKG="$(json_escape "${3:-}")"
+  VER="$(json_escape "${4:-}")"
+  PROGRESS="${5:-0}"
+  STEP="$(json_escape "${6:-}")"
+  TIME_NOW="$(date '+%F %T')"
+  cat > "$STATUS_FILE" <<JSON
+{
+  "state": "$STATE",
+  "message": "$MSG",
+  "package": "$PKG",
+  "version": "$VER",
+  "progress": $PROGRESS,
+  "step": "$STEP",
+  "time": "$TIME_NOW"
+}
+JSON
+  chown stempeluhr:stempeluhr "$STATUS_FILE" 2>/dev/null || true
+  chmod 664 "$STATUS_FILE" 2>/dev/null || true
+}
+
+log(){ echo "[$(date '+%F %T')] web-update: $*" | tee -a "$LOG_FILE"; }
+fail(){ log "FEHLER: $*"; set_status failed "$*" "${PKG_NAME:-}" "${PKG_VERSION:-}" 0 "Fehler"; exit 1; }
+
+if [ "$(id -u)" -ne 0 ]; then
+  fail "Bitte als root starten."
+fi
+
+[ -n "$UPDATE_FILE" ] || fail "Keine Update-Datei angegeben."
+[ -e "$UPDATE_FILE" ] || fail "Update-Datei nicht gefunden: $UPDATE_FILE"
+[ -f "$UPDATE_FILE" ] || fail "Update-Pfad ist keine Datei: $UPDATE_FILE"
+
+REAL_ALLOWED="$(realpath -e "$ALLOWED_DIR" 2>>"$LOG_FILE")" || fail "Upload-Verzeichnis nicht gefunden: $ALLOWED_DIR"
+REAL_LEGACY_ALLOWED="$(realpath -e "$LEGACY_ALLOWED_DIR" 2>>"$LOG_FILE" || true)"
+REAL_FILE="$(realpath -e "$UPDATE_FILE" 2>>"$LOG_FILE")" || fail "Update-Datei kann nicht aufgelöst werden: $UPDATE_FILE"
+
+case "$REAL_FILE" in
+  "$REAL_ALLOWED"/*.deb) ;;
+  "$REAL_LEGACY_ALLOWED"/*.deb) ;;
+  *)
+    log "Web-Updates sind nur aus $ALLOWED_DIR oder $LEGACY_ALLOWED_DIR erlaubt."
+    log "REAL_ALLOWED=$REAL_ALLOWED"
+    log "REAL_LEGACY_ALLOWED=$REAL_LEGACY_ALLOWED"
+    log "REAL_FILE=$REAL_FILE"
+    fail "Update-Datei liegt nicht im erlaubten Upload-Verzeichnis."
+    ;;
+esac
+
+command -v dpkg-deb >/dev/null 2>&1 || fail "dpkg-deb ist nicht verfügbar."
+dpkg-deb -I "$REAL_FILE" >/dev/null 2>&1 || fail "Die Datei ist kein gültiges Debian-Paket: $REAL_FILE"
+
+PKG_NAME="$(dpkg-deb -f "$REAL_FILE" Package 2>/dev/null || true)"
+PKG_VERSION="$(dpkg-deb -f "$REAL_FILE" Version 2>/dev/null || true)"
+PKG_ARCH="$(dpkg-deb -f "$REAL_FILE" Architecture 2>/dev/null || true)"
+
+[ "$PKG_NAME" = "stempeluhr" ] || fail "Falsches Paket: '$PKG_NAME'. Erwartet: stempeluhr"
+[ -n "$PKG_VERSION" ] || fail "Paketversion konnte nicht gelesen werden."
+chmod 644 "$REAL_FILE" 2>/dev/null || true
+
+set_status running "Update wird vorbereitet" "$PKG_NAME" "$PKG_VERSION" 30 "Vorbereitung"
+log "Freier Speicher: $(df -h /opt /var/lib 2>/dev/null | tr '\n' ';')"
+log "DEB-Webupdate vorbereitet: Datei=$REAL_FILE Version=$PKG_VERSION Architektur=$PKG_ARCH"
+
+BACKUP_FILE="$BACKUP_DIR/pre_update_${PKG_VERSION}_$(date +%Y%m%d_%H%M%S).tar.gz"
+log "Erstelle Sicherheitsbackup: $BACKUP_FILE"
+set_status running "Backup wird erstellt" "$PKG_NAME" "$PKG_VERSION" 40 "Backup"
+# Wichtig: tar läuft mit -C /opt stempeluhr. Deshalb müssen die Ausschlüsse relativ zu stempeluhr/ sein.
+tar \
+  --exclude='stempeluhr/.venv' \
+  --exclude='stempeluhr/venv' \
+  --exclude='stempeluhr/uploads/updates' \
+  --exclude='stempeluhr/backups' \
+  --exclude='stempeluhr/logs' \
+  --exclude='stempeluhr/*.moved.*' \
+  --exclude='stempeluhr/backups.moved.*' \
+  --exclude='stempeluhr/logs.moved.*' \
+  --exclude='stempeluhr/uploads.moved.*' \
+  --exclude='stempeluhr/data.moved.*' \
+  -czf "$BACKUP_FILE" -C /opt stempeluhr >> "$LOG_FILE" 2>&1 || log "WARNUNG: Backup konnte nicht vollständig erstellt werden."
+chown stempeluhr:stempeluhr "$BACKUP_FILE" 2>/dev/null || true
+
+UNIT="stempeluhr-update-$(date +%Y%m%d%H%M%S)"
+INSTALL_SCRIPT="/tmp/stempeluhr-web-update-${PKG_VERSION}-$$.sh"
+cat > "$INSTALL_SCRIPT" <<EOS
+#!/bin/bash
+set -u
+REAL_FILE="$REAL_FILE"
+LOG_FILE="$LOG_FILE"
+STATUS_FILE="$STATUS_FILE"
+PKG_NAME="$PKG_NAME"
+PKG_VERSION="$PKG_VERSION"
+APP_DIR="$APP_DIR"
+
+json_escape_inner(){ printf '%s' "\${1:-}" | sed 's/\\/\\\\/g; s/"/\\"/g'; }
+write_status(){
+  local state msg progress step now
+  state="\$(json_escape_inner "\${1:-}")"
+  msg="\$(json_escape_inner "\${2:-}")"
+  progress="\${3:-0}"
+  step="\$(json_escape_inner "\${4:-}")"
+  now="\$(date '+%F %T')"
+  cat > "\$STATUS_FILE" <<JSON
+{
+  "state": "\$state",
+  "message": "\$msg",
+  "package": "\$PKG_NAME",
+  "version": "\$PKG_VERSION",
+  "progress": \$progress,
+  "step": "\$step",
+  "time": "\$now"
+}
+JSON
+  chown stempeluhr:stempeluhr "\$STATUS_FILE" 2>/dev/null || true
+  chmod 664 "\$STATUS_FILE" 2>/dev/null || true
+}
+healthcheck(){
+  # Robust: GET statt HEAD verwenden. FastAPI antwortet auf HEAD teils mit 405,
+  # obwohl der Webdienst korrekt läuft. Akzeptiert wird ein erreichbarer Dienst
+  # auf /health, /api/v1/health oder / mit HTTP 200/302/303/405.
+  local ports=""
+  if [ -f "\$APP_DIR/.env" ]; then
+    local env_port
+    env_port="\$(grep -E '^(PORT|APP_PORT|UVICORN_PORT)=' "\$APP_DIR/.env" 2>/dev/null | tail -1 | cut -d= -f2 | tr -d '"'\'' ' || true)"
+    if [ -n "\$env_port" ]; then ports="\$env_port"; fi
+  fi
+  ports="\$ports 8000 8088"
+  local p i path code
+  for i in \$(seq 1 60); do
+    for p in \$ports; do
+      [ -n "\$p" ] || continue
+      for path in /health /api/v1/health /; do
+        code="\$(curl -sS -o /dev/null -w '%{http_code}' --max-time 3 "http://127.0.0.1:\$p\$path" 2>>"\$LOG_FILE" || true)"
+        echo "Healthcheck Versuch \$i: Port \$p Pfad \$path HTTP \$code" >> "\$LOG_FILE"
+        case "\$code" in
+          200|302|303|405)
+            echo "Healthcheck OK: http://127.0.0.1:\$p\$path HTTP \$code" >> "\$LOG_FILE"
+            return 0
+            ;;
+        esac
+      done
+    done
+    sleep 1
+  done
+  return 1
+}
+
+echo "[\$(date '+%F %T')] DEB-Webupdate gestartet: \$REAL_FILE" >> "\$LOG_FILE"
+write_status running "Paketinstallation läuft" 60 "Installation"
+DEBIAN_FRONTEND=noninteractive apt-get install -y "\$REAL_FILE" >> "\$LOG_FILE" 2>&1
+RC=\$?
+echo "[\$(date '+%F %T')] apt-get Exitcode: \$RC" >> "\$LOG_FILE"
+systemctl daemon-reload >> "\$LOG_FILE" 2>&1 || true
+systemctl restart stempeluhr.service >> "\$LOG_FILE" 2>&1 || true
+write_status running "Dienst startet, Healthcheck läuft" 85 "Healthcheck"
+if healthcheck; then
+  if [ \$RC -eq 0 ]; then write_status success "Update erfolgreich installiert, Webdienst erreichbar" 100 "Fertig"; fi
+else
+  echo "Healthcheck nach Update fehlgeschlagen" >> "\$LOG_FILE"
+  if [ \$RC -eq 0 ]; then write_status failed "Update installiert, aber Webdienst nicht erreichbar" 90 "Healthcheck fehlgeschlagen"; fi
+fi
+if [ \$RC -ne 0 ]; then write_status failed "Paketinstallation fehlgeschlagen" 70 "Installation fehlgeschlagen"; fi
+chown stempeluhr:stempeluhr "\$STATUS_FILE" "\$LOG_FILE" >> "\$LOG_FILE" 2>&1 || true
+echo "" >> "\$LOG_FILE"
+echo "[\$(date '+%F %T')] DEB-Webupdate beendet: \$REAL_FILE" >> "\$LOG_FILE"
+rm -f "$INSTALL_SCRIPT" 2>/dev/null || true
+exit \$RC
+EOS
+chmod 700 "$INSTALL_SCRIPT"
+
+# Version 5.2.11: systemd-run wird nicht mehr zwingend verwendet.
+# Grund: Auf einigen Raspberry/Debian-Installationen schlägt systemd-run aus dem
+# Webdienst heraus fehl, obwohl /usr/bin/systemd-run vorhanden ist. Deshalb wird
+# für Webupdates ein eigener temporärer systemd-Service angelegt und mit
+# systemctl --no-block gestartet. Das trennt die Installation sauber vom
+# laufenden FastAPI-Dienst; ein Restart der Stempeluhr beendet den Updater nicht.
+UNIT_FILE="/etc/systemd/system/${UNIT}.service"
+cat > "$UNIT_FILE" <<UNITEOF
+[Unit]
+Description=Stempeluhr Webupdate $PKG_VERSION
+After=network.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=$APP_DIR
+ExecStart=/bin/bash $INSTALL_SCRIPT
+RemainAfterExit=no
+
+[Install]
+WantedBy=multi-user.target
+UNITEOF
+chmod 644 "$UNIT_FILE"
+
+log "Starte Update per temporärem systemd-Service: $UNIT"
+set_status running "Update-Service wird gestartet" "$PKG_NAME" "$PKG_VERSION" 50 "Installation startet"
+systemctl daemon-reload >> "$LOG_FILE" 2>&1 || true
+systemctl start --no-block "$UNIT.service" >> "$LOG_FILE" 2>&1
+RC=$?
+log "systemctl start Exitcode: $RC"
+if [ $RC -eq 0 ]; then
+  set_status running "Update läuft im Hintergrund" "$PKG_NAME" "$PKG_VERSION" 55 "Installation läuft"
+  exit 0
+fi
+
+# Letzter Fallback: systemd-run nur noch als Ersatzweg. Falls auch das fehlschlägt,
+# bleibt der Fehler eindeutig im Log sichtbar.
+if command -v systemd-run >/dev/null 2>&1; then
+  log "Temporärer Service konnte nicht gestartet werden, versuche systemd-run Fallback: $UNIT"
+  set_status running "Fallback systemd-run wird versucht" "$PKG_NAME" "$PKG_VERSION" 50 "Fallback"
+  systemd-run     --unit="$UNIT-fallback"     --collect     --property=Type=oneshot     --working-directory="$APP_DIR"     /bin/bash "$INSTALL_SCRIPT" >> "$LOG_FILE" 2>&1
+  RC=$?
+  log "systemd-run Fallback Exitcode: $RC"
+  if [ $RC -eq 0 ]; then
+    set_status running "Update läuft per Fallback" "$PKG_NAME" "$PKG_VERSION" 55 "Installation läuft"
+    exit 0
+  fi
+fi
+
+set_status failed "Update-Service konnte nicht gestartet werden" "$PKG_NAME" "$PKG_VERSION" 50 "Startfehler"
+exit $RC

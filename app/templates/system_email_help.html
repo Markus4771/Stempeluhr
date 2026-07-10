@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header-actions">
+    <h1>E-Mail-Hilfe</h1>
+    <div class="header-buttons">
+        <a class="button secondary" href="/system/settings/email">Zurück zu E-Mail</a>
+        <a class="button secondary" href="/system/settings">Systemeinstellungen</a>
+    </div>
+</div>
+
+<section class="card">
+    <h2>Wofür nutzt die Stempeluhr E-Mail?</h2>
+    <p>Der E-Mail-Versand wird für Benachrichtigungen und automatische Hinweise verwendet.</p>
+    <ul>
+        <li>Plausibilitätsmeldungen an Mitarbeiter</li>
+        <li>abendliche Teamleiter-Zusammenfassung</li>
+        <li>Test-E-Mail zur Prüfung der SMTP-Einstellungen</li>
+        <li>später optional: Urlaubsfreigaben, Korrekturanträge und Systemmeldungen</li>
+    </ul>
+</section>
+
+<section class="card">
+    <h2>SMTP-Einstellungen</h2>
+    <table>
+        <tr><th>Feld</th><th>Erklärung</th></tr>
+        <tr><td>SMTP-Server</td><td>Adresse des Mailservers, z. B. smtp.office365.com oder mail.firma.de</td></tr>
+        <tr><td>SMTP-Port</td><td>Meist 587 für STARTTLS oder 465 für SSL</td></tr>
+        <tr><td>SMTP-Benutzer</td><td>Benutzername oder vollständige E-Mail-Adresse</td></tr>
+        <tr><td>SMTP-Passwort</td><td>Passwort oder App-Passwort des Mailkontos</td></tr>
+        <tr><td>Absenderadresse</td><td>Adresse, die beim Empfänger angezeigt wird</td></tr>
+    </table>
+</section>
+
+<section class="card">
+    <h2>Typische Beispiele</h2>
+    <h3>Microsoft 365</h3>
+    <pre>Server: smtp.office365.com
+Port: 587
+STARTTLS: Ja
+SSL direkt: Nein</pre>
+
+    <h3>Gmail / Google Workspace</h3>
+    <pre>Server: smtp.gmail.com
+Port: 587
+STARTTLS: Ja
+SSL direkt: Nein</pre>
+
+    <h3>Klassischer Mailserver</h3>
+    <pre>Server: mail.firma.de
+Port: 587 oder 465
+STARTTLS: Ja bei Port 587
+SSL direkt: Ja bei Port 465</pre>
+</section>
+
+<section class="card">
+    <h2>Testversand</h2>
+    <p>Nach dem Speichern sollte immer zuerst eine Test-E-Mail versendet werden. Wenn der Test fehlschlägt, stehen die Details im Audit-Log und im Dienst-Log.</p>
+    <pre>sudo journalctl -u stempeluhr -n 100 --no-pager</pre>
+</section>
+
+<section class="card warning">
+    <h2>Sicherheit</h2>
+    <ul>
+        <li>Wenn möglich ein eigenes Mailkonto nur für die Stempeluhr verwenden.</li>
+        <li>Bei Microsoft 365 oder Google ein App-Passwort bzw. SMTP-kompatible Authentifizierung verwenden.</li>
+        <li>SMTP-Passwort nicht an Mitarbeiter weitergeben.</li>
+        <li>E-Mail-Versand nur aktivieren, wenn die Einstellungen getestet wurden.</li>
+    </ul>
+</section>
+{% endblock %}

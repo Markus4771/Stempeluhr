@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>DSGVO-Manager</h1>
+<p><a href="/system/settings">← Zurück zu Systemeinstellungen</a></p>
+{% if message %}<div class="alert success">{{ message }}</div>{% endif %}
+
+<section class="card">
+    <h2>Aufbewahrungsfristen</h2>
+    <form method="post" action="/system/settings/dsgvo" class="form-grid">
+        <label><input type="checkbox" name="dsgvo_enabled" {% if settings.get('dsgvo_enabled') in ['true','1','on'] %}checked{% endif %}> Automatische Bereinigung aktiv</label>
+        <label>Uhrzeit Nachtlauf
+            <input type="time" name="dsgvo_run_time" value="{{ settings.get('dsgvo_run_time', '02:00') }}">
+        </label>
+        <label>Verarbeitungsmodus
+            <select name="dsgvo_mode">
+                <option value="archive" {% if settings.get('dsgvo_mode') == 'archive' %}selected{% endif %}>Nur archivieren</option>
+                <option value="archive_anonymize" {% if settings.get('dsgvo_mode', 'archive_anonymize') == 'archive_anonymize' %}selected{% endif %}>Archivieren + anonymisieren</option>
+                <option value="archive_anonymize_delete" {% if settings.get('dsgvo_mode') == 'archive_anonymize_delete' %}selected{% endif %}>Archivieren + anonymisieren + löschen</option>
+            </select>
+        </label>
+        <label>Arbeitszeitbuchungen Jahre <input type="number" min="1" max="30" name="dsgvo_time_entries_years" value="{{ settings.get('dsgvo_time_entries_years','2') }}"></label>
+        <label>Urlaubs-/Abwesenheitsanträge Jahre <input type="number" min="1" max="30" name="dsgvo_vacation_years" value="{{ settings.get('dsgvo_vacation_years','3') }}"></label>
+        <label>Audit-Protokoll Jahre <input type="number" min="1" max="30" name="dsgvo_audit_years" value="{{ settings.get('dsgvo_audit_years','3') }}"></label>
+        <label>Archivierte Mitarbeiter Jahre <input type="number" min="1" max="30" name="dsgvo_archived_employee_years" value="{{ settings.get('dsgvo_archived_employee_years','3') }}"></label>
+        <label>Lohnrelevante Daten Jahre <input type="number" min="1" max="30" name="dsgvo_payroll_years" value="{{ settings.get('dsgvo_payroll_years','10') }}"></label>
+        <div><button type="submit">DSGVO-Einstellungen speichern</button></div>
+    </form>
+</section>
+
+<section class="card">
+    <h2>Vorschau</h2>
+    <table>
+        <tr><th>Bereich</th><th>Betroffene Datensätze</th></tr>
+        <tr><td>Arbeitszeitbuchungen</td><td>{{ preview.time_entries }}</td></tr>
+        <tr><td>Urlaubs-/Abwesenheitsanträge</td><td>{{ preview.vacations }}</td></tr>
+        <tr><td>Audit-Protokolle</td><td>{{ preview.audit_logs }}</td></tr>
+        <tr><td>Archivierte Mitarbeiter</td><td>{{ preview.employees }}</td></tr>
+    </table>
+    <p>Letzter Lauf: {{ settings.get('dsgvo_last_run','') or 'noch nicht ausgeführt' }}<br>Status: {{ settings.get('dsgvo_last_status','') }}</p>
+</section>
+
+<section class="card danger-zone">
+    <h2>Manuellen DSGVO-Lauf starten</h2>
+    <p>Diese Aktion archiviert/anonymisiert Daten entsprechend der Fristen. Löschen ist nur aktiv, wenn unten bestätigt oder im Modus ausgewählt.</p>
+    <form method="post" action="/system/settings/dsgvo/run">
+        <label>Admin-Passwort <input type="password" name="confirm_password" required></label>
+        <label>Bestätigung <input type="text" name="confirm_text" placeholder="DSGVO AUSFÜHREN" required></label>
+        <label><input type="checkbox" name="execute_delete"> Löschmodus für alte Urlaubs-/Auditdaten ausführen</label>
+        <button type="submit">DSGVO-Lauf jetzt ausführen</button>
+    </form>
+</section>
+
+<section class="card">
+    <h2>DSGVO-Protokoll</h2>
+    <table>
+        <tr><th>Zeitpunkt</th><th>Aktion</th><th>Datentyp</th><th>ID</th><th>Benutzer</th><th>Details</th></tr>
+        {% for log in logs %}
+        <tr>
+            <td>{{ log.created_at.strftime('%d.%m.%Y %H:%M') if log.created_at else '' }}</td>
+            <td>{{ log.action }}</td>
+            <td>{{ log.data_type }}</td>
+            <td>{{ log.record_id }}</td>
+            <td>{{ log.actor }}</td>
+            <td>{{ log.details }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="6">Noch keine DSGVO-Aktionen protokolliert.</td></tr>
+        {% endfor %}
+    </table>
+</section>
+{% endblock %}

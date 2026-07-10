@@ -1,0 +1,244 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Backup</h1>
+
+{% if request.query_params.get('restored') == '1' %}
+<div class="alert alert-success">Wiederherstellung abgeschlossen.</div>
+{% endif %}
+
+
+<section class="card">
+    {% if saved %}
+    <div class="success-box">{{ message or "Einstellungen gespeichert." }}</div>
+    {% endif %}
+    {% if message and not saved %}
+    <div class="error-box">{{ message }}</div>
+    {% endif %}
+
+    <h2>Backup-Konfiguration</h2>
+    <form action="/system/settings/backup" method="post" class="form-grid employee-form">
+        <div class="form-section-title">Zeitplan</div>
+
+        <div class="form-field checkbox-field">
+            <label><input name="backup_enabled" type="checkbox" {% if settings.get('backup_enabled') == 'true' %}checked{% endif %}> Backup aktivieren</label>
+        </div>
+
+        <div class="form-field">
+            <label>Backup-Zeit</label>
+            <input name="backup_time" type="time" value="{{ settings.get('backup_time', '02:00') }}">
+        </div>
+
+        <div class="form-section-title">Aufbewahrung</div>
+
+        <div class="form-field">
+            <label>Tages-Backups</label>
+            <input name="backup_daily_keep" type="number" min="1" max="365" value="{{ settings.get('backup_daily_keep', '30') }}">
+        </div>
+
+        <div class="form-field">
+            <label>Wochen-Backups</label>
+            <input name="backup_weekly_keep" type="number" min="1" max="52" value="{{ settings.get('backup_weekly_keep', '4') }}">
+        </div>
+
+        <div class="form-field">
+            <label>Monats-Backups</label>
+            <input name="backup_monthly_keep" type="number" min="1" max="120" value="{{ settings.get('backup_monthly_keep', '12') }}">
+        </div>
+
+        <div class="form-field">
+            <label>Jahres-Backups</label>
+            <input name="backup_yearly_keep" type="number" min="1" max="30" value="{{ settings.get('backup_yearly_keep', '10') }}">
+        </div>
+
+        <div class="form-section-title">Speicherort</div>
+
+        <div class="form-field">
+            <label>Backup-Ziel</label>
+            <select name="backup_target">
+                <option value="local" {% if settings.get('backup_target', 'local') == 'local' %}selected{% endif %}>Lokal</option>
+                <option value="smb" {% if settings.get('backup_target') == 'smb' %}selected{% endif %}>SMB/NAS-Freigabe</option>
+                <option value="local_smb" {% if settings.get('backup_target') == 'local_smb' %}selected{% endif %}>Lokal + SMB/NAS-Freigabe</option>
+            </select>
+        </div>
+
+        <div class="form-field">
+            <label>Lokaler Backup-Pfad</label>
+            <input name="backup_path" value="{{ settings.get('backup_path', '/opt/stempeluhr/backups') }}">
+        </div>
+
+        <div class="form-section-title">SMB/NAS-Freigabe</div>
+
+        <div class="form-field">
+            <label>SMB Server / IP</label>
+            <input name="backup_smb_server" value="{{ settings.get('backup_smb_server', '') }}" placeholder="z. B. 192.168.132.10">
+        </div>
+
+        <div class="form-field">
+            <label>SMB Freigabename</label>
+            <input name="backup_smb_share" value="{{ settings.get('backup_smb_share', '') }}" placeholder="z. B. backup">
+        </div>
+
+        <div class="form-field">
+            <label>Unterordner auf Freigabe</label>
+            <input name="backup_smb_path" value="{{ settings.get('backup_smb_path', '') }}" placeholder="z. B. stempeluhr">
+        </div>
+
+        <div class="form-field">
+            <label>SMB Benutzer</label>
+            <input name="backup_smb_username" value="{{ settings.get('backup_smb_username', '') }}">
+        </div>
+
+        <div class="form-field">
+            <label>SMB Passwort</label>
+            <input name="backup_smb_password" type="password" placeholder="Leer lassen = nicht ändern">
+        </div>
+
+        <div class="form-field">
+            <label>SMB Domain optional</label>
+            <input name="backup_smb_domain" value="{{ settings.get('backup_smb_domain', '') }}">
+        </div>
+
+        <div class="form-field">
+            <label>Mountpoint</label>
+            <input name="backup_smb_mountpoint" value="{{ settings.get('backup_smb_mountpoint', '/mnt/stempeluhr_backup') }}">
+        </div>
+
+        <div class="form-field">
+            <label>SMB Status</label>
+            <input value="{{ settings.get('backup_smb_last_status', 'noch nicht getestet') }}" readonly>
+        </div>
+
+        <div class="form-actions">
+            <button type="submit">Einstellungen speichern und SMB einrichten</button>
+            <button type="submit" formaction="/system/settings/backup/smb-test">SMB-Verbindung testen</button>
+        </div>
+
+        <div class="form-section-title">Backup-Inhalt</div>
+
+        <div class="form-field checkbox-field">
+            <label><input name="backup_include_database" type="checkbox" {% if settings.get('backup_include_database') == 'true' %}checked{% endif %}> PostgreSQL-Datenbank sichern</label>
+        </div>
+
+        <div class="form-field checkbox-field">
+            <label><input name="backup_include_config" type="checkbox" {% if settings.get('backup_include_config') == 'true' %}checked{% endif %}> Konfiguration sichern</label>
+        </div>
+
+        <div class="form-field checkbox-field">
+            <label><input name="backup_include_uploads" type="checkbox" {% if settings.get('backup_include_uploads') == 'true' %}checked{% endif %}> Logo/Uploads sichern</label>
+        </div>
+
+        <div class="form-section-title">Erweiterte Optionen</div>
+
+        <div class="form-field checkbox-field">
+            <label><input name="backup_before_update" type="checkbox" {% if settings.get('backup_before_update') == 'true' %}checked{% endif %}> Backup vor jedem Update</label>
+        </div>
+
+        <div class="form-field checkbox-field">
+            <label><input name="backup_before_restore" type="checkbox" {% if settings.get('backup_before_restore') == 'true' %}checked{% endif %}> Backup vor Wiederherstellung</label>
+        </div>
+
+        <div class="form-field checkbox-field">
+            <label><input name="backup_log_audit" type="checkbox" {% if settings.get('backup_log_audit') == 'true' %}checked{% endif %}> Backup im Audit-Protokoll speichern</label>
+        </div>
+
+        <div class="form-actions">
+            <button>Einstellungen speichern</button>
+            <a class="button secondary" href="/system/settings">Zurück</a>
+        </div>
+    </form>
+</section>
+
+<section class="card">
+    <h2>Status</h2>
+    <table>
+        <tr><th>Letztes Backup</th><td>{{ settings.get('backup_last_time', '') or 'noch keines' }}</td></tr>
+        <tr><th>Status</th><td>{{ settings.get('backup_last_status', 'noch nicht ausgeführt') }}</td></tr>
+        <tr><th>Letzte Datei</th><td>{{ settings.get('backup_last_file', '') }}</td></tr>
+    </table>
+
+    <form action="/system/settings/backup/run" method="post">
+        <button>Backup jetzt erstellen</button>
+    </form>
+</section>
+
+{% if restore_preview and restore_backup %}
+<section class="card danger-zone">
+    <h2>Restore / Wiederherstellung</h2>
+    <p><strong>Ausgewähltes Backup:</strong> {{ restore_backup.kind }} / {{ restore_backup.name }}</p>
+
+    {% if restore_preview.info %}
+    <pre style="white-space: pre-wrap; background:#f5f5f5; padding:10px; border-radius:6px;">{{ restore_preview.info }}</pre>
+    {% endif %}
+
+    <table>
+        <tr><th>Inhalt</th><th>Vorhanden</th></tr>
+        <tr><td>PostgreSQL-Datenbank</td><td>{{ 'ja' if restore_preview.database else 'nein' }}</td></tr>
+        <tr><td>Konfiguration .env</td><td>{{ 'ja' if restore_preview.config else 'nein' }}</td></tr>
+        <tr><td>Uploads / Logos</td><td>{{ 'ja' if restore_preview.uploads else 'nein' }}</td></tr>
+        <tr><td>Dokumentation</td><td>{{ 'ja' if restore_preview.docs else 'nein' }}</td></tr>
+        <tr><td>Version</td><td>{{ 'ja' if restore_preview.version else 'nein' }}</td></tr>
+    </table>
+
+    <form action="/system/settings/backup/restore/run/{{ restore_backup.kind }}/{{ restore_backup.name }}" method="post" class="form-grid employee-form">
+        <div class="form-section-title">Wiederherstellen</div>
+
+        <div class="form-field checkbox-field">
+            <label><input name="restore_database" type="checkbox" {% if not restore_preview.database %}disabled{% endif %}> PostgreSQL-Datenbank wiederherstellen</label>
+        </div>
+        <div class="form-field checkbox-field">
+            <label><input name="restore_config" type="checkbox" {% if not restore_preview.config %}disabled{% endif %}> Konfiguration .env wiederherstellen</label>
+        </div>
+        <div class="form-field checkbox-field">
+            <label><input name="restore_uploads" type="checkbox" {% if not restore_preview.uploads %}disabled{% endif %}> Uploads / Logos wiederherstellen</label>
+        </div>
+        <div class="form-field checkbox-field">
+            <label><input name="restore_docs" type="checkbox" {% if not restore_preview.docs %}disabled{% endif %}> Dokumentation wiederherstellen</label>
+        </div>
+
+        <div class="form-field">
+            <label>Zur Bestätigung exakt WIEDERHERSTELLEN eingeben</label>
+            <input name="confirm_restore" placeholder="WIEDERHERSTELLEN">
+        </div>
+
+        <div class="warning-box">
+            Achtung: Ein Restore kann bestehende Daten überschreiben. Wenn aktiviert, wird vorher automatisch ein Sicherheitsbackup erstellt.
+        </div>
+
+        <div class="form-actions">
+            <button class="danger-small" onclick="return confirm('Restore wirklich ausführen? Bestehende Daten können überschrieben werden.')">Restore ausführen</button>
+            <a class="button secondary" href="/system/settings/backup">Abbrechen</a>
+        </div>
+    </form>
+</section>
+{% endif %}
+
+<section class="card">
+    <h2>Backups</h2>
+    <table>
+        <tr>
+            <th>Typ</th>
+            <th>Datei</th>
+            <th>Größe</th>
+            <th>Zeit</th>
+            <th>Aktion</th>
+        </tr>
+        {% for b in backups %}
+        <tr>
+            <td>{{ b.kind }}</td>
+            <td>{{ b.name }}</td>
+            <td>{{ b.size }}</td>
+            <td>{{ b.mtime }}</td>
+            <td>
+                <a class="small-button" href="/system/settings/backup/download/{{ b.kind }}/{{ b.name }}">Download</a>
+                <form action="/system/settings/backup/restore/preview/{{ b.kind }}/{{ b.name }}" method="post" style="display:inline;">
+                    <button class="small-button" type="submit">Restore</button>
+                </form>
+                <form action="/system/settings/backup/delete/{{ b.kind }}/{{ b.name }}" method="post" style="display:inline;">
+                    <button class="small-button danger-small" onclick="return confirm('Backup wirklich löschen?')">Löschen</button>
+                </form>
+            </td>
+        </tr>
+        {% endfor %}
+    </table>
+</section>
+{% endblock %}

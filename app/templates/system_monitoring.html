@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+{% block content %}
+<style>
+.raspberry-shot{width:180px;max-width:100%;border:1px solid #d8dee9;border-radius:10px;background:#f8fafc;box-shadow:0 1px 4px rgba(0,0,0,.08)}
+.inline-actions{display:flex;flex-wrap:wrap;gap:.35rem;align-items:center}
+#raspberry-terminals td{vertical-align:top}
+</style>
+<h1>Monitoring</h1>
+
+<section class="card">
+  <div class="form-actions">
+    <a class="button" href="/system/monitoring">Aktualisieren</a>
+    <a class="button secondary" href="/api/v1/monitoring" target="_blank">API öffnen</a>
+    <a class="button secondary" href="/health" target="_blank">Healthcheck</a>
+    <a class="button secondary" href="/system/rollback">Rollback</a>
+  </div>
+</section>
+
+<section class="card">
+  <h2>Übersicht</h2>
+  <div class="dashboard-grid">
+    <div class="stat-card"><div class="stat-label">Webserver</div><div class="stat-value badge ok">Online</div><small>{{ status.time }}</small></div>
+    <div class="stat-card"><div class="stat-label">PostgreSQL</div><div class="stat-value badge {{ 'ok' if status.postgresql_ok else 'danger' }}">{{ 'OK' if status.postgresql_ok else 'Fehler' }}</div><small>{{ status.postgresql_message }}</small></div>
+    <div class="stat-card"><div class="stat-label">Mitarbeiter</div><div class="stat-value">{{ status.employee_count if status.employee_count is not none else '-' }}</div><small>registriert</small></div>
+    <div class="stat-card"><div class="stat-label">Plausibilität</div><div class="stat-value">{{ status.open_plausibility_count if status.open_plausibility_count is not none else '-' }}</div><small>offene Verstöße</small></div>
+    <div class="stat-card"><div class="stat-label">Raspberry</div><div class="stat-value">{{ raspberry_clients|selectattr('chromium_running')|list|length }} / {{ raspberry_clients|length }}</div><small>Chromium aktiv</small></div>
+    <div class="stat-card"><div class="stat-label">Speicher</div><div class="stat-value">{{ status.disk_used_percent }}%</div><small>{{ status.disk_free_gb }} GB frei</small></div>
+  </div>
+</section>
+
+<section class="card" id="raspberry-terminals">
+  <h2>Raspberry-Terminals</h2>
+  <div class="table-wrap">
+  <table class="table employee-table">
+    <thead><tr>
+      <th>Raspberry</th><th>Online</th><th>Chromium</th><th>URL</th><th>CPU/RAM</th><th>Letzter Kontakt</th><th>Bildschirmfoto</th><th>Aktionen</th>
+    </tr></thead>
+    <tbody>
+    {% for c in raspberry_clients %}
+      {% set online = raspberry_online(c) %}
+      <tr>
+        <td><strong>{{ c.hostname }}</strong><br><small>{{ c.ip_address or 'keine IP' }} · Agent {{ c.agent_version or '-' }}</small></td>
+        <td><span class="badge {{ 'ok' if online else 'inactive' }}">{{ 'Online' if online else 'Offline' }}</span></td>
+        <td><span class="badge {{ 'ok' if c.chromium_running else 'danger' }}">{{ 'läuft' if c.chromium_running else 'aus' }}</span></td>
+        <td><small>{{ c.kiosk_url or '-' }}</small></td>
+        <td>{{ c.cpu_percent or 0 }}% / {{ c.ram_percent or 0 }}%<br><small>{{ c.temperature or '' }}</small></td>
+        <td>{{ c.last_seen.strftime('%d.%m.%Y %H:%M:%S') if c.last_seen else '-' }}<br><small>{{ c.uptime or '' }}</small></td>
+        <td>
+          {% if c.last_screenshot_path %}
+            <a href="/system/raspberry-monitor/screenshot/{{ c.id }}?t={{ c.last_seen.timestamp() if c.last_seen else 0 }}" target="_blank" title="Bildschirmfoto groß anzeigen">
+              <img class="raspberry-shot" src="/system/raspberry-monitor/screenshot/{{ c.id }}?t={{ c.last_seen.timestamp() if c.last_seen else 0 }}" alt="Bildschirmfoto {{ c.hostname }}">
+            </a>
+          {% else %}
+            <span class="badge inactive">kein Bild</span>
+          {% endif %}
+        </td>
+        <td>
+          <form method="post" action="/system/raspberry-monitor/{{ c.id }}/command" class="inline-actions">
+            <button class="button small" name="command" value="screenshot">Bildschirmfoto aktualisieren</button>
+            <button class="button small secondary" name="command" value="restart_chromium">Chromium neu starten</button>
+            <button class="button small secondary" name="command" value="clear_cache">Cache löschen</button>
+          </form>
+          {% if c.command_result %}<small>{{ c.command_result }}</small>{% endif %}
+        </td>
+      </tr>
+    {% else %}
+      <tr><td colspan="8">Noch kein Raspberry-Heartbeat empfangen.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  <p><small>Der Raspberry-Agent sendet regelmäßig einen Heartbeat. Screenshot- und Neustartbefehle werden beim nächsten Heartbeat abgeholt.</small></p>
+</section>
+
+<section class="card">
+  <h2>Server</h2>
+  <table class="table">
+    <tr><th>Hostname</th><td>{{ status.hostname }}</td></tr>
+    <tr><th>Load</th><td>{{ status.load1 }} / {{ status.load5 }} / {{ status.load15 }}</td></tr>
+    <tr><th>RAM</th><td>{{ status.meminfo }}</td></tr>
+    <tr><th>Festplatte</th><td>{{ status.disk_used_percent }}% belegt, {{ status.disk_free_gb }} GB frei von {{ status.disk_total_gb }} GB</td></tr>
+    <tr><th>Tabellen</th><td>{{ status.table_count if status.table_count is not none else 'unbekannt' }}</td></tr>
+    <tr><th>Backup-Verzeichnis</th><td>{{ 'vorhanden' if status.backup_dir_exists else 'fehlt' }}</td></tr>
+    <tr><th>Installationslog</th><td>{{ 'vorhanden' if status.install_log_exists else 'fehlt' }}</td></tr>
+  </table>
+</section>
+
+<section class="card">
+  <h2>Dienste</h2>
+  <table class="table">
+    <tr><th>Dienst</th><th>Status</th><th>Autostart</th></tr>
+    {% for svc in status.services %}
+    <tr>
+      <td>{{ svc.name }}</td>
+      <td><span class="badge {{ 'ok' if svc.ok else 'danger' }}">{{ 'OK' if svc.ok else 'Fehler' }}</span> {{ svc.state }}</td>
+      <td>{{ svc.enabled }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+</section>
+
+<section class="card">
+  <h2>Protokolle</h2>
+  <pre style="white-space: pre-wrap; max-height: 420px; overflow: auto;">{{ status.service_log }}</pre>
+</section>
+{% endblock %}

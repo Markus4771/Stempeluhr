@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="card settings-card print-card">
+  <h1>Offboarding-Bericht</h1>
+  <p>Erstellt am {{ now.strftime('%d.%m.%Y %H:%M') }}</p>
+  <table>
+    <tr><th>Mitarbeiter</th><td>{{ employee.employee_number }} – {{ employee.first_name }} {{ employee.last_name }}</td></tr>
+    <tr><th>Status</th><td>{{ employee.status or ('aktiv' if employee.active else 'inaktiv') }}</td></tr>
+    <tr><th>Eintritt</th><td>{{ employee.entry_date.strftime('%d.%m.%Y') if employee.entry_date else '' }}</td></tr>
+    <tr><th>Austritt</th><td>{{ employee.exit_date.strftime('%d.%m.%Y') if employee.exit_date else '' }}</td></tr>
+    <tr><th>Resturlaub</th><td>{{ employee.vacation_days_remaining or 0 }} Tage</td></tr>
+    <tr><th>Überstunden</th><td>{{ employee.overtime_balance or 0 }} h</td></tr>
+    <tr><th>Letzte Buchung</th><td>{% if last_entry %}{{ last_entry.timestamp.strftime('%d.%m.%Y %H:%M') }} – {{ last_entry.entry_type }}{% else %}keine{% endif %}</td></tr>
+    <tr><th>Notiz</th><td>{{ employee.offboarding_note or '' }}</td></tr>
+  </table>
+  <div class="form-actions no-print"><button onclick="window.print()">Drucken / als PDF speichern</button><a class="button secondary" href="/system/settings/offboarding?employee_id={{ employee.id }}">Zurück</a></div>
+</section>
+{% endblock %}

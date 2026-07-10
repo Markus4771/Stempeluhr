@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header-actions">
+  <div>
+    <h1>Offboarding</h1>
+    <p class="help-text">Mitarbeiter sauber deaktivieren, archivieren, RFID freigeben und Arbeitszeit-Neuanfang je Mitarbeiter durchführen.</p>
+  </div>
+  <a class="button secondary" href="/system/settings">Zurück zu Systemeinstellungen</a>
+</div>
+
+{% if message %}<div class="success-box">{{ message }}</div>{% endif %}
+
+<section class="card settings-card">
+  <h2>Mitarbeiter auswählen</h2>
+  <form action="/system/settings/offboarding/select" method="post" class="settings-form">
+    <div class="settings-grid">
+      <div class="form-field">
+        <label>Mitarbeiter</label>
+        <select name="employee_id" required>
+          <option value="">Bitte auswählen</option>
+          {% for emp in employees %}
+          <option value="{{ emp.id }}" {% if selected and selected.id == emp.id %}selected{% endif %}>{{ emp.employee_number }} – {{ emp.last_name }}, {{ emp.first_name }}{% if emp.status %} ({{ emp.status }}){% endif %}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-field">
+        <label>Filter</label>
+        <div class="button-row">
+          <a class="button secondary" href="/system/settings/offboarding?status=active">Aktive</a>
+          <a class="button secondary" href="/system/settings/offboarding?status=inactive">Inaktive</a>
+          <a class="button secondary" href="/system/settings/offboarding?status=archived">Archivierte</a>
+          <a class="button secondary" href="/system/settings/offboarding?status=all">Alle</a>
+        </div>
+      </div>
+    </div>
+    <div class="form-actions"><button type="submit">Auswählen</button></div>
+  </form>
+</section>
+
+{% if selected %}
+<section class="card settings-card">
+  <h2>Offboarding für {{ selected.first_name }} {{ selected.last_name }}</h2>
+  <div class="kpi-grid">
+    <div class="kpi"><strong>Resturlaub</strong><span>{{ '%.2f'|format(stats.resturlaub) }} Tage</span></div>
+    <div class="kpi"><strong>Überstunden</strong><span>{{ '%.2f'|format(stats.ueberstunden) }} h</span></div>
+    <div class="kpi"><strong>Zeitkonto Ist</strong><span>{{ '%.2f'|format(stats.zeitkonto) }} h</span></div>
+    <div class="kpi"><strong>Letzte Buchung</strong><span>{% if stats.letzte_buchung %}{{ stats.letzte_buchung.timestamp.strftime('%d.%m.%Y %H:%M') }}{% else %}keine{% endif %}</span></div>
+  </div>
+
+  <form action="/system/settings/offboarding/save" method="post" class="settings-form">
+    <input type="hidden" name="employee_id" value="{{ selected.id }}">
+    <div class="settings-grid">
+      <div class="form-field">
+        <label>Austrittsdatum</label>
+        <input type="date" name="exit_date" value="{{ selected.exit_date.isoformat() if selected.exit_date else '' }}">
+      </div>
+      <div class="form-field">
+        <label>Status</label>
+        <select name="status">
+          <option value="active" {% if selected.status == 'active' or selected.active %}selected{% endif %}>Aktiv</option>
+          <option value="inactive" {% if selected.status == 'inactive' or not selected.active %}selected{% endif %}>Inaktiv</option>
+          <option value="archived" {% if selected.status == 'archived' %}selected{% endif %}>Archiviert</option>
+        </select>
+      </div>
+      <div class="form-field">
+        <label>Resturlaub behandeln</label>
+        <select name="vacation_handling">
+          <option value="noted">Nur dokumentieren</option>
+          <option value="paid">Auszahlen</option>
+          <option value="transfer">Übertragen</option>
+          <option value="expire">Verfallen lassen</option>
+        </select>
+      </div>
+      <div class="form-field">
+        <label>Überstunden behandeln</label>
+        <select name="overtime_handling">
+          <option value="noted">Nur dokumentieren</option>
+          <option value="paid">Auszahlen</option>
+          <option value="reset">Auf Null setzen</option>
+          <option value="expire">Verfallen lassen</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="settings-grid module-toggle-grid">
+      <label class="checkbox-field"><input type="checkbox" name="block_login" value="1" checked> Login/PIN sperren</label>
+      <label class="checkbox-field"><input type="checkbox" name="block_rfid" value="1" checked> RFID sperren</label>
+      <label class="checkbox-field"><input type="checkbox" name="release_rfid" value="1" checked> RFID-Karte freigeben</label>
+    </div>
+
+    <div class="form-field">
+      <label>Offboarding-Notiz</label>
+      <textarea name="offboarding_note" rows="4" maxlength="1000">{{ selected.offboarding_note or '' }}</textarea>
+    </div>
+
+    <div class="form-actions">
+      <button type="submit">Offboarding speichern</button>
+      <a class="button secondary" href="/system/settings/offboarding/report/{{ selected.id }}" target="_blank">Offboarding-Bericht</a>
+    </div>
+  </form>
+</section>
+
+<section class="card settings-card danger-card">
+  <h2>Mitarbeiter-Neuanfang</h2>
+  <p class="warning-box"><strong>Achtung:</strong> Diese Funktion setzt nur den ausgewählten Mitarbeiter zurück. Der feste Admin kann hier nicht ausgewählt werden.</p>
+  <form action="/system/settings/offboarding/reset-employee" method="post" class="settings-form" onsubmit="return confirm('Neuanfang für diesen Mitarbeiter wirklich durchführen?');">
+    <input type="hidden" name="employee_id" value="{{ selected.id }}">
+    <div class="settings-grid module-toggle-grid">
+      <label class="checkbox-field"><input type="checkbox" name="reset_overtime" value="1"> Überstunden und Zeitkonto auf 0 setzen</label>
+      <label class="checkbox-field"><input type="checkbox" name="reset_vacation" value="1"> Resturlaub auf Standardwert setzen</label>
+      <label class="checkbox-field"><input type="checkbox" name="delete_bookings" value="1"> Buchungen und Korrekturen löschen</label>
+    </div>
+    <div class="form-field">
+      <label>Admin-Passwort</label>
+      <input type="password" name="confirm_password" required>
+    </div>
+    <div class="form-actions"><button class="danger" type="submit">Mitarbeiter zurücksetzen</button></div>
+  </form>
+</section>
+{% endif %}
+{% endblock %}

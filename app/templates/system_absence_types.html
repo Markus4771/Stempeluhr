@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="page-header">
+  <div>
+    <h1>Abwesenheitsarten</h1>
+    <p class="page-subtitle">Arten für Abwesenheitsanträge anlegen, sortieren, deaktivieren oder löschen.</p>
+  </div>
+  <a class="button secondary" href="/system/settings">Zurück</a>
+</section>
+
+<section class="card">
+  <h2>Neue Abwesenheitsart</h2>
+  <form method="post" action="/system/settings/absence-types/add" class="form-grid employee-form">
+    <div class="form-field">
+      <label>Name</label>
+      <input name="name" required placeholder="z. B. Arzttermin">
+    </div>
+    <div class="form-field">
+      <label>Code</label>
+      <input name="code" placeholder="optional, wird automatisch erzeugt">
+    </div>
+    <div class="form-field">
+      <label>Sortierung</label>
+      <input type="number" name="sort_order" value="100">
+    </div>
+    <div class="form-field checkbox-field compact-checkbox">
+      <label><input type="checkbox" name="active" checked> Aktiv</label>
+      <label><input type="checkbox" name="requires_approval" checked> Genehmigung nötig</label>
+      <label><input type="checkbox" name="requires_text"> Textfeld Pflicht</label>
+    </div>
+    <div class="form-actions">
+      <button>Hinzufügen</button>
+    </div>
+  </form>
+</section>
+
+<section class="card">
+  <h2>Vorhandene Arten</h2>
+  <div class="table-wrap">
+    <table>
+      <tr>
+        <th>Sortierung</th>
+        <th>Name</th>
+        <th>Code</th>
+        <th>Optionen</th>
+        <th>Verwendet</th>
+        <th>Aktion</th>
+      </tr>
+      {% for item in types %}
+      <tr>
+        <form method="post" action="/system/settings/absence-types/{{ item.id }}/update">
+          <td><input type="number" name="sort_order" value="{{ item.sort_order or 100 }}" style="width:90px"></td>
+          <td><input name="name" value="{{ item.name }}" required></td>
+          <td><code>{{ item.code }}</code></td>
+          <td>
+            <label><input type="checkbox" name="active" {% if item.active %}checked{% endif %}> aktiv</label><br>
+            <label><input type="checkbox" name="requires_approval" {% if item.requires_approval %}checked{% endif %}> Genehmigung</label><br>
+            <label><input type="checkbox" name="requires_text" {% if item.requires_text %}checked{% endif %}> Text Pflicht</label>
+          </td>
+          <td>{{ used.get(item.code, 0) }}</td>
+          <td>
+            <button>Speichern</button>
+        </form>
+            <form method="post" action="/system/settings/absence-types/{{ item.id }}/delete" onsubmit="return confirm('Diese Abwesenheitsart löschen oder deaktivieren? Bereits verwendete Arten werden nur deaktiviert.');" style="margin-top:8px">
+              <button class="danger" type="submit">Löschen</button>
+            </form>
+          </td>
+      </tr>
+      {% endfor %}
+    </table>
+  </div>
+  <p class="help-text">Hinweis: Arten, die bereits in Anträgen verwendet wurden, werden beim Löschen nur deaktiviert. So bleiben alte Anträge nachvollziehbar.</p>
+</section>
+{% endblock %}

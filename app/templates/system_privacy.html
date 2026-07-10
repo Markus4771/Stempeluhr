@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Datenschutz</h1>
+
+<section class="card">
+    {% if saved %}
+    <div class="success-box">Datenschutzeinstellungen gespeichert.</div>
+    {% endif %}
+
+    <form action="/system/privacy" method="post" class="form-grid employee-form">
+        <div class="form-section-title">Verantwortliche Stelle / Datenschutzkontakt</div>
+
+        <div class="form-field">
+            <label>Datenschutzbeauftragter / Ansprechpartner</label>
+            <input name="privacy_officer_name" value="{{ settings.get('privacy_officer_name', '') }}" placeholder="Name">
+        </div>
+
+        <div class="form-field">
+            <label>E-Mail Datenschutzkontakt</label>
+            <input name="privacy_officer_email" type="email" value="{{ settings.get('privacy_officer_email', '') }}" placeholder="datenschutz@firma.de">
+        </div>
+
+        <div class="form-section-title">Aufbewahrung & Betroffenenrechte</div>
+
+        <div class="form-field">
+            <label>Aufbewahrungsfrist Arbeitszeitdaten in Jahren</label>
+            <input name="privacy_retention_years" type="number" min="1" max="30" value="{{ settings.get('privacy_retention_years', '10') }}">
+        </div>
+
+        <div class="form-field checkbox-field">
+            <label><input name="privacy_export_enabled" type="checkbox" {% if settings.get('privacy_export_enabled') == 'true' %}checked{% endif %}> Datenexport für Auskunft ermöglichen</label>
+        </div>
+
+        <div class="form-field checkbox-field">
+            <label><input name="privacy_delete_enabled" type="checkbox" {% if settings.get('privacy_delete_enabled') == 'true' %}checked{% endif %}> Datenlöschung technisch ermöglichen</label>
+        </div>
+
+        <div class="form-section-title">Verarbeitungstätigkeit</div>
+
+        <div class="form-field wide-field">
+            <label>Zweck der Verarbeitung</label>
+            <textarea name="privacy_processing_purpose" rows="4">{{ settings.get('privacy_processing_purpose', '') }}</textarea>
+        </div>
+
+        <div class="form-field wide-field">
+            <label>Rechtsgrundlage</label>
+            <textarea name="privacy_legal_basis" rows="3">{{ settings.get('privacy_legal_basis', '') }}</textarea>
+        </div>
+
+        <div class="form-field wide-field">
+            <label>Datenschutzhinweis für Mitarbeiter</label>
+            <textarea name="privacy_notice_text" rows="6">{{ settings.get('privacy_notice_text', '') }}</textarea>
+        </div>
+
+        <div class="form-actions">
+            <button>Speichern</button>
+            <a class="button secondary" href="/system">Zurück</a>
+        </div>
+    </form>
+</section>
+
+<section class="card">
+    <h2>DSGVO-Checkliste</h2>
+    <table>
+        <tr><th>Punkt</th><th>Status</th></tr>
+        <tr><td>Mitarbeiter über Verarbeitung informieren</td><td>muss organisatorisch erfolgen</td></tr>
+        <tr><td>Rollen- und Rechtekonzept</td><td>im System vorbereitet</td></tr>
+        <tr><td>Audit-Protokoll</td><td>vorhanden</td></tr>
+        <tr><td>Backups</td><td>über Backup-Skript vorhanden</td></tr>
+        <tr><td>Datenexport</td><td>vorbereitet</td></tr>
+        <tr><td>Lösch-/Archivkonzept</td><td>über Aufbewahrungsfrist dokumentiert</td></tr>
+    </table>
+</section>
+{% endblock %}

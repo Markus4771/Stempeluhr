@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Abteilung bearbeiten</h1>
+
+<section class="card">
+    {% if error %}
+    <div class="error-box">{{ error }}</div>
+    {% endif %}
+
+    <form action="/system/settings/departments/{{ department.id }}/edit" method="post" class="form-grid employee-form">
+        <div class="form-field">
+            <label>Abteilungsname *</label>
+            <input name="name" value="{{ department.name }}" required>
+        </div>
+
+        <div class="form-field">
+            <label>Beschreibung</label>
+            <input name="description" value="{{ department.description or '' }}">
+        </div>
+
+        <div class="form-field">
+            <label>Abteilungsleiter</label>
+            <select name="manager_employee_id">
+                <option value="0">Kein Leiter</option>
+                {% for e in employees %}
+                <option value="{{ e.id }}" {% if department.manager_employee_id == e.id %}selected{% endif %}>
+                    {{ e.first_name }} {{ e.last_name }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="form-field checkbox-field">
+            <label><input name="active" type="checkbox" {% if department.active %}checked{% endif %}> Aktiv</label>
+        </div>
+
+        <div class="form-actions">
+            <button>Speichern</button>
+            <a class="button secondary" href="/system/settings/departments">Abbrechen</a>
+        </div>
+    </form>
+</section>
+{% endblock %}

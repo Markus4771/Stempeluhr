@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Meine Daten</h1>
+<section class="card settings-card">
+{% if saved %}<div class="success-box">Daten gespeichert.</div>{% endif %}
+<p class="help-text">Hier kann der Mitarbeiter nur eigene Kontaktdaten und das eigene Passwort ändern. Arbeitszeit, Rollen, RFID und Rechte bleiben der Personalverwaltung vorbehalten.</p>
+<form action="/me/profile" method="post" class="settings-form">
+  <div class="settings-section">
+    <h2>Kontaktdaten</h2>
+    <div class="settings-grid">
+      <div class="form-field"><label>Mitarbeiternummer</label><input value="{{ employee.employee_number }}" disabled></div>
+      <div class="form-field"><label>Name</label><input value="{{ employee.first_name }} {{ employee.last_name }}" disabled></div>
+      <div class="form-field"><label>E-Mail</label><input name="email" type="email" value="{{ employee.email or '' }}"></div>
+      <div class="form-field"><label>Telefon</label><input name="phone" value="{{ employee.phone or '' }}"></div>
+    </div>
+  </div>
+  <div class="settings-section">
+    <h2>Passwort</h2>
+    <div class="settings-grid">
+      <div class="form-field"><label>Neues Passwort</label><input name="password" type="password" placeholder="Leer lassen = nicht ändern"></div>
+    </div>
+  </div>
+  <div class="form-actions"><button>Speichern</button><a class="button secondary" href="/">Zurück</a></div>
+</form>
+</section>
+{% endblock %}

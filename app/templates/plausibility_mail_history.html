@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Plausibilitätsversand</h1>
+<section class="card">
+  <h2>Versandhistorie</h2>
+  <p>Hier sehen Sie, ob der tägliche Plausibilitätslauf gestartet wurde, ob Verstöße vorhanden waren und welche E-Mails versendet wurden.</p>
+  <form method="post" action="/plausibility/daily-mail-test" style="margin-bottom:1rem;">
+    <label>Testdatum <input type="date" name="day"></label>
+    <button class="button" type="submit">Tagesversand testen</button>
+  </form>
+  <table>
+    <thead><tr><th>Zeit</th><th>Datum</th><th>Typ</th><th>Empfänger</th><th>Status</th><th>Verstöße</th><th>Details</th><th>Fehler</th></tr></thead>
+    <tbody>
+    {% for row in rows %}
+      <tr>
+        <td>{{ row.created_at.strftime('%d.%m.%Y %H:%M:%S') if row.created_at else '' }}</td>
+        <td>{{ row.dispatch_date.strftime('%d.%m.%Y') if row.dispatch_date else '' }}</td>
+        <td>{{ row.dispatch_type }}</td>
+        <td>{{ row.recipient or '-' }}</td>
+        <td>{{ row.status }}</td>
+        <td>{{ row.issues_count }}</td>
+        <td>{{ row.details or '' }}</td>
+        <td>{{ row.error_message or '' }}</td>
+      </tr>
+    {% else %}
+      <tr><td colspan="8">Noch keine Einträge vorhanden.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}

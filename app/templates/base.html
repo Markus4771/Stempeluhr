@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="de">
+<head>
+    <meta charset="utf-8">
+    <title>Stempeluhr</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="/static/style.css" rel="stylesheet">
+    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+</head>
+<body>
+{% set session_data = request.scope.get("session", {}) %}
+{% set role = session_data.get("role", "") %}
+<nav class="nav app-nav" aria-label="Hauptnavigation">
+    <div class="nav-left">
+        <a href="/">Dashboard</a>
+        <a href="/raspberry">Zeiterfassung</a>
+        <a href="/vacation">Abwesenheit</a>
+        <a href="/vacation/my">Meine Abwesenheiten</a>
+
+        {% if role in ["Administrator", "Personal"] %}
+            <a href="/admin">Mitarbeiterverwaltung</a>
+        {% endif %}
+
+        {% if role in ["Administrator", "Personal", "Teamleiter"] or session_data.get("can_self_correct") or (user is defined and user and user.can_self_correct) %}
+            <a href="/corrections">Korrektur</a>
+        {% endif %}
+
+        {% if session_data.get("employee_name") %}
+            <a href="/reports">Mein Report</a>
+        {% endif %}
+
+        {% if role in ["Administrator", "Personal", "Teamleiter"] %}
+            <a href="/reports">Auswertung</a>
+            <a href="/worktime-account">Arbeitszeitkonto</a>
+            <a href="/plausibility">Plausibilität</a>
+        {% endif %}
+
+        {% if role == "Administrator" %}
+            <a href="/system/settings">Systemeinstellungen</a>
+            <a href="/system/privacy">Datenschutz</a>
+            <a href="/system/audit">Audit-Protokoll</a>
+            <a href="/system/monitoring">Monitoring</a>
+            <a href="/setup">Einrichtung</a>
+            <a href="/system/developer">Entwickler</a>
+        {% endif %}
+    </div>
+
+    <div class="nav-right">
+        {% if session_data.get("employee_name") %}
+            {% if user and user.can_self_manage %}<a href="/me/profile">Meine Daten</a>{% endif %}
+            <span class="nav-user">{{ session_data.get("employee_name") }}</span>
+            <a href="/logout">Abmelden</a>
+        {% else %}
+            <a href="/login">Login</a>
+        {% endif %}
+    </div>
+</nav>
+<main class="container">
+    {% block content %}{% endblock %}
+</main>
+<footer class="app-version">Version {{ app_version }}</footer>
+</body>
+</html>

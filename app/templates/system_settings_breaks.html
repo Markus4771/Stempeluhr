@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Pausenregelung</h1>
+<section class="card">
+{% if saved %}<div class="success-box">Pausenregelung gespeichert.</div>{% endif %}
+<form action="/system/settings/breaks" method="post" class="form-grid">
+<label>Automatische Pausenregelung aktiv</label>
+<label class="checkbox-row"><input type="checkbox" name="auto_break_enabled" value="1" {% if settings.get('auto_break_enabled', '0') == '1' %}checked{% endif %}> aktivieren</label>
+
+<label>Ab Arbeitszeit mehr als Stunden</label>
+<input name="auto_break_threshold_1_hours" type="number" min="0" max="24" step="0.25" value="{{ settings.get('auto_break_threshold_1_hours', '6') }}">
+<label>Dann Pause abziehen Minuten</label>
+<input name="auto_break_deduct_1_minutes" type="number" min="0" max="240" step="1" value="{{ settings.get('auto_break_deduct_1_minutes', '30') }}">
+
+<label>Ab Arbeitszeit mehr als Stunden</label>
+<input name="auto_break_threshold_2_hours" type="number" min="0" max="24" step="0.25" value="{{ settings.get('auto_break_threshold_2_hours', '9') }}">
+<label>Dann Pause abziehen Minuten</label>
+<input name="auto_break_deduct_2_minutes" type="number" min="0" max="240" step="1" value="{{ settings.get('auto_break_deduct_2_minutes', '45') }}">
+
+<label>Nur fehlende Pause ergänzen</label>
+<label class="checkbox-row"><input type="checkbox" name="auto_break_only_missing_break" value="1" {% if settings.get('auto_break_only_missing_break', '1') == '1' %}checked{% endif %}> manuell gebuchte Pause anrechnen</label>
+
+<button>Speichern</button>
+<a class="button secondary" href="/system/settings">Zurück</a>
+</form>
+</section>
+<section class="card">
+<h2>Berechnungslogik</h2>
+<p>Die Berechnung verwendet die Buchungen <strong>Kommen</strong> bis <strong>Gehen</strong>. Manuelle Pausen zwischen <strong>Pause Start</strong> und <strong>Pause Ende</strong> werden abgezogen.</p>
+<p>Ist die automatische Pausenregelung aktiv, wird je nach Brutto-Arbeitszeit zusätzlich eine Pause abgezogen. Mit „Nur fehlende Pause ergänzen“ wird nur die Differenz zur Mindestpause ergänzt.</p>
+</section>
+{% endblock %}

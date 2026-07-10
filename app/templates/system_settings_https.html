@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>HTTPS &amp; Zertifikate</h1>
+
+{% if message %}
+<section class="card notice"><strong>{{ message }}</strong></section>
+{% endif %}
+
+<section class="card settings-card">
+    <h2>Status</h2>
+    <table>
+        <tr><th>Prüfung</th><th>Status</th></tr>
+        <tr><td>HTTPS aktiviert</td><td>{{ "Ja" if settings.get('https_enabled','0') in ['1','true','on','ja'] else "Nein" }}</td></tr>
+        <tr><td>Zertifikat</td><td>{{ "vorhanden" if status.cert_exists else "fehlt" }}<br><small>{{ status.cert_path }}</small></td></tr>
+        <tr><td>Privater Schlüssel</td><td>{{ "vorhanden" if status.key_exists else "fehlt" }}<br><small>{{ status.key_path }}</small></td></tr>
+        <tr><td>Nginx-Konfiguration</td><td>{{ "vorhanden" if status.nginx_config_exists else "fehlt" }}<br><small>{{ status.nginx_config_path }}</small></td></tr>
+        <tr><td>Letztes Zertifikat</td><td>{{ settings.get('https_last_cert', 'Noch nicht erzeugt') or 'Noch nicht erzeugt' }}</td></tr>
+        <tr><td>Letzter Status</td><td>{{ settings.get('https_last_status', 'Noch nicht geprüft') }}</td></tr>
+    </table>
+</section>
+
+<section class="card settings-card">
+    <h2>HTTPS-Einstellungen</h2>
+    <form method="post" action="/system/settings/https/save" class="form-grid employee-form">
+        <label>
+            <span>HTTPS aktivieren</span>
+            <input type="checkbox" name="https_enabled" value="1" {% if settings.get('https_enabled','0') in ['1','true','on','ja'] %}checked{% endif %}>
+        </label>
+        <label>
+            <span>Zertifikatstyp</span>
+            <input type="text" value="Selbstsigniertes Zertifikat" disabled>
+        </label>
+        <label>
+            <span>Hostname / Hauptname</span>
+            <input type="text" name="https_hostname" value="{{ settings.get('https_hostname','stempeluhr.local') }}" placeholder="stempeluhr.local oder 10.0.0.48">
+        </label>
+        <label>
+            <span>Alternative Namen / IPs</span>
+            <input type="text" name="https_alt_names" value="{{ settings.get('https_alt_names','10.0.0.48, stempeluhr.local') }}" placeholder="10.0.0.48, stempeluhr.local">
+        </label>
+        <label>
+            <span>Gültigkeit in Tagen</span>
+            <input type="number" name="https_valid_days" value="{{ settings.get('https_valid_days','3650') }}" min="1" max="36500">
+        </label>
+        <label>
+            <span>Organisation / Firma</span>
+            <input type="text" name="https_organization" value="{{ settings.get('https_organization','Stempeluhr') }}" placeholder="Firmenname">
+        </label>
+        <label>
+            <span>HTTP auf HTTPS weiterleiten</span>
+            <input type="checkbox" name="https_redirect_http" value="1" {% if settings.get('https_redirect_http','1') in ['1','true','on','ja'] %}checked{% endif %}>
+        </label>
+        <div class="form-actions">
+            <button class="button" type="submit">Einstellungen speichern</button>
+            <a class="button secondary" href="/system/settings">Zurück</a>
+        </div>
+    </form>
+</section>
+
+<section class="card settings-card">
+    <h2>Zertifikat &amp; Nginx</h2>
+    <div class="button-row">
+        <form method="post" action="/system/settings/https/generate" style="display:inline;">
+            <button class="button" type="submit">Selbstsigniertes Zertifikat erzeugen</button>
+        </form>
+        <form method="post" action="/system/settings/https/nginx" style="display:inline;">
+            <button class="button secondary" type="submit">Nginx-Konfiguration erzeugen</button>
+        </form>
+        <form method="post" action="/system/settings/https/test" style="display:inline;">
+            <button class="button secondary" type="submit">HTTPS-Dateien prüfen</button>
+        </form>
+    </div>
+    <p>
+        {% if status.cert_exists %}<a class="button secondary" href="/system/settings/https/certificate">Zertifikat herunterladen</a>{% endif %}
+        {% if status.nginx_config_exists %}<a class="button secondary" href="/system/settings/https/nginx-config">Nginx-Konfiguration herunterladen</a>{% endif %}
+    </p>
+    <p class="muted">Der private Schlüssel wird nicht zum Download angeboten. Er bleibt auf dem Server unter <code>{{ status.key_path }}</code>.</p>
+</section>
+
+<section class="card settings-card">
+    <h2>Installationshinweis</h2>
+    <p>Empfohlen ist ein Reverse Proxy:</p>
+    <pre>Browser → HTTPS/Nginx → Stempeluhr auf http://127.0.0.1:8000</pre>
+    <p>Wenn Nginx noch nicht installiert ist:</p>
+    <pre>sudo apt install nginx</pre>
+    <p>Die erzeugte Konfiguration liegt unter:</p>
+    <pre>{{ status.nginx_config_path }}</pre>
+    <p>Zur Aktivierung typischerweise:</p>
+    <pre>sudo cp {{ status.nginx_config_path }} /etc/nginx/sites-available/stempeluhr_https.conf
+sudo ln -s /etc/nginx/sites-available/stempeluhr_https.conf /etc/nginx/sites-enabled/stempeluhr_https.conf
+sudo nginx -t
+sudo systemctl reload nginx</pre>
+</section>
+
+<section class="card settings-card">
+    <h2>Hilfe</h2>
+    <p>Selbstsignierte Zertifikate sind sinnvoll, wenn die Stempeluhr nur intern erreichbar ist und keine Ports für externe Anbieter geöffnet werden können.</p>
+    <p>Der Browser zeigt eine Warnung, bis das Zertifikat auf den PCs als vertrauenswürdig importiert wurde. Dafür kannst du oben das Zertifikat herunterladen.</p>
+    <p>Trage bei den alternativen Namen alle Zugriffswege ein, zum Beispiel <code>10.0.0.48</code>, <code>stempeluhr.local</code> oder einen DNS-Namen aus deinem Firmennetz.</p>
+</section>
+{% endblock %}

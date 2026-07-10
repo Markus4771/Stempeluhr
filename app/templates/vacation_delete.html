@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header-actions">
+  <div>
+    <h1>Abwesenheit löschen</h1>
+    <p class="page-subtitle">Die Löschung wird dokumentiert. Genehmigte Abwesenheiten werden als Löschantrag an Teamleiter/Personal weitergegeben.</p>
+  </div>
+  <a class="button secondary" href="/vacation/my">Zurück</a>
+</div>
+<section class="card settings-card">
+  {% if error %}<div class="error-box">{{ error }}</div>{% endif %}
+  <table class="compact-table">
+    <tr><th>Zeitraum</th><td>{{ vacation_request.start_date.strftime('%d.%m.%Y') }} - {{ vacation_request.end_date.strftime('%d.%m.%Y') }}</td></tr>
+    <tr><th>Art</th><td>{{ absence_labels.get(vacation_request.request_type, vacation_request.request_type) }}</td></tr>
+    <tr><th>Tage</th><td>{{ vacation_request.days }}</td></tr>
+    <tr><th>Status</th><td>{{ vacation_request.status }}</td></tr>
+  </table>
+  <form method="post" action="/vacation/{{ vacation_request.id }}/delete" class="settings-form">
+    <div class="form-field">
+      <label>{% if requires_approval %}Grund für den Löschantrag{% else %}Löschgrund{% endif %}</label>
+      <textarea name="delete_reason" rows="4" {% if requires_approval %}required{% endif %} placeholder="z. B. Urlaub storniert oder falscher Antrag"></textarea>
+      <p class="help-text">
+        {% if requires_approval %}
+          Genehmigte Abwesenheiten werden nicht direkt gelöscht. Es wird ein Löschantrag erstellt.
+        {% else %}
+          Noch nicht genehmigte Abwesenheiten werden direkt storniert. Der Vorgang wird im Audit-Log dokumentiert.
+        {% endif %}
+      </p>
+    </div>
+    <div class="form-actions">
+      <button class="danger" type="submit">{% if requires_approval %}Löschantrag stellen{% else %}Abwesenheit löschen{% endif %}</button>
+      <a class="button secondary" href="/vacation/my">Abbrechen</a>
+    </div>
+  </form>
+</section>
+{% endblock %}

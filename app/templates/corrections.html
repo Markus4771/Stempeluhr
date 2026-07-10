@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Korrektur</h1>
+
+<p><a class="button" href="/corrections/new">+ Zeiteintrag hinzufügen</a></p>
+
+<section class="card">
+    <h2>Buchungen der letzten {{ correction_days_back }} Tage</h2>
+    <p>Es werden nur Buchungen angezeigt, die innerhalb der Korrekturfrist liegen. Die Frist wird unter <strong>System → Systemeinstellungen → Allgemeine Einstellungen</strong> festgelegt.</p>
+
+    <form action="/corrections" method="get" class="form-grid">
+        <select name="employee_id">
+            <option value="0">Alle Mitarbeiter</option>
+            {% for e in employees %}
+            <option value="{{ e.id }}" {% if filters.employee_id == e.id %}selected{% endif %}>
+                {{ e.employee_number }} - {{ e.first_name }} {{ e.last_name }}
+            </option>
+            {% endfor %}
+        </select>
+
+        <select name="entry_type">
+            <option value="">Alle Buchungsarten</option>
+            <option value="kommen" {% if filters.entry_type == "kommen" %}selected{% endif %}>Kommen</option>
+            <option value="gehen" {% if filters.entry_type == "gehen" %}selected{% endif %}>Gehen</option>
+            <option value="pause_start" {% if filters.entry_type == "pause_start" %}selected{% endif %}>Pause Start</option>
+            <option value="pause_ende" {% if filters.entry_type == "pause_ende" %}selected{% endif %}>Pause Ende</option>
+        </select>
+
+        <select name="method">
+            <option value="">Alle Quellen</option>
+            <option value="rfid" {% if filters.method == "rfid" %}selected{% endif %}>RFID</option>
+            <option value="rfid_auto" {% if filters.method == "rfid_auto" %}selected{% endif %}>RFID Automatik</option>
+            <option value="password" {% if filters.method == "password" %}selected{% endif %}>Passwort/Web</option>
+            <option value="manual_correction" {% if filters.method == "manual_correction" %}selected{% endif %}>Manuelle Korrektur</option>
+        </select>
+
+        <input type="date" name="date_from" value="{{ filters.date_from }}">
+        <input type="date" name="date_to" value="{{ filters.date_to }}">
+
+        <label class="checkbox-line">
+            <input type="checkbox" name="show_deleted" value="1" {% if filters.show_deleted %}checked{% endif %}>
+            Gelöschte anzeigen
+        </label>
+
+        <button>Filtern</button>
+        <a class="button secondary" href="/corrections">Filter zurücksetzen</a>
+    </form>
+</section>
+
+<section class="card">
+    <h2>Buchungen</h2>
+    <table>
+        <tr>
+            <th>Aktion</th>
+            <th>Zeit</th>
+            <th>Mitarbeiter</th>
+            <th>Typ</th>
+            <th>Quelle</th>
+            <th>Terminal</th>
+            <th>Korrigiert</th>
+            <th>Notiz</th>
+            <th>Löschung</th>
+        </tr>
+        {% for e in entries %}
+        <tr class="{% if e.deleted %}row-deleted{% endif %}">
+            <td>
+                {% if e.deleted %}
+                    <a class="small-button secondary" href="/corrections/{{ e.id }}/history">History</a>
+                    <form action="/corrections/{{ e.id }}/restore" method="post" style="display:inline">
+                        <input type="hidden" name="reason" value="Wiederherstellung über Korrekturliste">
+                        <button class="small-button" type="submit">Wiederherstellen</button>
+                    </form>
+                {% else %}
+                    <a class="small-button" href="/corrections/{{ e.id }}/edit">Ändern</a>
+                    <a class="small-button secondary" href="/corrections/{{ e.id }}/history">History</a>
+                    <a class="small-button danger" href="/corrections/{{ e.id }}/delete">Löschen</a>
+                {% endif %}
+            </td>
+            <td>{{ e.timestamp.strftime("%d.%m.%Y %H:%M:%S") }}</td>
+            <td>{{ e.employee.first_name }} {{ e.employee.last_name }}</td>
+            <td>{{ e.entry_type }}</td>
+            <td>{{ e.method }}</td>
+            <td>{{ e.terminal or "" }}</td>
+            <td>{{ "Ja" if e.corrected else "Nein" }}</td>
+            <td>{{ e.note or "" }}</td>
+            <td>
+                {% if e.deleted %}
+                    gelöscht am {{ e.deleted_at.strftime("%d.%m.%Y %H:%M") if e.deleted_at else "" }}<br>
+                    von {{ e.deleted_by or "" }}<br>
+                    <small>{{ e.delete_reason or "" }}</small>
+                {% else %}
+                    -
+                {% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+    </table>
+</section>
+
+<section class="card">
+    <h2>Letzte Korrekturen / History</h2>
+    <table>
+        <tr>
+            <th>Zeit</th>
+            <th>Buchung</th>
+            <th>Mitarbeiter</th>
+            <th>Grund</th>
+            <th>Geändert von</th>
+            <th>Status</th>
+        </tr>
+        {% for c in corrections %}
+        <tr>
+            <td>{{ c.changed_at.strftime("%d.%m.%Y %H:%M:%S") }}</td>
+            <td>{% if c.time_entry_id %}<a href="/corrections/{{ c.time_entry_id }}/history">{{ c.time_entry_id }}</a>{% endif %}</td>
+            <td>{{ c.employee_id }}</td>
+            <td>{{ c.reason }}</td>
+            <td>{{ c.changed_by }}</td>
+            <td>{{ c.status }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+</section>
+{% endblock %}

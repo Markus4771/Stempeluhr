@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Resturlaub</h1>
+<section class="card">
+<table>
+<tr><th>Mitarbeiter</th><th>Anspruch</th><th>Genommen</th><th>Rest</th><th>Überstunden</th></tr>
+{% for e in employees %}
+<tr>
+<td>{{ e.first_name }} {{ e.last_name }}</td>
+<td>{{ e.vacation_days_total }}</td>
+<td>{{ e.vacation_days_used }}</td>
+<td>{{ e.vacation_days_remaining if e.vacation_days_remaining is not none else ((e.vacation_days_total or 0) - (e.vacation_days_used or 0)) }}</td>
+<td>{{ e.overtime_balance }}</td>
+</tr>
+{% endfor %}
+</table>
+</section>
+{% endblock %}

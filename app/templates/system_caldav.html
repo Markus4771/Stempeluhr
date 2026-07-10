@@ -1,0 +1,144 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header-actions">
+    <h1>Kalenderverwaltung</h1>
+    <div class="header-buttons">
+        <a class="button secondary" href="/system/settings/caldav/help">CalDAV-Hilfe</a>
+        <a class="button secondary" href="/system/settings">Zurück</a>
+    </div>
+</div>
+
+<section class="card settings-card">
+    {% if saved or message %}<div class="success-box">{{ message or "Einstellungen gespeichert." }}</div>{% endif %}
+    {% if error %}<div class="error-box">{{ error }}</div>{% endif %}
+    <p class="help-text">Ab Version 5.1.20 sind Abwesenheitskalender und Feiertagskalender getrennt konfigurierbar. Die Hilfe ist direkt in dieser Seite enthalten.</p>
+</section>
+
+<section class="card settings-card">
+    <h2>Feiertagskalender</h2>
+    <form action="/system/settings/caldav" method="post" class="settings-form">
+        <div class="settings-grid">
+            <div class="form-field checkbox-field">
+                <label><input name="caldav_enabled" type="checkbox" {% if settings.get('caldav_enabled') == 'true' %}checked{% endif %}> CalDAV aktivieren</label>
+                <p class="help-text">Aktiviert den Zugriff auf einen externen CalDAV-Server, z. B. Nextcloud.</p>
+            </div>
+            <div class="form-field checkbox-field">
+                <label><input name="caldav_holidays_enabled" type="checkbox" {% if settings.get('caldav_holidays_enabled', 'true') == 'true' %}checked{% endif %}> Feiertage aus CalDAV verwenden</label>
+            </div>
+            <div class="form-field wide-field">
+                <label>CalDAV Basis-URL</label>
+                <input name="caldav_url" value="{{ settings.get('caldav_url', '') }}" placeholder="https://cloud.firma.de/remote.php/dav/">
+                <p class="help-text">Bei Nextcloud meistens <code>https://server/remote.php/dav/</code>.</p>
+            </div>
+            <div class="form-field">
+                <label>Benutzer</label>
+                <input name="caldav_username" value="{{ settings.get('caldav_username', '') }}" autocomplete="username">
+            </div>
+            <div class="form-field">
+                <label>Passwort / App-Passwort</label>
+                <input name="caldav_password" type="password" placeholder="Leer lassen = gespeichertes Passwort behalten" autocomplete="current-password">
+                <p class="help-text">Für Nextcloud bitte ein App-Passwort verwenden.</p>
+            </div>
+            <div class="form-field wide-field">
+                <label>Feiertagskalender-URL</label>
+                <input name="caldav_holiday_calendar_url" value="{{ settings.get('caldav_holiday_calendar_url', '') }}" placeholder="vollständige Kalender-URL, z. B. .../calendars/markus/feiertage-bayern/">
+                <p class="help-text">Die vollständige Kalender-URL kannst du aus Nextcloud kopieren oder über die neue Kontenansicht ermitteln.</p>
+            </div>
+            <div class="form-field">
+                <label>Synchronisationsintervall in Stunden</label>
+                <input name="caldav_holiday_sync_interval_hours" type="number" min="1" max="168" value="{{ settings.get('caldav_holiday_sync_interval_hours', '24') }}">
+            </div>
+            <div class="form-field checkbox-field">
+                <label><input name="caldav_holidays_affect_target_hours" type="checkbox" {% if settings.get('caldav_holidays_affect_target_hours', 'true') == 'true' %}checked{% endif %}> Feiertage bei Sollstunden berücksichtigen</label>
+            </div>
+            <div class="form-field">
+                <label>Faktor für halbe Feiertage</label>
+                <input name="caldav_half_day_factor" value="{{ settings.get('caldav_half_day_factor', '0.5') }}" placeholder="0.5">
+            </div>
+        </div>
+
+
+        <hr>
+        <h2>Abwesenheitskalender</h2>
+        <p class="help-text">Dieser Kalender ist der Nur-Lese-ICS-Feed für Thunderbird, Outlook, Apple Kalender und Nextcloud. Der Kalendername wird im ICS-Header als <code>NAME</code> und <code>X-WR-CALNAME</code> ausgegeben.</p>
+        <div class="settings-grid">
+            <div class="form-field wide-field">
+                <label>Kalendername</label>
+                <input name="absence_calendar_name" value="{{ settings.get('absence_calendar_name', 'Abwesenheit') or 'Abwesenheit' }}" placeholder="Abwesenheit">
+                <p class="help-text">Standard: <strong>Abwesenheit</strong>. Wenn Thunderbird den alten Namen behält, Kalender dort entfernen und neu abonnieren.</p>
+            </div>
+            <div class="form-field wide-field">
+                <label>Externe CalDAV-Abwesenheitskalender-URL optional</label>
+                <input name="caldav_vacation_calendar_url" value="{{ settings.get('caldav_vacation_calendar_url', '') }}" placeholder="optional, vorbereitet">
+            </div>
+            <div class="form-field wide-field">
+                <label>Abwesenheitskalender Feed Token</label>
+                <input name="caldav_vacation_feed_token" value="{{ settings.get('caldav_vacation_feed_token', '') }}" placeholder="wird automatisch erzeugt, wenn leer">
+            </div>
+        </div>
+
+        <div class="form-actions">
+            <button>Einstellungen speichern</button>
+            <a class="button secondary" href="/system/settings/caldav/accounts">Kalender suchen / Konten verwalten</a>
+            <a class="button secondary" href="/system/settings">Zurück</a>
+        </div>
+    </form>
+</section>
+
+<section class="card settings-card">
+    <h2>Feiertage aus CalDAV importieren</h2>
+    <p class="help-text">Verwendet die oben eingetragene CalDAV-Basis-URL, Benutzer/App-Passwort und Feiertagskalender-URL.</p>
+    <form action="/system/settings/caldav/import-holidays" method="post" class="form-grid">
+        <label>Jahr
+            <input name="import_year" type="number" value="" placeholder="z. B. 2026">
+        </label>
+        <button>CalDAV-Feiertage importieren</button>
+    </form>
+    <table>
+        <tr><th>Feiertage aktiv</th><td>{{ 'ja' if settings.get('caldav_holidays_enabled', 'true') == 'true' else 'nein' }}</td></tr>
+        <tr><th>Intervall</th><td>{{ settings.get('caldav_holiday_sync_interval_hours', '24') }} Stunden</td></tr>
+        <tr><th>Letzter Import</th><td>{{ settings.get('caldav_last_import', '') }}</td></tr>
+        <tr><th>Status</th><td>{{ settings.get('caldav_last_status', '') }}</td></tr>
+    </table>
+</section>
+
+<section class="card settings-card">
+  <h2>Feiertagskalender per ICS-Datei einlesen</h2>
+  <p class="help-text">Hier kannst du Feiertage aus einer <code>.ics</code>-Datei importieren. Die Funktion ist in den Allgemeinen Einstellungen abschaltbar. Die Ablauf-Warnmail wird ebenfalls dort konfiguriert.</p>
+  {% if settings.get('holiday_ics_import_enabled', '1') in ['1', 'true', 'on'] %}
+  <form action="/system/settings/caldav/import-holidays-ics" method="post" enctype="multipart/form-data" class="form-grid">
+    <label>ICS-Datei
+      <input type="file" name="ics_file" accept=".ics,text/calendar" required>
+    </label>
+    <button>ICS-Datei einlesen</button>
+  </form>
+  <p class="help-text">Warnmail: {{ 'aktiv' if settings.get('holiday_ics_expiry_warning_enabled', '1') in ['1', 'true', 'on'] else 'deaktiviert' }}, Warnung {{ settings.get('holiday_ics_warn_days', '45') }} Tage vor Ablauf.</p>
+  <p class="help-text"><strong>Letzter ICS-Import:</strong> {{ settings.get('holiday_ics_last_import', 'noch nie') }} — {{ settings.get('holiday_ics_last_status', '') }}</p>
+  {% else %}
+  <div class="warning-box">Der ICS-Feiertagsimport ist in den Allgemeinen Einstellungen deaktiviert.</div>
+  {% endif %}
+</section>
+
+<section class="card settings-card">
+    <h2>Abwesenheitskalender Feed</h2>
+    <p>Diesen Link kannst du in Thunderbird, Outlook, Apple Kalender oder anderen Kalendern abonnieren:</p>
+    <pre>/calendar/vacation.ics?token={{ settings.get('caldav_vacation_feed_token', '') }}</pre>
+    <p><strong>Name:</strong> {{ settings.get('absence_calendar_name', 'Abwesenheit') or 'Abwesenheit' }}</p>
+    <p><strong>Letzter ICS-Test:</strong> {{ settings.get('caldav_vacation_ics_last_status', 'noch nicht getestet') }}</p>
+    <p>
+        <a class="button secondary" href="/system/settings/caldav/test-vacation-ics">ICS-Link testen</a>
+        <a class="button secondary" href="/calendar/vacation.ics?token={{ settings.get('caldav_vacation_feed_token', '') }}">ICS herunterladen</a>
+    </p>
+    <p class="help-text">Schreibversuche auf diesen Kalender werden still ignoriert. Hinweis: Thunderbird übernimmt geänderte Kalendernamen oft erst nach Entfernen und erneutem Abonnieren des Kalenders.</p>
+    <details>
+        <summary>Hilfe für Thunderbird</summary>
+        <ol>
+            <li>Thunderbird öffnen → Kalender.</li>
+            <li>Neuer Kalender → Im Netzwerk.</li>
+            <li>Format: iCalendar/ICS auswählen.</li>
+            <li>Die vollständige URL mit Server-IP und Token einfügen.</li>
+            <li>Wenn der Name nicht aktualisiert wird: alten Kalender entfernen und neu hinzufügen.</li>
+        </ol>
+    </details>
+</section>
+{% endblock %}

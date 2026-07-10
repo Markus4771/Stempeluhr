@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Sicherheit & Netzwerkzugriff</h1>
+
+<section class="card settings-card">
+{% if saved %}<div class="success-box">{{ message or 'Sicherheitseinstellungen gespeichert.' }}</div>{% endif %}
+{% if error %}<div class="error-box">{{ error }}</div>{% endif %}
+
+<form action="/system/settings/security" method="post" class="settings-form">
+  <div class="settings-section">
+    <h2>Netzwerkfilter</h2>
+    <div class="form-field checkbox-field">
+      <label><input type="checkbox" name="security_network_filter_enabled" value="1" {% if settings.get('security_network_filter_enabled','false') in ['true','1'] %}checked{% endif %}> Netzwerkfilter aktivieren</label>
+      <p class="help-text">Wenn aktiv, dürfen nur die unten eingetragenen Netzwerke auf die Stempeluhr zugreifen. Lokaler Zugriff 127.0.0.1 bleibt immer erlaubt.</p>
+    </div>
+    <div class="form-field">
+      <label>Erlaubte Netzwerke</label>
+      <textarea name="security_allowed_networks" rows="4" placeholder="192.168.132.0/24,192.168.130.0/24">{{ settings.get('security_allowed_networks','') }}</textarea>
+      <p class="help-text">Mehrere Netzwerke mit Komma trennen. Schreibweise mit Subnetz/CIDR, z. B. <code>192.168.132.0/24</code>.</p>
+    </div>
+  </div>
+
+  <div class="settings-section">
+    <h2>Adminzugriff</h2>
+    <div class="form-field checkbox-field">
+      <label><input type="checkbox" name="security_admin_network_filter_enabled" value="1" {% if settings.get('security_admin_network_filter_enabled','false') in ['true','1'] %}checked{% endif %}> Admin-/Systembereiche zusätzlich einschränken</label>
+      <p class="help-text">Gilt für Admin, Systemeinstellungen, Auswertungen und Korrekturen.</p>
+    </div>
+    <div class="form-field">
+      <label>Admin-Netze</label>
+      <textarea name="security_admin_allowed_networks" rows="3" placeholder="192.168.132.0/24">{{ settings.get('security_admin_allowed_networks','') }}</textarea>
+    </div>
+  </div>
+
+  <div class="settings-section">
+    <h2>API-Zugriff</h2>
+    <div class="form-field checkbox-field">
+      <label><input type="checkbox" name="security_api_network_filter_enabled" value="1" {% if settings.get('security_api_network_filter_enabled','false') in ['true','1'] %}checked{% endif %}> API zusätzlich nach Netzwerk filtern</label>
+      <p class="help-text">Gilt für <code>/api</code> und <code>/api/v1</code>. API-Keys bleiben zusätzlich aktiv.</p>
+    </div>
+    <div class="form-field">
+      <label>API-Netze</label>
+      <textarea name="security_api_allowed_networks" rows="3" placeholder="192.168.130.0/24,10.4.81.0/24">{{ settings.get('security_api_allowed_networks','') }}</textarea>
+    </div>
+  </div>
+
+  <div class="settings-section">
+    <h2>HTTPS</h2>
+    <div class="form-field checkbox-field">
+      <label><input type="checkbox" name="security_force_https" value="1" {% if settings.get('security_force_https','false') in ['true','1'] %}checked{% endif %}> HTTPS erzwingen</label>
+      <p class="help-text">Wenn aktiv, leitet die Stempeluhr HTTP auf HTTPS um. Nur aktivieren, wenn HTTPS/Nginx bereits funktioniert. Die Einstellung bleibt bewusst wählbar.</p>
+    </div>
+    <p><a class="button secondary" href="/system/settings/https">HTTPS & Zertifikate öffnen</a></p>
+  </div>
+
+  <div class="form-actions">
+    <button>Speichern</button>
+    <a class="button secondary" href="/system/settings">Zurück</a>
+  </div>
+</form>
+</section>
+
+<section class="card">
+<h2>Status</h2>
+<table>
+<tr><th>Bereich</th><th>Status</th></tr>
+<tr><td>Netzwerkfilter</td><td>{{ 'aktiv' if settings.get('security_network_filter_enabled','false') in ['true','1'] else 'inaktiv' }}</td></tr>
+<tr><td>Admin-Netzfilter</td><td>{{ 'aktiv' if settings.get('security_admin_network_filter_enabled','false') in ['true','1'] else 'inaktiv' }}</td></tr>
+<tr><td>API-Netzfilter</td><td>{{ 'aktiv' if settings.get('security_api_network_filter_enabled','false') in ['true','1'] else 'inaktiv' }}</td></tr>
+<tr><td>HTTPS erzwingen</td><td>{{ 'aktiv' if settings.get('security_force_https','false') in ['true','1'] else 'inaktiv' }}</td></tr>
+</table>
+</section>
+{% endblock %}

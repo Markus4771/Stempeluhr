@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Audit-Protokoll</h1>
+
+<section class="card">
+    <h2>Filter</h2>
+    <form action="/system/audit" method="get" class="form-grid employee-filter">
+        <div class="form-field">
+            <label>Akteur</label>
+            <input name="actor" value="{{ filters.actor }}" placeholder="z. B. admin">
+        </div>
+
+        <div class="form-field">
+            <label>Aktion</label>
+            <input name="action" value="{{ filters.action }}" placeholder="z. B. employee_updated">
+        </div>
+
+        <div class="form-field">
+            <label>Objekt</label>
+            <input name="entity" value="{{ filters.entity }}" placeholder="z. B. employees">
+        </div>
+
+        <div class="form-field">
+            <label>Von</label>
+            <input type="date" name="date_from" value="{{ filters.date_from }}">
+        </div>
+
+        <div class="form-field">
+            <label>Bis</label>
+            <input type="date" name="date_to" value="{{ filters.date_to }}">
+        </div>
+
+        <div class="form-actions">
+            <button>Filtern</button>
+            <a class="button secondary" href="/system/audit">Zurücksetzen</a>
+        </div>
+    </form>
+</section>
+
+<section class="card">
+    <h2>Einträge</h2>
+    <p>Gefunden: <strong>{{ logs|length }}</strong></p>
+    <table>
+        <tr>
+            <th>Zeit</th>
+            <th>Akteur</th>
+            <th>Aktion</th>
+            <th>Objekt</th>
+            <th>ID</th>
+            <th>Details</th>
+            <th>IP</th>
+        </tr>
+        {% for l in logs %}
+        <tr>
+            <td>{{ l.created_at.strftime("%d.%m.%Y %H:%M:%S") }}</td>
+            <td>{{ l.actor or "" }}</td>
+            <td>{{ l.action }}</td>
+            <td>{{ l.entity or "" }}</td>
+            <td>{{ l.entity_id or "" }}</td>
+            <td>{{ l.details or "" }}</td>
+            <td>{{ l.ip_address or "" }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+</section>
+{% endblock %}

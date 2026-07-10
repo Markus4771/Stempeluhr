@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Abteilungen</h1>
+
+<section class="card">
+    <h2>Abteilung anlegen</h2>
+    {% if error %}
+    <div class="error-box">{{ error }}</div>
+    {% endif %}
+
+    <form action="/system/settings/departments/add" method="post" class="form-grid employee-form">
+        <div class="form-field">
+            <label>Abteilungsname *</label>
+            <input name="name" required placeholder="z. B. IT, Verwaltung, Lager">
+        </div>
+
+        <div class="form-field">
+            <label>Beschreibung</label>
+            <input name="description" placeholder="Beschreibung">
+        </div>
+
+        <div class="form-field">
+            <label>Abteilungsleiter</label>
+            <select name="manager_employee_id">
+                <option value="0">Kein Leiter</option>
+                {% for e in employees %}
+                <option value="{{ e.id }}">{{ e.first_name }} {{ e.last_name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="form-field checkbox-field">
+            <label><input name="active" type="checkbox" checked> Aktiv</label>
+        </div>
+
+        <div class="form-actions">
+            <button>Abteilung anlegen</button>
+            <a class="button secondary" href="/system/settings">Zurück</a>
+        </div>
+    </form>
+</section>
+
+<section class="card">
+    <h2>Abteilungsliste</h2>
+    <table>
+        <tr>
+            <th>Aktion</th>
+            <th>Name</th>
+            <th>Beschreibung</th>
+            <th>Mitarbeiter</th>
+            <th>Aktiv</th>
+        </tr>
+        {% for d in departments %}
+        <tr>
+            <td>
+                <a class="small-button" href="/system/settings/departments/{{ d.id }}/edit">Bearbeiten</a>
+                <form action="/system/settings/departments/{{ d.id }}/delete" method="post" style="display:inline;">
+                    <button class="small-button danger-small" onclick="return confirm('Abteilung wirklich löschen/deaktivieren?')">Löschen</button>
+                </form>
+            </td>
+            <td>{{ d.name }}</td>
+            <td>{{ d.description or "" }}</td>
+            <td>{{ counts.get(d.id, 0) }}</td>
+            <td>{{ "Ja" if d.active else "Nein" }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+</section>
+{% endblock %}

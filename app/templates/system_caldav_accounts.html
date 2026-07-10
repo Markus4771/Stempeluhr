@@ -1,0 +1,197 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Kalenderverwaltung</h1>
+
+<section class="card">
+    <div class="actions">
+        <a class="button secondary" href="/system/settings">Zurück zu Systemeinstellungen</a>
+        <a class="button secondary" href="/system/settings/caldav/help">Kalender-Hilfe</a>
+    </div>
+    {% if message %}<p class="message">{{ message }}</p>{% endif %}
+    <p class="muted"><strong>Version 5.2.21:</strong> Die Kalender sind jetzt eindeutig getrennt: <strong>Feiertagskalender = IN</strong> für die Arbeitszeitberechnung, <strong>Abwesenheitskalender = OUT</strong> für Thunderbird, Outlook, Nextcloud und andere Kalenderprogramme.</p>
+</section>
+
+<section class="card">
+    <h2>1. Feiertagskalender · Import IN</h2>
+    <div class="actions"><a class="button secondary" href="/system/settings/caldav/help#holidays">Hilfe zum Feiertagskalender</a></div>
+    <p class="muted">Feiertage werden in die Stempeluhr eingelesen und fließen in die Sollzeit- und Arbeitszeitberechnung ein. Die Quelle kann ein CalDAV-Kalender oder eine iCal-Datei sein.</p>
+
+    <form method="post" action="/system/settings/caldav/global-save" class="form-grid employee-form">
+        <label><input type="checkbox" name="holiday_ics_import_enabled" value="1" {% if settings.get('holiday_ics_import_enabled', '1') in ['1', 'true', 'on'] %}checked{% endif %}> iCal-Dateiimport für Feiertage erlauben</label>
+        <label><input type="checkbox" name="caldav_holidays_affect_target_hours" value="1" {% if settings.get('caldav_holidays_affect_target_hours', 'true') in ['1', 'true', 'on'] %}checked{% endif %}> Feiertage reduzieren Soll-Arbeitszeit</label>
+        <label>Faktor für halbe Feiertage
+            <input name="caldav_half_day_factor" value="{{ settings.get('caldav_half_day_factor', '0.5') }}" placeholder="0.5">
+        </label>
+        <label><input type="checkbox" name="holiday_ics_expiry_warning_enabled" value="1" {% if settings.get('holiday_ics_expiry_warning_enabled', '1') in ['1', 'true', 'on'] %}checked{% endif %}> Warnmail senden, wenn der Feiertagskalender bald endet</label>
+        <label>Warnung vor Ablauf in Tagen
+            <input name="holiday_ics_warn_days" type="number" min="1" max="365" value="{{ settings.get('holiday_ics_warn_days', '45') }}">
+        </label>
+        <input type="hidden" name="absence_calendar_name" value="{{ settings.get('absence_calendar_name', 'Abwesenheit') }}">
+        <input type="hidden" name="absence_calendar_username" value="{{ settings.get('absence_calendar_username', '') }}">
+        <input type="hidden" name="absence_calendar_auth_enabled" value="{{ '1' if settings.get('absence_calendar_auth_enabled', '0') in ['1', 'true', 'on'] else '0' }}">
+        <div class="form-actions">
+            <button type="submit">Feiertags-Einstellungen speichern</button>
+        </div>
+    </form>
+
+    <hr>
+    <h3>iCal-Datei importieren</h3>
+    <form method="post" action="/system/settings/caldav/import-holidays-ics-accounts" enctype="multipart/form-data" class="form-grid">
+        <label>iCal-Datei (.ics)
+            <input type="file" name="ics_file" accept=".ics,text/calendar" required>
+        </label>
+        <button type="submit">Feiertage aus iCal importieren</button>
+    </form>
+    <p class="muted"><strong>Letzter iCal-Import:</strong> {{ settings.get('holiday_ics_last_import', 'noch nie') }} — {{ settings.get('holiday_ics_last_status', '') }}</p>
+
+    <hr>
+    <h3>Alle Feiertage löschen</h3>
+    <p>Aktuell gespeicherte Feiertage: <strong>{{ holiday_count or 0 }}</strong> aktiv / <strong>{{ all_holiday_count or 0 }}</strong> gesamt.</p>
+    <form method="post" action="/system/settings/caldav/delete-holidays" onsubmit="return confirm('Wirklich alle Feiertage löschen? Danach müssen die Feiertage neu per CalDAV oder iCal importiert werden.')">
+        <button class="danger" type="submit">Alle Feiertage löschen</button>
+    </form>
+</section>
+
+<section class="card">
+    <h2>Feiertagsquelle per CalDAV</h2>
+    <p class="muted">Hier wird nur der Import von Feiertagen konfiguriert. Diese Einträge gehen in die Arbeitszeitberechnung ein.</p>
+    <form method="post" action="/system/settings/caldav/save" class="form-grid employee-form">
+        <input type="hidden" name="account_id" value="{{ edit_account.id if edit_account and edit_account.purpose in ['holidays', 'company'] else '' }}">
+        <input type="hidden" name="purpose" value="holidays">
+        <label>Name
+            <input name="name" value="{{ edit_account.name if edit_account and edit_account.purpose in ['holidays', 'company'] else '' }}" placeholder="z. B. Feiertage Bayern">
+        </label>
+        <label>Server-URL
+            <input name="server_url" value="{{ edit_account.server_url if edit_account and edit_account.purpose in ['holidays', 'company'] else '' }}" placeholder="https://cloud.firma.de/remote.php/dav/">
+        </label>
+        <label>Benutzer
+            <input name="username" value="{{ edit_account.username if edit_account and edit_account.purpose in ['holidays', 'company'] else '' }}">
+        </label>
+        <label>App-Passwort
+            <input name="password" type="password" placeholder="Leer lassen = gespeichertes Passwort behalten">
+        </label>
+        <label>Kalender-URL
+            <input name="calendar_url" value="{{ edit_account.calendar_url if edit_account and edit_account.purpose in ['holidays', 'company'] else '' }}" placeholder="Nach Verbindungstest aus der Liste übernehmen">
+        </label>
+        <label>Kalendername
+            <input name="calendar_name" value="{{ edit_account.calendar_name if edit_account and edit_account.purpose in ['holidays', 'company'] else '' }}" placeholder="z. B. Feiertage Bayern">
+        </label>
+        <label>Synchronisationsintervall
+            <select name="interval">
+                {% set i = edit_account.interval if edit_account and edit_account.purpose in ['holidays', 'company'] else 'daily' %}
+                <option value="manual" {% if i == 'manual' %}selected{% endif %}>Nur manuell</option>
+                <option value="daily" {% if i == 'daily' %}selected{% endif %}>Täglich</option>
+                <option value="6h" {% if i == '6h' %}selected{% endif %}>Alle 6 Stunden</option>
+                <option value="hourly" {% if i == 'hourly' %}selected{% endif %}>Stündlich</option>
+            </select>
+        </label>
+        <label><input type="checkbox" name="enabled" value="1" {% if edit_account and edit_account.enabled and edit_account.purpose in ['holidays', 'company'] %}checked{% endif %}> Automatische Synchronisation aktiv</label>
+        <div class="form-actions">
+            <button type="submit">Feiertags-CalDAV speichern</button>
+            <button type="submit" formaction="/system/settings/caldav/test">Verbindung testen / Kalender suchen</button>
+        </div>
+    </form>
+
+    {% if calendars %}
+    <h3>Gefundene Kalender</h3>
+    <p class="muted">Kopiere die gewünschte Kalender-URL in das Feld „Kalender-URL“ und speichere.</p>
+    <table>
+        <tr><th>Name</th><th>Kalender-URL</th></tr>
+        {% for cal in calendars %}
+        <tr><td>{{ cal.name }}</td><td><code>{{ cal.url }}</code></td></tr>
+        {% endfor %}
+    </table>
+    {% endif %}
+
+    <h3>Konfigurierte Feiertags-Importe</h3>
+    <table>
+        <tr><th>Name</th><th>Benutzer</th><th>Kalender</th><th>Status</th><th>Letzte Synchronisation</th><th>Aktion</th></tr>
+        {% for a in accounts %}
+        {% if a.purpose in ['holidays', 'company'] %}
+        <tr>
+            <td>{{ a.name }}</td>
+            <td>{{ a.username }}</td>
+            <td>{{ a.calendar_name or a.calendar_url }}</td>
+            <td>{{ 'aktiv' if a.enabled else 'inaktiv' }}<br><span class="muted">{{ a.last_status or '' }}</span></td>
+            <td>{{ a.last_sync or '' }}</td>
+            <td>
+                <a class="button small" href="/system/settings/caldav/{{ a.id }}/edit">Bearbeiten</a>
+                <form method="post" action="/system/settings/caldav/sync" style="display:inline">
+                    <input type="hidden" name="account_id" value="{{ a.id }}">
+                    <input type="hidden" name="year" value="0">
+                    <button class="button small" type="submit">Jetzt importieren</button>
+                </form>
+                <form method="post" action="/system/settings/caldav/delete" style="display:inline" onsubmit="return confirm('CalDAV-Feiertagsquelle wirklich löschen?')">
+                    <input type="hidden" name="account_id" value="{{ a.id }}">
+                    <button class="button small danger" type="submit">Quelle löschen</button>
+                </form>
+            </td>
+        </tr>
+        {% endif %}
+        {% endfor %}
+    </table>
+</section>
+
+<section class="card">
+    <h2>2. Abwesenheitskalender · Export OUT</h2>
+    <div class="actions"><a class="button secondary" href="/system/settings/caldav/help#absence">Hilfe zum Abwesenheitskalender</a></div>
+    <p class="muted">Der Abwesenheitskalender ist ein Export aus der Stempeluhr für Thunderbird, Outlook, Nextcloud, Smartphones usw. Er wird nicht als Feiertagsquelle verwendet. Der Kalendername ist frei wählbar; Standard ist <strong>Abwesenheit</strong>.</p>
+    <form method="post" action="/system/settings/caldav/global-save" class="form-grid employee-form">
+        <label>Kalendername für den Export
+            <input name="absence_calendar_name" value="{{ settings.get('absence_calendar_name', 'Abwesenheit') }}" placeholder="Abwesenheit">
+        </label>
+        <label>Benutzer für Kalenderzugriff
+            <input name="absence_calendar_username" value="{{ settings.get('absence_calendar_username', '') }}" placeholder="z. B. kalender">
+        </label>
+        <label>Passwort / Token für Kalenderzugriff
+            <input name="absence_calendar_password" type="password" placeholder="Leer lassen = gespeichertes Passwort behalten">
+        </label>
+        <label><input type="checkbox" name="absence_calendar_auth_enabled" value="1" {% if settings.get('absence_calendar_auth_enabled', '0') in ['1', 'true', 'on'] %}checked{% endif %}> Benutzer/Passwort für Abwesenheitskalender verlangen</label>
+        <input type="hidden" name="holiday_ics_import_enabled" value="{{ '1' if settings.get('holiday_ics_import_enabled', '1') in ['1', 'true', 'on'] else '0' }}">
+        <input type="hidden" name="holiday_ics_expiry_warning_enabled" value="{{ '1' if settings.get('holiday_ics_expiry_warning_enabled', '1') in ['1', 'true', 'on'] else '0' }}">
+        <input type="hidden" name="holiday_ics_warn_days" value="{{ settings.get('holiday_ics_warn_days', '45') }}">
+        <input type="hidden" name="caldav_holidays_affect_target_hours" value="{{ '1' if settings.get('caldav_holidays_affect_target_hours', 'true') in ['1', 'true', 'on'] else '0' }}">
+        <input type="hidden" name="caldav_half_day_factor" value="{{ settings.get('caldav_half_day_factor', '0.5') }}">
+        <div class="form-actions">
+            <button type="submit">Abwesenheitskalender speichern</button>
+            <a class="button secondary" href="/calendar/{{ settings.get('absence_calendar_slug', 'abwesenheit') }}.ics?token={{ settings.get('caldav_vacation_feed_token', '') }}">iCal-Export herunterladen</a>
+            <a class="button secondary" href="/system/settings/caldav/test-vacation-ics">Export testen</a>
+        </div>
+    </form>
+    <h3>Original-Link für den Abwesenheitskalender</h3>
+    <p class="muted">Diesen Link in Thunderbird, Outlook, Nextcloud, iPhone/Android oder andere Kalenderprogramme eintragen. Der Terminname enthält ab 5.2.20 immer <strong>Name – Abwesenheitsgrund</strong>, zum Beispiel <em>Max Müller – Urlaub</em>.</p>
+    <label>Vollständiger Original-iCal-Link
+        <input readonly onclick="this.select()" value="{{ request.base_url }}calendar/{{ settings.get('absence_calendar_slug', 'abwesenheit') }}.ics?token={{ settings.get('caldav_vacation_feed_token', '') }}">
+    </label>
+    <label>Interner Pfad
+        <input readonly onclick="this.select()" value="/calendar/{{ settings.get('absence_calendar_slug', 'abwesenheit') }}.ics?token={{ settings.get('caldav_vacation_feed_token', '') }}">
+    </label>
+    <p class="muted">Wenn Benutzer und Passwort eingetragen sind, fragt der Kalenderzugriff diese Zugangsdaten ab. Der Token-Link bleibt für Programme erhalten, die keine Basic-Auth-Abfrage sauber unterstützen. Der alte Pfad <code>/calendar/vacation.ics</code> bleibt nur als Kompatibilitätslink erhalten.</p>
+    <p class="muted"><strong>Letzter Export-Test:</strong> {{ settings.get('caldav_vacation_ics_last_status', 'noch nicht getestet') }}</p>
+</section>
+
+<section class="card">
+    <h2>Synchronisation</h2>
+    <form method="post" action="/system/settings/caldav/sync-all" class="form-grid">
+        <label>Jahr
+            <input type="number" name="year" value="0" placeholder="leer/0 = aktuelles Jahr">
+        </label>
+        <button type="submit">Alle aktiven Feiertagsimporte synchronisieren</button>
+    </form>
+    <p class="muted">Es werden ausschließlich Feiertagsquellen verarbeitet. Der Abwesenheitskalender bleibt ein reiner Export.</p>
+</section>
+
+<section class="card">
+    <h2>Synchronisationsprotokoll</h2>
+    {% if sync_log %}
+    <table>
+        <tr><th>Zeit</th><th>Konto</th><th>Status</th><th>Meldung</th></tr>
+        {% for row in sync_log[:20] %}
+        <tr><td>{{ row.time }}</td><td>{{ row.account }}</td><td>{{ row.status }}</td><td>{{ row.message }}</td></tr>
+        {% endfor %}
+    </table>
+    {% else %}
+    <p>Noch keine Synchronisation protokolliert.</p>
+    {% endif %}
+</section>
+{% endblock %}

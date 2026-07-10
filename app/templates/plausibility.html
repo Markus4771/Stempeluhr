@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block content %}
+<p><a class="button" href="/plausibility/mail-history">Plausibilitätsversand anzeigen</a></p>
+<h1>Plausibilitätsprüfung</h1>
+<section class="card">
+  <form method="get" class="filter-row">
+    <label>Mitarbeiter
+      <select name="employee_id">
+        <option value="0">Alle sichtbaren</option>
+        {% for e in employees %}<option value="{{ e.id }}" {% if filters.employee_id==e.id %}selected{% endif %}>{{ e.employee_number }} – {{ e.first_name }} {{ e.last_name }}</option>{% endfor %}
+      </select>
+    </label>
+    <label>Status
+      <select name="status">
+        {% for s in ['offen','geprueft','erledigt','ignoriert','alle'] %}<option value="{{ s }}" {% if filters.status==s %}selected{% endif %}>{{ s }}</option>{% endfor %}
+      </select>
+    </label>
+    <label>Von <input type="date" name="date_from" value="{{ filters.date_from }}"></label>
+    <label>Bis <input type="date" name="date_to" value="{{ filters.date_to }}"></label>
+    <button class="button" type="submit">Filtern</button>
+  </form>
+  {% if user.role and user.role.name in ['Administrator','Personal'] %}
+  <form method="post" action="/plausibility/run" class="inline-form">
+    <input type="date" name="day" value="{{ filters.date_to }}">
+    <button class="button" type="submit">Prüfung jetzt ausführen</button>
+  </form>
+  <form method="post" action="/plausibility/teamlead-summary" class="inline-form">
+    <button class="button secondary" type="submit">Teamleiter-Mail senden</button>
+  </form>
+  {% endif %}
+</section>
+<section class="card table-card">
+  <h2>Auffälligkeiten</h2>
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>Datum</th><th>Mitarbeiter</th><th>Schwere</th><th>Prüfung</th><th>Hinweis</th><th>Status</th><th>E-Mail</th><th>Aktion</th></tr></thead>
+    <tbody>
+    {% for i in issues %}
+      <tr class="severity-{{ i.severity }}">
+        <td>{{ i.issue_date.strftime('%d.%m.%Y') }}</td>
+        <td>{{ i.employee.employee_number }} – {{ i.employee.first_name }} {{ i.employee.last_name }}</td>
+        <td>{{ i.severity }}</td>
+        <td>{{ i.check_type }}</td>
+        <td>{{ i.message }}</td>
+        <td>{{ i.status }}</td>
+        <td>{% if i.notified_employee_at %}Mitarbeiter{% endif %}{% if i.notified_teamlead_at %}<br>Teamleiter{% endif %}</td>
+        <td>
+          <form method="post" action="/plausibility/{{ i.id }}/status">
+            <select name="new_status"><option value="geprueft">geprüft</option><option value="erledigt">erledigt</option><option value="ignoriert">ignorieren</option><option value="offen">offen</option></select>
+            <input name="comment" placeholder="Kommentar">
+            <button class="button small" type="submit">Speichern</button>
+          </form>
+        </td>
+      </tr>
+    {% else %}
+      <tr><td colspan="8">Keine Auffälligkeiten gefunden.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</section>
+{% endblock %}

@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Abwesenheit</h1>
+<section class="card">
+    <h2>Abwesenheitsmenü</h2>
+    <div class="settings-menu">
+        <a class="settings-tile" href="/vacation/request"><strong>Abwesenheitsantrag</strong><span>Neuen Antrag stellen</span></a>
+        <a class="settings-tile" href="/vacation/my"><strong>Meine Abwesenheiten</strong><span>Status ansehen und eigene Abwesenheiten korrigieren</span></a>
+        {% if can_approve %}
+        <a class="settings-tile" href="/vacation/approvals"><strong>Genehmigungen</strong><span>Offene Anträge: {{ open_count }}</span></a>
+        {% endif %}
+        <a class="settings-tile" href="/vacation/calendar"><strong>Abwesenheitskalender</strong><span>Genehmigte Abwesenheiten und Feiertage</span></a>
+        <a class="settings-tile" href="/vacation/balance"><strong>Resturlaub</strong><span>Abwesenheitsstand anzeigen</span></a>
+    </div>
+</section>
+<section class="card">
+    <h2>Meine letzten Anträge</h2>
+    <div class="table-wrap">
+    <table class="compact-table absence-table">
+        <tr><th>Zeitraum</th><th>Art</th><th>Tage</th><th>Status</th></tr>
+        {% for r in my_requests %}
+        <tr><td>{{ r.start_date.strftime('%d.%m.%Y') }} - {{ r.end_date.strftime('%d.%m.%Y') }}</td><td>{% if r.request_type == 'sonstiges' %}Sonstiges{% elif r.request_type == 'abwesenheit' %}Urlaub{% else %}{{ r.request_type }}{% endif %}</td><td>{{ r.days }}</td><td><span class="status-badge status-{{ r.status }}">{{ r.status }}</span></td></tr>
+        {% endfor %}
+    {% if not my_requests %}<tr><td colspan="4" class="empty-state">Keine aktuellen Anträge.</td></tr>{% endif %}
+    </table>
+    </div>
+</section>
+{% endblock %}

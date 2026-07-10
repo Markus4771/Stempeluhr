@@ -1,0 +1,288 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Mitarbeiter</h1>
+
+<div class="subnav">
+    <a class="button secondary" href="/admin">Mitarbeiter</a>
+    <a class="button secondary" href="#roles">Rollen</a>
+    <a class="button secondary" href="/system/settings/departments">Abteilungen</a>
+</div>
+
+<section class="card">
+    <h2>Mitarbeiter filtern</h2>
+    <form action="/admin" method="get" class="form-grid employee-filter">
+        <div class="form-field">
+            <label>Suche</label>
+            <input name="q" value="{{ filters.q if filters else '' }}" placeholder="Name, Nummer, E-Mail oder RFID">
+        </div>
+
+        <div class="form-field">
+            <label>Rolle</label>
+            <select name="role_id">
+                <option value="0">Alle Rollen</option>
+                {% for r in roles %}
+                <option value="{{ r.id }}" {% if filters and filters.role_id == r.id %}selected{% endif %}>{{ r.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="form-field">
+            <label>Abteilung</label>
+            <select name="department_id">
+                <option value="0">Alle Abteilungen</option>
+                {% for d in departments %}
+                <option value="{{ d.id }}" {% if filters and filters.department_id == d.id %}selected{% endif %}>{{ d.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="form-field">
+            <label>Status</label>
+            <select name="active">
+                <option value="" {% if not filters or filters.active == "" %}selected{% endif %}>Alle</option>
+                <option value="active" {% if filters and filters.active == "active" %}selected{% endif %}>Aktiv</option>
+                <option value="inactive" {% if filters and filters.active == "inactive" %}selected{% endif %}>Inaktiv</option>
+            </select>
+        </div>
+<div class="form-actions">
+            <button>Filtern</button>
+            <a class="button secondary" href="/admin">Zurücksetzen</a>
+        </div>
+    </form>
+</section>
+
+<section class="card">
+    <h2>Neuen Mitarbeiter anlegen</h2>
+    <form action="/admin/employees/add" method="post" class="form-grid employee-form">
+        <div class="form-section-title">Stammdaten</div>
+
+        <div class="form-field">
+            <label>Mitarbeiternummer *</label>
+            <input name="employee_number" placeholder="z. B. 001" required minlength="{{ employee_number_length or 4 }}" maxlength="{{ employee_number_length or 4 }}" pattern="[0-9]{{ '{' }}{{ employee_number_length or 4 }}{{ '}' }}" title="Mitarbeiternummer muss genau {{ employee_number_length or 4 }} Stellen haben">
+        </div>
+
+        <div class="form-field">
+            <label>Vorname *</label>
+            <input name="first_name" placeholder="Vorname" required>
+        </div>
+
+        <div class="form-field">
+            <label>Nachname *</label>
+            <input name="last_name" placeholder="Nachname" required>
+        </div>
+
+        <div class="form-field">
+            <label>Geburtsdatum</label>
+            <input name="birth_date" type="date">
+        </div>
+
+        <div class="form-field">
+            <label>Eintrittsdatum</label>
+            <input name="entry_date" type="date">
+        </div>
+
+        <div class="form-section-title">Kontakt</div>
+
+        <div class="form-field">
+            <label>E-Mail</label>
+            <input name="email" type="email" placeholder="name@firma.de">
+        </div>
+
+        <div class="form-field">
+            <label>Telefon</label>
+            <input name="phone" placeholder="+49 ...">
+        </div>
+
+        <div class="form-section-title">Zugang</div>
+
+        <div class="form-field">
+            <label>RFID-Code</label>
+            <input name="rfid_code" placeholder="RFID-Code oder später anlernen">
+        </div>
+
+        <div class="form-field">
+            <label>Passwort</label>
+            <input name="password" type="password" placeholder="Passwort">
+        </div>
+
+
+        <div class="form-section-title">Berechtigungen & Prüfungen</div>
+
+        <div class="form-field checkbox-field">
+            <label><input name="can_self_correct" type="checkbox"> Mitarbeiter darf eigene Buchungen korrigieren</label>
+            <small>Erlaubt nur eigene Korrekturen mit Begründung. Keine fremden Mitarbeiter.</small>
+        </div>
+
+        <div class="form-field checkbox-field">
+            <label><input name="can_self_manage" type="checkbox"> Mitarbeiter darf sich selbst verwalten</label>
+            <small>Erlaubt dem Mitarbeiter eigene Kontaktdaten und sein Passwort zu ändern. Rollen, Arbeitszeit und Rechte bleiben gesperrt.</small>
+        </div>
+
+        <div class="form-field checkbox-field">
+            <label><input name="plausibility_check_enabled" type="checkbox" checked> Plausibilitätsprüfung für diesen Mitarbeiter aktiv</label>
+            <small>Wenn deaktiviert, wird dieser Mitarbeiter bei der automatischen Prüfung übersprungen.</small>
+        </div>
+
+        <div class="form-field checkbox-field">
+            <label><input name="auto_break_enabled" type="checkbox" checked> Automatische Pausenregelung für diesen Mitarbeiter aktiv</label>
+            <small>Wenn deaktiviert, werden bei diesem Mitarbeiter keine automatischen Pausen abgezogen.</small>
+        </div>
+
+        <div class="form-section-title">Rolle & Arbeitszeit</div>
+
+        <div class="form-field">
+            <label>Rolle</label>
+            <select name="role_id">
+                <option value="0">Keine Rolle</option>
+                {% for r in roles %}
+                <option value="{{ r.id }}">{{ r.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="form-field">
+            <label>Wochenarbeitszeit</label>
+            <input name="weekly_hours" type="number" step="0.25" value="40">
+        </div>
+
+        <div class="form-field">
+            <label>Tagesarbeitszeit Standard</label>
+            <input name="daily_hours" type="number" step="0.25" value="8">
+        </div>
+
+        <div class="form-field">
+            <label>Abwesenheitsanspruch pro Jahr</label>
+            <input name="vacation_days_total" type="number" step="0.5" value="30">
+        </div>
+
+        <div class="form-field">
+            <label>Genommene Abwesenheitstage</label>
+            <input type="number" step="0.5" value="0" readonly title="Wird automatisch aus genehmigten Abwesenheitsanträgen berechnet">
+        </div>
+
+        <div class="form-field">
+            <label>Resturlaub</label>
+            <input type="number" step="0.5" value="30" readonly title="Wird automatisch berechnet und in der Datenbank aktualisiert">
+        </div>
+
+        <div class="form-section-title">Tägliche Arbeitszeiten</div>
+
+        <div class="form-field"><label>Montag</label><input name="monday_hours" type="number" step="0.25" value="8"></div>
+        <div class="form-field"><label>Dienstag</label><input name="tuesday_hours" type="number" step="0.25" value="8"></div>
+        <div class="form-field"><label>Mittwoch</label><input name="wednesday_hours" type="number" step="0.25" value="8"></div>
+        <div class="form-field"><label>Donnerstag</label><input name="thursday_hours" type="number" step="0.25" value="8"></div>
+        <div class="form-field"><label>Freitag</label><input name="friday_hours" type="number" step="0.25" value="8"></div>
+        <div class="form-field"><label>Samstag</label><input name="saturday_hours" type="number" step="0.25" value="0"></div>
+        <div class="form-field"><label>Sonntag</label><input name="sunday_hours" type="number" step="0.25" value="0"></div>
+<div class="form-actions">
+            <button>Speichern</button>
+        </div>
+    </form>
+</section>
+
+<section class="card" id="roles">
+    <h2>Rollen</h2>
+    <p>Die vorhandenen Rollen werden hier angezeigt. Die Rechteverwaltung bleibt unverändert.</p>
+    <table>
+        <tr>
+            <th>Rolle</th>
+            <th>Beschreibung</th>
+        </tr>
+        {% for r in roles %}
+        <tr>
+            <td><strong>{{ r.name }}</strong></td>
+            <td>Rolle für Zugriffe und Berechtigungen im System</td>
+        </tr>
+        {% endfor %}
+    </table>
+</section>
+
+<section class="card employee-list-card employee-list-modern">
+    <div class="employee-list-head">
+        <div>
+            <h2>Mitarbeiterliste</h2>
+            <p class="muted">Gefunden: <strong>{{ employees|length }}</strong> · Zeitänderungen nur über Buchungskorrektur mit Begründung.</p>
+        </div>
+        <a class="button secondary" href="#">Export / Drucken</a>
+    </div>
+
+    <div class="employee-table-wrap">
+    <table class="employee-list-table modern-employee-table">
+        <thead>
+        <tr>
+            <th>Mitarbeiter</th>
+            <th>Status</th>
+            <th>Prüfungen</th>
+            <th>Rechte</th>
+            <th>Kontakt</th>
+            <th>Organisation</th>
+            <th>Arbeitszeit</th>
+            <th>Aktionen</th>
+        </tr>
+        </thead>
+        <tbody>
+        {% for e in employees %}
+        {% set status = employee_statuses.get(e.id) if employee_statuses else None %}
+        <tr>
+            <td class="employee-main-cell">
+                <div class="employee-avatar">{{ (e.first_name[:1] if e.first_name else '') }}{{ (e.last_name[:1] if e.last_name else '') }}</div>
+                <div>
+                    <div class="employee-name">{{ e.first_name }} {{ e.last_name }}</div>
+                    <div class="employee-subline">Nr. {{ e.employee_number }}{% if not e.active %} · inaktiv{% endif %}</div>
+                    <div class="employee-meta-mobile">
+                        {{ e.role.name if e.role else 'Keine Rolle' }}{% if e.department %} · {{ e.department.name }}{% endif %}
+                    </div>
+                </div>
+            </td>
+            <td>
+                <span class="status-pill {% if status and status.present %}status-present{% elif status and status.entry_type == 'pause_start' %}status-pause{% else %}status-away{% endif %}">
+                    {{ status.label if status else 'Keine Buchung' }}
+                </span>
+                {% if status and status.timestamp %}
+                <div class="muted-small">seit {{ status.timestamp.strftime('%d.%m. %H:%M') }}</div>
+                {% endif %}
+            </td>
+            <td class="toggle-list-cell">
+                <form method="post" action="/admin/employees/{{ e.id }}/toggle/plausibility" class="inline-toggle-form">
+                    <button class="pill-toggle {% if e.plausibility_check_enabled %}is-on{% else %}is-off{% endif %}" title="Plausibilitätsprüfung umschalten">
+                        Plausibilität {{ 'Ein' if e.plausibility_check_enabled else 'Aus' }}
+                    </button>
+                </form>
+                <form method="post" action="/admin/employees/{{ e.id }}/toggle/auto-break" class="inline-toggle-form">
+                    <button class="pill-toggle {% if e.auto_break_enabled is not false %}is-on{% else %}is-off{% endif %}" title="Pausenregel umschalten">
+                        Pause {{ 'Ein' if e.auto_break_enabled is not false else 'Aus' }}
+                    </button>
+                </form>
+            </td>
+            <td class="toggle-list-cell">
+                <span class="small-badge {% if e.can_self_correct %}badge-ok{% else %}badge-muted{% endif %}">Korrektur {{ 'Ja' if e.can_self_correct else 'Nein' }}</span>
+                <span class="small-badge {% if e.can_self_manage %}badge-ok{% else %}badge-muted{% endif %}">Selbst {{ 'Ja' if e.can_self_manage else 'Nein' }}</span>
+            </td>
+            <td>
+                <div class="table-primary">{{ e.email or 'Keine E-Mail' }}</div>
+                <div class="muted-small">RFID: {{ e.rfid_code or 'nicht gesetzt' }}</div>
+            </td>
+            <td>
+                <div class="table-primary">{{ e.role.name if e.role else 'Keine Rolle' }}</div>
+                <div class="muted-small">{{ e.department.name if e.department else 'Keine Abteilung' }}</div>
+            </td>
+            <td>
+                <div class="table-primary">{{ e.weekly_hours or 0 }} h/Woche</div>
+                <div class="muted-small">Resturlaub: {{ e.vacation_days_remaining if e.vacation_days_remaining is not none else ((e.vacation_days_total or 0) - (e.vacation_days_used or 0)) }} Tage</div>
+            </td>
+            <td class="action-cell compact-action-cell">
+                <div class="admin-action-row compact-actions">
+                    <a class="small-button" href="/admin/employees/{{ e.id }}/edit">Bearbeiten</a>
+                    <a class="small-button learn-button" href="/admin/employees/{{ e.id }}/rfid-learn">RFID</a>
+                    <form method="post" action="/admin/employees/{{ e.id }}/invite" class="inline-toggle-form">
+                        <button class="small-button" title="Einladungsmail mit Passwort-Token senden. Der Button ist immer aktiv; falls keine E-Mail-Adresse hinterlegt ist, erscheint eine Hinweismeldung.">Einladung senden</button>
+                    </form>
+                </div>
+            </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    </div>
+</section>
+{% endblock %}

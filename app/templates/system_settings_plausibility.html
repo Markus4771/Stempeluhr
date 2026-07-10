@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Systemeinstellungen – Plausibilitätsprüfung</h1>
+{% if saved %}<section class="card success">Einstellungen gespeichert.</section>{% endif %}
+<section class="card">
+<form method="post" class="settings-form">
+  <h2>Allgemein</h2>
+  <label><input type="checkbox" name="plausibility_enabled" {% if settings.plausibility_enabled == 'true' %}checked{% endif %}> Plausibilitätsprüfung aktiv</label>
+  <label>Täglicher Lauf / Teamleiter-Mail um <input type="time" name="plausibility_daily_time" value="{{ settings.plausibility_daily_time or '18:30' }}"></label>
+  <label><input type="checkbox" name="plausibility_email_enabled" {% if settings.plausibility_email_enabled == 'true' %}checked{% endif %}> E-Mail-Versand aktiv</label>
+  <label><input type="checkbox" name="plausibility_employee_email_enabled" {% if settings.plausibility_employee_email_enabled == 'true' %}checked{% endif %}> Mitarbeiter bei Auffälligkeit informieren</label>
+  <label><input type="checkbox" name="plausibility_teamlead_email_enabled" {% if settings.plausibility_teamlead_email_enabled == 'true' %}checked{% endif %}> Teamleiter abends zusammenfassen</label>
+
+  <h2>Arbeitszeit</h2>
+  <label>Warnung ab Netto-Stunden <input name="plausibility_warn_daily_hours" value="{{ settings.plausibility_warn_daily_hours or '9' }}"></label>
+  <label>Max. Netto-Stunden <input name="plausibility_max_daily_hours" value="{{ settings.plausibility_max_daily_hours or '10' }}"></label>
+  <label>Früheste Kommen-Zeit <input type="time" name="plausibility_earliest_come" value="{{ settings.plausibility_earliest_come or '05:00' }}"></label>
+  <label>Späteste Gehen-Zeit <input type="time" name="plausibility_latest_leave" value="{{ settings.plausibility_latest_leave or '22:00' }}"></label>
+
+  <h2>Prüfungen</h2>
+  <label><input type="checkbox" name="plausibility_check_missing_leave" {% if settings.plausibility_check_missing_leave == 'true' %}checked{% endif %}> Kommen/Gehen unvollständig prüfen</label>
+  <label><input type="checkbox" name="plausibility_check_missing_workday" {% if settings.plausibility_check_missing_workday == 'true' %}checked{% endif %}> Fehlenden Arbeitstag prüfen</label>
+  <label><input type="checkbox" name="plausibility_check_absence_booking" {% if settings.plausibility_check_absence_booking == 'true' %}checked{% endif %}> Abwesenheit + Buchung prüfen</label>
+  <label><input type="checkbox" name="plausibility_check_duplicates" {% if settings.plausibility_check_duplicates == 'true' %}checked{% endif %}> Doppelte Buchungen prüfen</label>
+  <label>Doppelte Buchung innerhalb Minuten <input name="plausibility_duplicate_minutes" value="{{ settings.plausibility_duplicate_minutes or '5' }}"></label>
+  <label><input type="checkbox" name="plausibility_check_boundaries" {% if settings.plausibility_check_boundaries == 'true' %}checked{% endif %}> Buchungen außerhalb Zeitfenster prüfen</label>
+
+  <h2>Pausenprüfung</h2>
+  <p>Die Pause wird nur geprüft, wenn die automatische Pausenregelung deaktiviert ist.</p>
+  <label><input type="checkbox" name="plausibility_check_breaks_if_auto_disabled" {% if settings.plausibility_check_breaks_if_auto_disabled == 'true' %}checked{% endif %}> Pause prüfen, wenn Pausenautomatik aus ist</label>
+  <label>Mindestpause ab 6 Stunden (Min.) <input name="plausibility_break_min_6h_minutes" value="{{ settings.plausibility_break_min_6h_minutes or '30' }}"></label>
+  <label>Mindestpause ab 9 Stunden (Min.) <input name="plausibility_break_min_9h_minutes" value="{{ settings.plausibility_break_min_9h_minutes or '45' }}"></label>
+  <h2>Versandstatus</h2>
+  <p><strong>Letzter Plausibilitätsversand:</strong> {{ settings.plausibility_last_daily_mail_date or 'noch nicht ausgeführt' }}</p>
+  <p><strong>Status:</strong> {{ settings.plausibility_last_daily_mail_status or '' }}</p>
+  <p><a class="button" href="/plausibility/mail-history">Versandhistorie öffnen</a></p>
+  <button class="button" type="submit">Speichern</button>
+</form>
+</section>
+{% endblock %}
