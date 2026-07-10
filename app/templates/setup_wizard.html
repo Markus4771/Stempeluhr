@@ -1,14 +1,125 @@
 {% extends "base.html" %}
 {% block content %}
-<h1>Einrichtungsassistent</h1>
-<section class="card">
-  <p>Der Assistent prüft die wichtigsten Grundfunktionen und führt durch die Ersteinrichtung.</p>
-  <ol>
-    <li>PostgreSQL prüfen</li><li>Administrator prüfen</li><li>E-Mail einrichten</li><li>Backup aktivieren</li><li>API aktivieren</li>
-  </ol>
+<style>
+.setup-shell{max-width:1050px;margin:0 auto}.setup-progress{height:12px;background:#e7ebf1;border-radius:999px;overflow:hidden;margin:.75rem 0 1.25rem}.setup-progress span{display:block;height:100%;background:#2457a7}.setup-steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(115px,1fr));gap:.5rem;margin-bottom:1rem}.setup-step{padding:.55rem;border:1px solid #d9dee7;border-radius:8px;text-align:center;background:#fff}.setup-step.active{border-color:#2457a7;font-weight:700}.setup-step.done{background:#e8f5ec}.setup-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:1rem}.setup-field{display:flex;flex-direction:column;gap:.35rem}.setup-field input,.setup-field select{padding:.65rem;border:1px solid #cfd5df;border-radius:7px}.setup-actions{display:flex;justify-content:space-between;gap:.75rem;margin-top:1.25rem;flex-wrap:wrap}.setup-actions button,.setup-actions a{padding:.7rem 1rem;border:0;border-radius:7px;background:#2457a7;color:#fff;text-decoration:none;cursor:pointer}.setup-actions .secondary{background:#667085}.setup-status{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:.75rem}.setup-status-box{border:1px solid #d9dee7;border-radius:8px;padding:.8rem;background:#fff}.setup-ok{color:#176b35;font-weight:700}.setup-warn{color:#8a5a00;font-weight:700}.setup-summary li{margin:.35rem 0}.muted{color:#667085}
+</style>
+
+<div class="setup-shell">
+  <h1>Einrichtungsassistent</h1>
+  <p class="muted">Schritt {{ current_step }} von {{ steps|length }} · Fortschritt wird automatisch gespeichert.</p>
+  <div class="setup-progress"><span style="width:{{ progress_percent }}%"></span></div>
+  <div class="setup-steps">
+    {% for number, title in steps %}
+      <div class="setup-step {% if number == current_step %}active{% elif number < current_step %}done{% endif %}">{{ number }}. {{ title }}</div>
+    {% endfor %}
+  </div>
+
   <form method="post" action="/setup">
-    <label><input type="checkbox" name="setup_completed" value="1" {% if settings.setup_completed == 'true' %}checked{% endif %}> Einrichtung abgeschlossen</label><br><br>
-    <button class="button" type="submit">Speichern</button>
+    <input type="hidden" name="current_step" value="{{ current_step }}">
+    <section class="card">
+      {% if current_step == 1 %}
+        <h2>Willkommen</h2>
+        <p>Dieser Assistent führt durch die wichtigsten Grundeinstellungen. Bestehende Daten und Konfigurationen werden nicht gelöscht.</p>
+        <ul>
+          <li>Unternehmensdaten und Zeitzone</li>
+          <li>Administrator- und PostgreSQL-Prüfung</li>
+          <li>Arbeitszeit, Kommunikation und Backup</li>
+          <li>Raspberry-Status und abschließende Systemdiagnose</li>
+        </ul>
+        {% if settings.setup_completed == 'true' %}<p class="setup-ok">Die Einrichtung wurde bereits abgeschlossen. Der Assistent kann trotzdem erneut geprüft werden.</p>{% endif %}
+
+      {% elif current_step == 2 %}
+        <h2>Unternehmen</h2>
+        <div class="setup-grid">
+          <label class="setup-field">Firmenname<input name="company_name" value="{{ settings.company_name }}" required></label>
+          <label class="setup-field">E-Mail<input type="email" name="company_email" value="{{ settings.company_email }}"></label>
+          <label class="setup-field">Straße<input name="company_street" value="{{ settings.company_street }}"></label>
+          <label class="setup-field">PLZ<input name="company_postal_code" value="{{ settings.company_postal_code }}"></label>
+          <label class="setup-field">Ort<input name="company_city" value="{{ settings.company_city }}"></label>
+          <label class="setup-field">Telefon<input name="company_phone" value="{{ settings.company_phone }}"></label>
+          <label class="setup-field">Sprache<select name="language"><option value="de" {% if settings.language in ['', 'de'] %}selected{% endif %}>Deutsch</option><option value="en" {% if settings.language == 'en' %}selected{% endif %}>English</option></select></label>
+          <label class="setup-field">Zeitzone<input name="timezone" value="{{ settings.timezone or 'Europe/Berlin' }}"></label>
+        </div>
+
+      {% elif current_step == 3 %}
+        <h2>Administrator</h2>
+        {% if setup_status.administrator_count > 0 %}
+          <p class="setup-ok">{{ setup_status.administrator_count }} aktiver Administrator ist vorhanden.</p>
+        {% else %}
+          <p class="setup-warn">Es wurde kein aktiver Administrator gefunden. Bitte zuerst in der Mitarbeiterverwaltung einen Administrator anlegen.</p>
+        {% endif %}
+        <p><a href="/admin">Mitarbeiterverwaltung öffnen</a></p>
+        <p class="muted">Bestehende Administratoren werden vom Assistenten niemals verändert oder überschrieben.</p>
+
+      {% elif current_step == 4 %}
+        <h2>PostgreSQL</h2>
+        <div class="setup-status">
+          <div class="setup-status-box"><strong>Verbindung</strong><br><span class="{{ 'setup-ok' if setup_status.database.ok else 'setup-warn' }}">{{ setup_status.database.message }}</span></div>
+          <div class="setup-status-box"><strong>Serverversion</strong><br>{{ setup_status.database.version }}</div>
+          <div class="setup-status-box"><strong>Datenbank</strong><br>PostgreSQL</div>
+        </div>
+        <p class="muted">Zugangsdaten werden ausschließlich aus der geschützten Datei <code>/etc/stempeluhr/stempeluhr.env</code> gelesen und hier nicht angezeigt.</p>
+
+      {% elif current_step == 5 %}
+        <h2>Arbeitszeit</h2>
+        <div class="setup-grid">
+          <label class="setup-field">Wochenstunden<input type="number" min="0" max="168" step="0.25" name="weekly_hours" value="{{ settings.weekly_hours or '40' }}"></label>
+          <label class="setup-field">Tägliche Sollstunden<input type="number" min="0" max="24" step="0.25" name="daily_hours" value="{{ settings.daily_hours or '8' }}"></label>
+          <label class="setup-field">Bundesland<input name="federal_state" value="{{ settings.federal_state or 'BY' }}"></label>
+        </div>
+        <p><label><input type="checkbox" name="auto_break_enabled" value="1" {% if settings.auto_break_enabled in ['true','1','on'] %}checked{% endif %}> Automatische Pausenregelung aktivieren</label></p>
+        <p><a href="/system/settings/breaks">Pausenregeln detailliert bearbeiten</a> · <a href="/system/settings/absence-types">Abwesenheitsarten öffnen</a></p>
+
+      {% elif current_step == 6 %}
+        <h2>Kommunikation &amp; Sicherheit</h2>
+        <div class="setup-grid">
+          <label class="setup-status-box"><input type="checkbox" name="email_enabled" value="1" {% if settings.email_enabled in ['true','1','on'] %}checked{% endif %}> E-Mail aktivieren<br><small><a href="/system/settings/email">SMTP konfigurieren</a></small></label>
+          <label class="setup-status-box"><input type="checkbox" name="api_enabled" value="1" {% if settings.api_enabled in ['true','1','on'] %}checked{% endif %}> API aktivieren<br><small><a href="/system/settings/api">API verwalten</a></small></label>
+          <label class="setup-status-box"><input type="checkbox" name="https_enabled" value="1" {% if settings.https_enabled in ['true','1','on'] %}checked{% endif %}> HTTPS aktivieren<br><small><a href="/system/settings/https">Zertifikate konfigurieren</a></small></label>
+          <label class="setup-status-box"><input type="checkbox" name="backup_enabled" value="1" {% if settings.backup_enabled in ['true','1','on'] %}checked{% endif %}> Backup aktivieren<br><small><a href="/system/settings/backup">Backup verwalten</a></small></label>
+        </div>
+
+      {% elif current_step == 7 %}
+        <h2>Raspberry-Terminals</h2>
+        <div class="setup-status">
+          <div class="setup-status-box"><strong>Registriert</strong><br>{{ setup_status.raspberry_total }}</div>
+          <div class="setup-status-box"><strong>Online</strong><br>{{ setup_status.raspberry_online }}</div>
+          <div class="setup-status-box"><strong>Verwaltung</strong><br><a href="/system/settings/terminals">Terminals öffnen</a></div>
+        </div>
+        <p class="muted">Die bestehende Raspberry-Kachel und ihre Darstellung bleiben unverändert.</p>
+
+      {% elif current_step == 8 %}
+        <h2>Abschlussprüfung</h2>
+        {% if diagnostics %}
+          <p class="{{ 'setup-ok' if diagnostics.ok else 'setup-warn' }}">Systemdiagnose: {{ 'System betriebsbereit' if diagnostics.ok else 'Hinweise oder Fehler vorhanden' }}</p>
+          <ul class="setup-summary">
+            <li>Version: {{ diagnostics.version }}</li>
+            <li>PostgreSQL: {{ 'OK' if diagnostics.database.ok else 'Fehler' }}</li>
+            <li>Konfiguration: {{ 'vollständig' if diagnostics.configuration.ok else 'unvollständig' }}</li>
+            <li>Speicher: {{ diagnostics.storage.free_percent }} % frei</li>
+            <li>Administrator: {{ setup_status.administrator_count }}</li>
+            <li>Raspberry: {{ setup_status.raspberry_online }} / {{ setup_status.raspberry_total }} online</li>
+          </ul>
+          {% if diagnostics.warnings %}<p class="setup-warn">Hinweise:</p><ul>{% for warning in diagnostics.warnings %}<li>{{ warning }}</li>{% endfor %}</ul>{% endif %}
+          <p><a href="/system/diagnostics">Vollständige Systemdiagnose öffnen</a></p>
+        {% endif %}
+        {% if settings.setup_completed == 'true' %}<p class="setup-ok">Die Einrichtung ist als abgeschlossen gespeichert.</p>{% endif %}
+      {% endif %}
+    </section>
+
+    <div class="setup-actions">
+      <div>{% if current_step > 1 %}<button class="secondary" name="direction" value="back" type="submit">Zurück</button>{% endif %}</div>
+      <div>
+        <a class="secondary" href="/system/settings">Abbrechen</a>
+        {% if current_step < steps|length %}<button name="direction" value="next" type="submit">Speichern &amp; weiter</button>{% else %}<button name="direction" value="finish" type="submit">Einrichtung abschließen</button>{% endif %}
+      </div>
+    </div>
   </form>
-</section>
+
+  {% if settings.setup_completed == 'true' %}
+  <form method="post" action="/setup" style="margin-top:1rem" onsubmit="return confirm('Einrichtungsstatus wirklich zurücksetzen? Einstellungen und Daten bleiben erhalten.');">
+    <input type="hidden" name="current_step" value="1"><button class="secondary" name="direction" value="reset" type="submit">Assistentenstatus zurücksetzen</button>
+  </form>
+  {% endif %}
+</div>
 {% endblock %}
