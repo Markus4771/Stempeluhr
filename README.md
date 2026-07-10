@@ -1,21 +1,19 @@
-# Stempeluhr Professional 5.5.08
+# Stempeluhr Professional 5.5.09
 
 Webbasierte Zeiterfassung für Debian-Server und Raspberry-Pi-Terminals mit PostgreSQL, FastAPI, Rollen und Rechten, Reporting, Onboarding und Raspberry-Kioskfunktionen.
 
 ## Aktueller Stand
 
-- Version: **5.5.08**
+- Version: **5.5.09**
 - Standarddatenbank: PostgreSQL
 - Zielplattform: Debian 13 / Raspberry Pi OS
 - Standardbranch: `main`
 
 Änderungen dieser Version:
 
-- Systemdiagnose aus der Hauptnavigation entfernt
-- Systemdiagnose in **Systemeinstellungen → Wartung** integriert
-- direkter Diagnosezugang zusätzlich im Systemstatus der Systemeinstellungen
-- Rücknavigation von der Diagnose zu den Systemeinstellungen ergänzt
-- bestehende Diagnose-API und ZIP-Berichte unverändert erhalten
+- Offboarding aus dem Bereich **Wartung** entfernt
+- Offboarding direkt neben Onboarding unter **Systemeinstellungen → Personal & Arbeitszeit** eingeordnet
+- Menübeschreibung der Systemeinstellungen angepasst
 - keine Änderungen an Datenbankmodellen oder produktiven Daten
 
 ## Debian-Paket bauen
@@ -27,10 +25,10 @@ bash scripts/build_release.sh
 Ergebnis:
 
 ```text
-releases/stempeluhr_5.5.08_all.deb
-releases/stempeluhr_5.5.08_all.deb.sha256
-releases/stempeluhr_5.5.08_build.log
-releases/stempeluhr_5.5.08_BUILD_REPORT.md
+releases/stempeluhr_5.5.09_all.deb
+releases/stempeluhr_5.5.09_all.deb.sha256
+releases/stempeluhr_5.5.09_build.log
+releases/stempeluhr_5.5.09_BUILD_REPORT.md
 ```
 
 Die vollständige Anleitung steht in `docs/DEBIAN_BUILD.md`.
