@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Any, Dict, Tuple
 
 APP_NAME = "Stempeluhr Professional"
-APP_VERSION = "5.5.08"
+APP_VERSION = "5.5.09"
 VERSION_FILE_NAME = "version.txt"
 
 
