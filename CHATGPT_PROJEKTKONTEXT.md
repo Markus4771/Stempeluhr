@@ -7,7 +7,7 @@
 - Name: **Stempeluhr Professional**
 - Repository: `Markus4771/Stempeluhr`
 - Standardbranch: `main`
-- Aktuelle Version: **5.6.00**
+- Aktuelle Version: **5.6.10**
 - Zielplattform: Debian 13 und Raspberry Pi OS
 - Backend: Python, FastAPI, Uvicorn, SQLAlchemy
 - Standarddatenbank: PostgreSQL
@@ -30,7 +30,7 @@ Die Dateien `VERSION` und `CHANGELOG.md` dürfen nicht existieren.
 
 ## Aktueller Funktionsstand
 
-Zum System gehören Mitarbeiterverwaltung, Arbeitszeiterfassung, RFID, Dashboard, Rollen und Rechte, Plausibilitätsprüfung, Korrekturworkflow, DSGVO, REST-API, HTTPS, CalDAV/iCal, Reporting, PDF/CSV-Export, E-Mail-Funktionen, Update/Backup, Raspberry-Kiosk, Agent, Heartbeat, Monitoring, Onboarding, Offboarding, Systemdiagnose und ein mehrstufiger Einrichtungsassistent.
+Zum System gehören Mitarbeiterverwaltung, Arbeitszeiterfassung, RFID, Dashboard, Rollen und Rechte, Plausibilitätsprüfung, Korrekturworkflow, DSGVO, REST-API, HTTPS, CalDAV/iCal, Reporting, PDF/CSV-Export, E-Mail-Funktionen, Update/Backup, Raspberry-Kiosk, Agent, Heartbeat, Monitoring, Onboarding, Offboarding, Systemdiagnose, ein mehrstufiger Einrichtungsassistent und ein automatisches GitHub-Release-System.
 
 ## Architektur und Betrieb
 
@@ -46,25 +46,45 @@ Zum System gehören Mitarbeiterverwaltung, Arbeitszeiterfassung, RFID, Dashboard
 - Einrichtungsassistent: **Systemeinstellungen → Wartung → Einrichtungsassistent** beziehungsweise `/setup`
 - Systemdiagnose: **Systemeinstellungen → Wartung → Systemdiagnose** beziehungsweise `/system/diagnostics`
 
-## Version 5.6.00
+## Version 5.6.10
 
-Schwerpunkt: professioneller Einrichtungsassistent.
+Schwerpunkt: fertige Debian-Pakete automatisch über GitHub Releases bereitstellen.
 
 Umgesetzt:
 
-- acht Schritte: Willkommen, Unternehmen, Administrator, PostgreSQL, Arbeitszeit, Kommunikation, Raspberry und Abschluss
-- Fortschrittsanzeige, Vor/Zurück-Navigation und Wiederaufnahme nach Abbruch
-- Speicherung über bestehende `settings`-Tabelle; keine neue Datenbanktabelle erforderlich
-- Unternehmensdaten, Sprache, Zeitzone, Sollstunden und Pausenaktivierung konfigurierbar
-- Administratorbestand wird geprüft, aber nicht automatisch verändert
-- PostgreSQL-Verbindung und Serverversion werden geprüft; Passwörter werden nicht angezeigt
-- E-Mail, API, HTTPS und Backup können aktiviert und über bestehende Detailseiten konfiguriert werden
-- registrierte und online gemeldete Raspberry-Terminals werden zusammengefasst
-- Abschluss nutzt die bestehende Systemdiagnose und zeigt Betriebsbereitschaft sowie Warnungen
-- Assistent aus der Hauptnavigation entfernt und unter Wartung eingeordnet
-- bestehende Daten, Benutzer und Konfigurationen werden nicht überschrieben
+- GitHub Actions baut weiterhin bei relevanten Pushes auf `main`
+- ein Tag im Format `vX.Y.Z` löst zusätzlich die Veröffentlichung eines GitHub Releases aus
+- Tagname muss exakt `v` plus Inhalt von `version.txt` sein
+- Paketname und Paketversion werden vor Veröffentlichung mit `dpkg-deb` geprüft
+- Paketinhalt und SHA256 werden kontrolliert
+- Release Notes werden aus dem passenden Abschnitt in `changelog.md` erstellt
+- veröffentlicht werden `.deb`, `.sha256`, Buildbericht und Changelog
+- ein vorhandenes Release desselben Tags wird kontrolliert aktualisiert; Assets werden mit `--clobber` ersetzt
+- normale Pushes erzeugen kein dauerhaftes Release
+- keine Datenbankmodelle oder produktiven Funktionen geändert
 
-Keine Datenbankmodelle wurden geändert; eine Schema-Migration ist für 5.6.00 nicht erforderlich.
+## Release-Ablauf
+
+1. Versionsdateien und Dokumentation synchronisieren.
+2. Lokal bauen und testen.
+3. Produktives Upgrade und `/health` prüfen.
+4. Erst danach den passenden annotierten Tag erstellen und pushen:
+
+```bash
+git tag -a v5.6.10 -m "Stempeluhr Professional 5.6.10"
+git push origin v5.6.10
+```
+
+5. GitHub Actions baut erneut und veröffentlicht die Dateien unter **GitHub → Releases**.
+
+Erwartete Release-Dateien:
+
+```text
+stempeluhr_5.6.10_all.deb
+stempeluhr_5.6.10_all.deb.sha256
+stempeluhr_5.6.10_BUILD_REPORT.md
+stempeluhr_5.6.10_changelog.md
+```
 
 ## Datenbankregeln
 
@@ -82,28 +102,27 @@ Keine Datenbankmodelle wurden geändert; eine Schema-Migration ist für 5.6.00 n
 bash scripts/build_release.sh
 ```
 
-Erwartete Artefakte:
+Erwartete lokale Artefakte:
 
 ```text
-releases/stempeluhr_5.6.00_all.deb
-releases/stempeluhr_5.6.00_all.deb.sha256
-releases/stempeluhr_5.6.00_build.log
-releases/stempeluhr_5.6.00_BUILD_REPORT.md
+releases/stempeluhr_5.6.10_all.deb
+releases/stempeluhr_5.6.10_all.deb.sha256
+releases/stempeluhr_5.6.10_build.log
+releases/stempeluhr_5.6.10_BUILD_REPORT.md
 ```
 
 ## Offene Prüfungen
 
-- Python-Syntax und Import des neuen `setup_wizard` prüfen
-- 5.6.00 bauen und Paketmetadaten kontrollieren
-- Upgrade von produktiver 5.5.09 auf 5.6.00 testen
-- alle acht Assistentenschritte und Wiederaufnahme testen
-- Speicherung von Unternehmens-, Arbeitszeit- und Modulwerten prüfen
-- Abschlussdiagnose, `/health` und `/version` prüfen
-- Erhalt von Mitarbeitern und Buchungen bestätigen
+- GitHub-Actions-Build für 5.6.10 erfolgreich abschließen
+- 5.6.10 lokal bauen und Paketmetadaten kontrollieren
+- Upgrade von produktiver 5.6.00 auf 5.6.10 testen
+- `/health`, `/version`, Mitarbeiter und Buchungen prüfen
+- erst nach erfolgreicher Prüfung den Tag `v5.6.10` pushen
+- GitHub Release und alle vier veröffentlichten Dateien kontrollieren
 
 ## Releasefreigabe
 
-Eine Version gilt erst als freigegeben, wenn Versionsdateien und Dokumentation übereinstimmen, `.deb`/SHA256/Buildlog/Buildbericht vorhanden sind, das Upgrade getestet wurde, der Dienst läuft, `/health` die erwartete Version meldet und bestehende Daten erhalten sind.
+Eine Version gilt erst als freigegeben, wenn Versionsdateien und Dokumentation übereinstimmen, `.deb`/SHA256/Buildlog/Buildbericht vorhanden sind, das Upgrade getestet wurde, der Dienst läuft, `/health` die erwartete Version meldet und bestehende Daten erhalten sind. Ein GitHub Release darf erst danach durch den Versions-Tag ausgelöst werden.
 
 ## Startanweisung für neue Chats
 
