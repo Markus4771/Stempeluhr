@@ -1,3 +1,14 @@
+## 5.6.10
+
+- automatisches GitHub-Release-System für Debian-Pakete ergänzt
+- Release wird ausschließlich durch einen passenden Versions-Tag wie `v5.6.10` ausgelöst
+- Tag muss exakt mit `version.txt` und den Paketmetadaten übereinstimmen
+- `.deb`, SHA256, Buildbericht und Changelog werden dauerhaft am GitHub Release veröffentlicht
+- Release Notes werden automatisch aus diesem Versionsabschnitt erzeugt
+- normale Pushes auf `main` erzeugen weiterhin nur ein 14 Tage gespeichertes Workflow-Artefakt
+- GitHub-Workflow verwendet `contents: write` ausschließlich für tagbasierte Veröffentlichungen
+- bestehende Datenbank, Konfiguration und Anwendungsfunktionen bleiben unverändert
+
 ## 5.6.00
 
 - Einrichtungsassistent als achtstufigen Wizard neu aufgebaut
