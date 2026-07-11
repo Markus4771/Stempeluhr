@@ -13,109 +13,122 @@
     <div class="card">
         <h2>Aktuelle Version</h2>
         <p class="big"><strong>{{ current_version }}</strong></p>
-        <p class="muted">Installierte Version aus der zentralen Versionsquelle <code>version.json</code>.</p>
+        <p class="muted">Installierte Version aus der zentralen Versionsquelle.</p>
     </div>
     <div class="card">
         <h2>Update-Status</h2>
         {% set progress = update_status.progress or 0 %}
-        {% if update_running %}
-            <p><span class="status-warn">Update läuft</span></p>
-        {% elif update_status.state == 'failed' %}
-            <p><span class="status-error">Fehler</span></p>
-        {% elif update_status.state == 'success' %}
-            <p><span class="status-ok">Erfolgreich</span></p>
-        {% else %}
-            <p><span class="status-ok">Bereit</span></p>
-        {% endif %}
+        {% if update_running %}<p><span class="status-warn">Update läuft</span></p>
+        {% elif update_status.state == 'failed' %}<p><span class="status-error">Fehler</span></p>
+        {% elif update_status.state == 'success' %}<p><span class="status-ok">Erfolgreich</span></p>
+        {% else %}<p><span class="status-ok">Bereit</span></p>{% endif %}
         <p><strong>{{ update_status.message or 'Bereit' }}</strong></p>
         {% if update_status.step %}<p class="muted">Schritt: <strong>{{ update_status.step }}</strong></p>{% endif %}
         <div style="background:#e5e7eb;border-radius:10px;overflow:hidden;height:18px;margin:10px 0;">
             <div style="height:18px;width:{{ progress }}%;background:#2563eb;"></div>
         </div>
         <p class="muted">Fortschritt: {{ progress }} %</p>
-        {% if update_status.package or update_status.version %}
-            <p class="muted">Paket: <code>{{ update_status.package }}</code> · Version: <code>{{ update_status.version }}</code></p>
-        {% endif %}
+        {% if update_status.package or update_status.version %}<p class="muted">Paket: <code>{{ update_status.package }}</code> · Version: <code>{{ update_status.version }}</code></p>{% endif %}
         {% if update_status.time %}<p class="muted">Letzte Änderung: {{ update_status.time }}</p>{% endif %}
         <p class="muted">Upload-Verzeichnis: <code>{{ upload_dir }}</code></p>
     </div>
 </div>
 
 <div class="card">
+    <h2>GitHub-Update</h2>
+    <p>Prüft das neueste stabile Release von <code>Markus4771/Stempeluhr</code>. Das Paket wird samt SHA256 geprüft und danach an den bestehenden Update-Assistenten übergeben.</p>
+    <button type="button" class="btn" onclick="checkGitHubUpdate()">Auf GitHub nach Updates suchen</button>
+    <div id="github-update-result" style="margin-top:1rem;">Noch nicht geprüft.</div>
+    <form id="github-update-form" method="post" action="/system/settings/updates/github/install" style="display:none;margin-top:1rem;">
+        <button type="submit" class="btn btn-primary">Von GitHub herunterladen und installieren</button>
+    </form>
+</div>
+
+<div class="card">
     <h2>Update-Assistent</h2>
     <ol>
-        <li>DEB-Paket auswählen</li>
-        <li>Paket prüfen: Paketname, Version, Architektur, Speicher, SHA256</li>
+        <li>GitHub-Release laden oder DEB-Paket manuell auswählen</li>
+        <li>Paketname, Version, Architektur, Speicher und SHA256 prüfen</li>
         <li>Backup erstellen</li>
         <li>Update installieren</li>
         <li>Dienst neu starten</li>
-        <li>Healthcheck per GET auf Port 8000/8088</li>
+        <li>Healthcheck ausführen</li>
         <li>Erfolg oder klare Fehlermeldung anzeigen</li>
     </ol>
 </div>
 
 <div class="card">
-    <h2>DEB-Paket hochladen und installieren</h2>
+    <h2>DEB-Paket manuell hochladen und installieren</h2>
     <form method="post" action="/system/settings/updates/upload" enctype="multipart/form-data">
         <label>Stempeluhr-DEB auswählen</label>
         <input type="file" name="update_file" accept=".deb" required>
         <button type="submit" class="btn btn-primary">DEB-Update installieren</button>
     </form>
-    <p class="muted">
-        Zulässig sind nur Debian-Pakete mit Paketname <code>stempeluhr</code>, Architektur <code>all</code> und einer neueren Version als die aktuell installierte Version.
-    </p>
+    <p class="muted">Zulässig sind nur Pakete mit Paketname <code>stempeluhr</code>, Architektur <code>all</code> und einer neueren Version.</p>
 </div>
 
 <div class="card">
     <h2>Update-Diagnose</h2>
-    <p class="muted">Prüft Runner, sudoers, Uploadpfad und systemd. Die Diagnose wird beim Öffnen der Seite geladen.</p>
+    <p class="muted">Prüft Runner, sudoers, Uploadpfad und systemd.</p>
     <button type="button" class="btn" onclick="loadUpdateDiagnostics()">Diagnose aktualisieren</button>
     <div id="update-diagnostics" style="margin-top:1rem;">Diagnose noch nicht geladen.</div>
 </div>
 
 <div class="card">
-    <h2>Zuletzt hochgeladene DEB-Dateien</h2>
+    <h2>Zuletzt bereitgestellte DEB-Dateien</h2>
     {% if uploaded_debs %}
-    <table>
-        <thead><tr><th>Datei</th><th>Paket</th><th>Version</th><th>Größe</th><th>Hochgeladen</th></tr></thead>
-        <tbody>
-        {% for f in uploaded_debs %}
-            <tr>
-                <td><code>{{ f.name }}</code></td>
-                <td><code>{{ f.package }}</code></td>
-                <td><code>{{ f.version }}</code></td>
-                <td>{{ f.size }} Bytes</td>
-                <td>{{ f.mtime }}</td>
-            </tr>
-        {% endfor %}
-        </tbody>
-    </table>
-    {% else %}
-    <p class="muted">Noch keine DEB-Dateien hochgeladen.</p>
-    {% endif %}
+    <table><thead><tr><th>Datei</th><th>Paket</th><th>Version</th><th>Größe</th><th>Zeit</th></tr></thead><tbody>
+    {% for f in uploaded_debs %}<tr><td><code>{{ f.name }}</code></td><td><code>{{ f.package }}</code></td><td><code>{{ f.version }}</code></td><td>{{ f.size }} Bytes</td><td>{{ f.mtime }}</td></tr>{% endfor %}
+    </tbody></table>
+    {% else %}<p class="muted">Noch keine DEB-Dateien bereitgestellt.</p>{% endif %}
 </div>
 
 <div class="card">
     <h2>Update-Protokoll</h2>
-    <p class="muted">Das Protokoll wird aus <code>/opt/stempeluhr/logs/update.log</code> gelesen.</p>
     <pre class="log-box" id="update-log">{{ log_tail }}</pre>
 </div>
 
 <script>
+function escapeHtml(value) {
+    return String(value || '').replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
+}
+async function checkGitHubUpdate() {
+    const box = document.getElementById('github-update-result');
+    const form = document.getElementById('github-update-form');
+    box.textContent = 'GitHub wird geprüft ...';
+    form.style.display = 'none';
+    try {
+        const res = await fetch('/system/settings/updates/github/check');
+        const data = await res.json();
+        if (!res.ok || !data.ok) throw new Error(data.error || 'GitHub-Prüfung fehlgeschlagen');
+        let html = `<p><strong>Neueste Version: ${escapeHtml(data.version)}</strong></p>`;
+        html += `<p>Installiert: ${escapeHtml(data.current_version)}</p>`;
+        if (!data.assets_complete) {
+            html += '<p class="status-error">Das Release enthält kein vollständiges DEB/SHA256-Paar.</p>';
+        } else if (data.update_available) {
+            html += '<p class="status-ok">Ein Update ist verfügbar.</p>';
+            form.style.display = 'block';
+        } else {
+            html += '<p class="status-ok">Die installierte Version ist aktuell.</p>';
+        }
+        if (data.body) html += `<details><summary>Release Notes</summary><pre class="log-box">${escapeHtml(data.body)}</pre></details>`;
+        box.innerHTML = html;
+    } catch (e) {
+        box.innerHTML = `<p class="status-error">${escapeHtml(e.message || e)}</p>`;
+    }
+}
 async function loadUpdateDiagnostics() {
     const box = document.getElementById('update-diagnostics');
-    box.innerHTML = 'Lade Diagnose ...';
+    box.textContent = 'Lade Diagnose ...';
     try {
         const res = await fetch('/system/settings/updates/diagnostics');
         const data = await res.json();
         let html = '<table><thead><tr><th>Prüfung</th><th>Status</th><th>Details</th></tr></thead><tbody>';
-        for (const c of data.checks) {
-            html += `<tr><td>${c.name}</td><td>${c.ok ? '✅ OK' : '❌ Fehler'}</td><td><code>${(c.detail || '').replaceAll('<','&lt;')}</code></td></tr>`;
-        }
+        for (const c of data.checks) html += `<tr><td>${escapeHtml(c.name)}</td><td>${c.ok ? '✅ OK' : '❌ Fehler'}</td><td><code>${escapeHtml(c.detail)}</code></td></tr>`;
         html += '</tbody></table>';
         box.innerHTML = html;
     } catch (e) {
-        box.innerHTML = 'Diagnose konnte nicht geladen werden: ' + e;
+        box.textContent = 'Diagnose konnte nicht geladen werden: ' + e;
     }
 }
 loadUpdateDiagnostics();
