@@ -1,3 +1,14 @@
+## 5.6.11
+
+- bestehende Updateverwaltung um stabile GitHub Releases erweitert
+- manuelles Hochladen von Debian-Paketen unverändert erhalten
+- GitHub-Prüfung und Release Notes direkt in die vorhandene Update-Seite integriert
+- `.deb` und veröffentlichte SHA256-Datei werden gemeinsam heruntergeladen und geprüft
+- nur neuere Versionen mit vollständigem Release-Dateisatz werden angeboten
+- geprüftes GitHub-Paket wird an denselben bestehenden Update-Runner übergeben
+- Backup, Installation, Dienstneustart, Fortschrittsanzeige und Healthcheck bleiben unverändert zentral
+- keine Datenbankmodelle oder produktiven Daten geändert
+
 ## 5.6.10
 
 - automatisches GitHub-Release-System für Debian-Pakete ergänzt
