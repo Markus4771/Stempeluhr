@@ -1,23 +1,24 @@
-# Stempeluhr Professional 5.6.10
+# Stempeluhr Professional 5.6.11
 
 Webbasierte Zeiterfassung für Debian-Server und Raspberry-Pi-Terminals mit PostgreSQL, FastAPI, Rollen und Rechten, Reporting, Onboarding und Raspberry-Kioskfunktionen.
 
 ## Aktueller Stand
 
-- Version: **5.6.10**
+- Version: **5.6.11**
 - Standarddatenbank: PostgreSQL
 - Zielplattform: Debian 13 / Raspberry Pi OS
 - Standardbranch: `main`
 
 Änderungen dieser Version:
 
-- automatisches GitHub-Release-System für fertige Debian-Pakete
-- normale Pushes bauen weiterhin ein zeitlich begrenztes Actions-Artefakt
-- ein Versions-Tag wie `v5.6.10` erzeugt ein dauerhaftes GitHub Release
-- Tag und `version.txt` müssen exakt übereinstimmen
-- Release enthält `.deb`, SHA256-Prüfsumme, Buildbericht und Changelog
-- Release Notes werden automatisch aus dem aktuellen Changelog-Abschnitt erzeugt
-- bestehende Daten, Benutzer und PostgreSQL-Konfiguration werden nicht verändert
+- bestehende Updateverwaltung um stabile GitHub Releases erweitert
+- manuelles Hochladen von `.deb`-Paketen bleibt unverändert verfügbar
+- neue Prüfung auf die neueste GitHub-Version direkt unter **Systemeinstellungen → Wartung → Updates**
+- Release Notes werden auf der vorhandenen Update-Seite angezeigt
+- GitHub-Paket und veröffentlichte SHA256-Datei werden vor der Installation geprüft
+- das geprüfte Paket wird anschließend an denselben bestehenden Update-Runner übergeben
+- Backup, Installation, Neustart, Fortschrittsanzeige und Healthcheck bleiben zentral erhalten
+- keine Änderungen an Datenbankmodellen oder produktiven Daten
 
 ## Debian-Paket lokal bauen
 
@@ -28,43 +29,27 @@ bash scripts/build_release.sh
 Ergebnis:
 
 ```text
-releases/stempeluhr_5.6.10_all.deb
-releases/stempeluhr_5.6.10_all.deb.sha256
-releases/stempeluhr_5.6.10_build.log
-releases/stempeluhr_5.6.10_BUILD_REPORT.md
+releases/stempeluhr_5.6.11_all.deb
+releases/stempeluhr_5.6.11_all.deb.sha256
+releases/stempeluhr_5.6.11_build.log
+releases/stempeluhr_5.6.11_BUILD_REPORT.md
 ```
 
 ## GitHub Release veröffentlichen
 
-Erst wenn der Stand gebaut und geprüft wurde, wird der passende Tag gesetzt:
+Erst nach lokalem Build, Installation und Prüfung:
 
 ```bash
-git tag -a v5.6.10 -m "Stempeluhr Professional 5.6.10"
-git push origin v5.6.10
+git tag -a v5.6.11 -m "Stempeluhr Professional 5.6.11"
+git push origin v5.6.11
 ```
 
-GitHub Actions baut das Paket erneut, prüft Paketname, Version, Inhalt und SHA256 und veröffentlicht anschließend unter **GitHub → Releases**:
+Das Release enthält `.deb`, SHA256, Buildbericht und Changelog. Ein normaler Push auf `main` erzeugt nur ein zeitlich begrenztes Actions-Artefakt.
 
-```text
-stempeluhr_5.6.10_all.deb
-stempeluhr_5.6.10_all.deb.sha256
-stempeluhr_5.6.10_BUILD_REPORT.md
-stempeluhr_5.6.10_changelog.md
-```
+## Integriertes Update
 
-Ein normaler Push auf `main` veröffentlicht ausdrücklich kein Release.
-
-## Installation aus einem GitHub Release
-
-Nach dem Download:
-
-```bash
-sha256sum -c stempeluhr_5.6.10_all.deb.sha256
-sudo dpkg -i stempeluhr_5.6.10_all.deb
-```
-
-Die vollständige lokale Build-Anleitung steht in `docs/DEBIAN_BUILD.md`.
+Unter **Systemeinstellungen → Wartung → Updates** kann entweder ein Paket manuell hochgeladen oder das neueste stabile GitHub Release geprüft und installiert werden. Beide Wege verwenden denselben bestehenden Update-Runner.
 
 ## Sicherheit
 
-Produktive Zugangsdaten, `.env`-Dateien, Datenbanken, Uploads und Sicherungen gehören nicht in Git. GitHub Releases dürfen erst nach erfolgreichem Build und Prüfung erzeugt werden. Bestehende PostgreSQL-Daten und `/etc/stempeluhr/stempeluhr.env` dürfen bei Updates nicht gelöscht oder überschrieben werden.
+Produktive Zugangsdaten, `.env`-Dateien, Datenbanken, Uploads und Sicherungen gehören nicht in Git. GitHub-Pakete werden nur zusammen mit der veröffentlichten SHA256-Datei akzeptiert. Bestehende PostgreSQL-Daten und `/etc/stempeluhr/stempeluhr.env` dürfen bei Updates nicht gelöscht oder überschrieben werden.
