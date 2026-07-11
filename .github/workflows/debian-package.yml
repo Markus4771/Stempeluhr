@@ -1,9 +1,11 @@
-name: Debian-Paket bauen
+name: Debian-Paket bauen und veröffentlichen
 
 on:
   workflow_dispatch:
   push:
     branches: [main]
+    tags:
+      - 'v*'
     paths:
       - 'app/**'
       - 'scripts/build_release.sh'
@@ -16,26 +18,45 @@ on:
       - 'CHATGPT_PROJEKTKONTEXT.md'
       - '.github/workflows/debian-package.yml'
 
+permissions:
+  contents: write
+
 jobs:
   build-deb:
     runs-on: ubuntu-latest
     steps:
       - name: Repository auschecken
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Build-Werkzeuge installieren
         run: |
           sudo apt-get update
           sudo apt-get install -y rsync dpkg-dev
 
-      - name: Git-Arbeitsverzeichnis prüfen
-        run: git status --short
+      - name: Version und Tag prüfen
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION="$(tr -d '[:space:]' < version.txt)"
+          test -n "$VERSION"
+          if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
+            test "${GITHUB_REF_NAME}" = "v${VERSION}" || {
+              echo "FEHLER: Tag ${GITHUB_REF_NAME} passt nicht zu version.txt=${VERSION}."
+              exit 1
+            }
+          fi
+          git diff --exit-code
+          git status --porcelain
 
       - name: Debian-Paket bauen
         run: bash scripts/build_release.sh
 
       - name: Paketmetadaten prüfen
+        shell: bash
         run: |
+          set -euo pipefail
           VERSION="$(tr -d '[:space:]' < version.txt)"
           DEB="releases/stempeluhr_${VERSION}_all.deb"
           REPORT="releases/stempeluhr_${VERSION}_BUILD_REPORT.md"
@@ -49,6 +70,38 @@ jobs:
           sha256sum -c "$DEB.sha256"
           grep -Fq 'Status: **erfolgreich**' "$REPORT"
 
+      - name: Release Notes vorbereiten
+        if: github.ref_type == 'tag'
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION="$(tr -d '[:space:]' < version.txt)"
+          NOTES="releases/stempeluhr_${VERSION}_RELEASE_NOTES.md"
+          CHANGELOG_COPY="releases/stempeluhr_${VERSION}_changelog.md"
+          {
+            echo "# Stempeluhr Professional ${VERSION}"
+            echo
+            echo "## Installation"
+            echo
+            echo '```bash'
+            echo "sudo dpkg -i stempeluhr_${VERSION}_all.deb"
+            echo '```'
+            echo
+            echo "Prüfsumme vor der Installation kontrollieren:"
+            echo
+            echo '```bash'
+            echo "sha256sum -c stempeluhr_${VERSION}_all.deb.sha256"
+            echo '```'
+            echo
+            echo "## Änderungen"
+            awk -v version="$VERSION" '
+              $0 == "## " version {found=1; next}
+              found && /^## / {exit}
+              found {print}
+            ' changelog.md
+          } > "$NOTES"
+          cp changelog.md "$CHANGELOG_COPY"
+
       - name: Build-Artefakt hochladen
         uses: actions/upload-artifact@v4
         with:
@@ -58,5 +111,35 @@ jobs:
             releases/*.sha256
             releases/*_build.log
             releases/*_BUILD_REPORT.md
+            releases/*_RELEASE_NOTES.md
+            releases/*_changelog.md
           if-no-files-found: error
           retention-days: 14
+
+      - name: GitHub Release veröffentlichen
+        if: github.ref_type == 'tag'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          VERSION="$(tr -d '[:space:]' < version.txt)"
+          TAG="v${VERSION}"
+          DEB="releases/stempeluhr_${VERSION}_all.deb"
+          CHECKSUM="${DEB}.sha256"
+          REPORT="releases/stempeluhr_${VERSION}_BUILD_REPORT.md"
+          NOTES="releases/stempeluhr_${VERSION}_RELEASE_NOTES.md"
+          CHANGELOG_COPY="releases/stempeluhr_${VERSION}_changelog.md"
+
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release edit "$TAG" --title "Stempeluhr Professional ${VERSION}" --notes-file "$NOTES"
+          else
+            gh release create "$TAG" --title "Stempeluhr Professional ${VERSION}" --notes-file "$NOTES" --verify-tag
+          fi
+
+          gh release upload "$TAG" \
+            "$DEB" \
+            "$CHECKSUM" \
+            "$REPORT" \
+            "$CHANGELOG_COPY" \
+            --clobber
