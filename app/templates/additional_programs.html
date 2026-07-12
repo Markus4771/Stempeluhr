@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Zusatz-Programme</h1>
+<section class="card">
+  <p class="help-text">Diese Programme laufen auf anderen Geräten oder Diensten und werden in einem neuen Browser-Tab geöffnet.</p>
+  {% if programs %}
+  <div class="settings-menu">
+    {% for program in programs %}
+    <a class="settings-tile" href="{{ program.url }}" target="_blank" rel="noopener noreferrer">
+      <strong>{{ program.name }}</strong>
+      <span>{{ program.description or program.url }}</span>
+      <code>{{ program.url }}</code>
+    </a>
+    {% endfor %}
+  </div>
+  {% else %}
+  <p>Es sind noch keine Zusatz-Programme freigeschaltet.</p>
+  {% endif %}
+</section>
+{% endblock %}
