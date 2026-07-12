@@ -1,5 +1,5 @@
 Package: stempeluhr
-Version: 5.6.13
+Version: 5.6.14
 Section: web
 Priority: optional
 Architecture: all
@@ -9,6 +9,6 @@ Recommends: postgresql, postgresql-contrib, nginx, curl, wget, git, build-essent
 Replaces: stempeluhr-professional
 Breaks: stempeluhr-professional
 Description: Stempeluhr Professional
- Webbasierte Zeiterfassung mit RFID, Rollen/Rechten, Reporting,
- geschützter Secret-Verwaltung und konfigurierbaren Sicherheitsrichtlinien.
+ Webbasierte Zeiterfassung mit RFID, konfigurierbaren Rollen und Rechten,
+ Reporting, geschützter Secret-Verwaltung und Sicherheitsrichtlinien.
  Dieses Release-Paket ist für Neuinstallation und Update geeignet.
