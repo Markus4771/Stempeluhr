@@ -10,28 +10,23 @@
 <body>
 {% set session_data = request.scope.get("session", {}) %}
 {% set role = session_data.get("role", "") %}
+{% set permissions = session_data.get("permissions", []) %}
+{% set full_access = '*' in permissions or role == 'Administrator' %}
 <nav class="nav app-nav" aria-label="Hauptnavigation">
     <div class="nav-left">
-        <a href="/">Dashboard</a>
-        <a href="/raspberry">Zeiterfassung</a>
-        <a href="/vacation">Abwesenheit</a>
-        <a href="/vacation/my">Meine Abwesenheiten</a>
-
-        {% if role in ["Administrator", "Personal"] %}<a href="/admin">Mitarbeiterverwaltung</a>{% endif %}
-        {% if role in ["Administrator", "Personal", "Teamleiter"] or session_data.get("can_self_correct") or (user is defined and user and user.can_self_correct) %}<a href="/corrections">Korrektur</a>{% endif %}
-        {% if session_data.get("employee_name") %}<a href="/reports">Mein Report</a>{% endif %}
-        {% if role in ["Administrator", "Personal", "Teamleiter"] %}
-            <a href="/reports">Auswertung</a>
-            <a href="/worktime-account">Arbeitszeitkonto</a>
-            <a href="/plausibility">Plausibilität</a>
-        {% endif %}
-        {% if role == "Administrator" %}
-            <a href="/system/settings">Systemeinstellungen</a>
-            <a href="/system/privacy">Datenschutz</a>
-            <a href="/system/audit">Audit-Protokoll</a>
-            <a href="/system/monitoring">Monitoring</a>
-            <a href="/system/developer">Entwickler</a>
-        {% endif %}
+        {% if full_access or 'nav.dashboard' in permissions %}<a href="/">Dashboard</a>{% endif %}
+        {% if full_access or 'nav.timeclock' in permissions %}<a href="/raspberry">Zeiterfassung</a>{% endif %}
+        {% if full_access or 'nav.absence' in permissions %}<a href="/vacation">Abwesenheit</a><a href="/vacation/my">Meine Abwesenheiten</a>{% endif %}
+        {% if full_access or 'nav.employees' in permissions %}<a href="/admin">Mitarbeiterverwaltung</a>{% endif %}
+        {% if full_access or 'nav.corrections' in permissions or session_data.get("can_self_correct") or (user is defined and user and user.can_self_correct) %}<a href="/corrections">Korrektur</a>{% endif %}
+        {% if session_data.get("employee_name") and (full_access or 'nav.reports' in permissions) %}<a href="/reports">Mein Report</a>{% endif %}
+        {% if full_access or 'reports.all' in permissions %}<a href="/worktime-account">Arbeitszeitkonto</a>{% endif %}
+        {% if full_access or 'nav.plausibility' in permissions %}<a href="/plausibility">Plausibilität</a>{% endif %}
+        {% if full_access or 'nav.settings' in permissions %}<a href="/system/settings">Systemeinstellungen</a>{% endif %}
+        {% if full_access %}<a href="/system/privacy">Datenschutz</a>{% endif %}
+        {% if full_access or 'nav.audit' in permissions %}<a href="/system/audit">Audit-Protokoll</a>{% endif %}
+        {% if full_access or 'nav.monitoring' in permissions %}<a href="/system/monitoring">Monitoring</a>{% endif %}
+        {% if full_access %}<a href="/system/developer">Entwickler</a>{% endif %}
     </div>
     <div class="nav-right">
         {% if session_data.get("employee_name") %}
