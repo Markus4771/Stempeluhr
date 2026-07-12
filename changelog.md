@@ -1,126 +1,84 @@
+## 5.6.14
+
+- Rollenverwaltung unter `Systemeinstellungen → Personal & Arbeitszeit → Rollen & Rechte` ergänzt
+- eigene Rollen mit Name, Beschreibung und auswählbaren Berechtigungen anlegbar
+- Rollenberechtigungen werden als JSON im vorhandenen Feld `roles.permissions` gespeichert
+- vorhandene Rollen können bearbeitet werden
+- eigene Rollen können nur ohne zugeordnete Benutzer gelöscht werden
+- Standardrollen sind gegen Löschen geschützt
+- Rolle `Administrator` behält immer Vollzugriff und kann nicht umbenannt werden
+- Navigation wird anhand der Rollenberechtigungen aufgebaut
+- rückwärtskompatible Standardrechte für bestehende Rollen ohne gespeicherte Rechte
+- keine neue Datenbanktabelle und keine destruktive Migration erforderlich
+- keine produktiven Mitarbeiter- oder Buchungsdaten verändert
+
 ## 5.6.13
 
 - konfigurierbaren Schutz gegen wiederholte Fehlanmeldungen ergänzt
-- Anzahl der Fehlversuche bis zur Sperre einstellbar
-- Sperrdauer für Benutzerkonto und IP-Adresse getrennt konfigurierbar
-- Login-Sperrstatus wird in PostgreSQL gespeichert und durch Backup/Restore erhalten
+- Anzahl der Fehlversuche und gemeinsame Sperrdauer konfigurierbar
+- optionale IP-Sperre ergänzt
+- bestehende Testsperren werden beim Speichern neuer Richtlinien aufgehoben
+- konfigurierbare Passwortrichtlinien für neue und geänderte Passwörter ergänzt
+- einmalige Ausnahme und dauerhafte Warnung für das initiale Admin-Standardpasswort
 - fehlgeschlagene und blockierte Anmeldungen werden ohne Passwortdaten protokolliert
-- konfigurierbare Passwortregeln für Mindestlänge, Groß-/Kleinbuchstaben, Zahlen, Sonderzeichen, Leerzeichen und Identitätsbestandteile ergänzt
-- Passwortrichtlinien gelten für Onboarding, Passwort-Reset und Änderung des festen Admin-Passworts
-- bestehende Passwörter bleiben bis zur nächsten Änderung gültig
-- initiales Standardpasswort `admin123` des festen Benutzers `admin` bleibt als einmalige Einrichtungsausnahme zulässig
-- solange das Standardpasswort aktiv ist, erscheint auf jeder angemeldeten Seite eine dauerhafte Sicherheitswarnung
-- nach der ersten Änderung gelten alle konfigurierten Regeln; erneutes Setzen von `admin123` ist gesperrt
-- Sicherheitsrichtlinien unter `Systemeinstellungen → Allgemeine Einstellungen → Sicherheit` integriert
 - keine produktiven Mitarbeiter- oder Buchungsdaten verändert
 
 ## 5.6.12
 
-- Datenbankpasswort aus `stempeluhr.env` nach `/etc/stempeluhr/secrets/database.conf` ausgelagert
-- bestehende Passwörter werden beim Paketupdate automatisch und ohne Rollenänderung migriert
-- systemd und SQLAlchemy laden die geschützte Secret-Datei zusätzlich zur allgemeinen Konfiguration
-- neue Seite `Systemeinstellungen → Sicherheit → Datenbankzugang`
-- Administrator muss sein eigenes Passwort erneut bestätigen
-- neues Datenbankpasswort wird auf Mindestlänge und Komplexität geprüft
-- lokaler PostgreSQL-Rollenwechsel verwendet SCRAM-SHA-256
-- neue Verbindung wird vor Speicherung getestet
-- vorherige Konfiguration und Secret-Datei werden vor Änderung gesichert
-- automatischer Rollback auf das alte PostgreSQL-Passwort bei Fehlern
-- enger Root-Helfer und begrenzter sudoers-Eintrag statt allgemeiner sudo-Rechte
-- Audit protokolliert nur das Ereignis, niemals Passwortwerte
+- Datenbankpasswort aus der allgemeinen Konfiguration in eine geschützte Secret-Datei ausgelagert
+- bestehende Installationen werden ohne Änderung der PostgreSQL-Rolle migriert
+- neue Seite für Datenbankzugang und sicheren Passwortwechsel ergänzt
+- SCRAM-SHA-256, Verbindungstest, Sicherung und Rollback ergänzt
+- enger Root-Helfer statt allgemeiner sudo-Rechte
 - keine Datenbankmodelle oder produktiven Daten geändert
 
 ## 5.6.11
 
 - bestehende Updateverwaltung um stabile GitHub Releases erweitert
-- manuelles Hochladen von Debian-Paketen unverändert erhalten
-- GitHub-Prüfung und Release Notes direkt in die vorhandene Update-Seite integriert
-- `.deb` und veröffentlichte SHA256-Datei werden gemeinsam heruntergeladen und geprüft
-- nur neuere Versionen mit vollständigem Release-Dateisatz werden angeboten
-- geprüftes GitHub-Paket wird an denselben bestehenden Update-Runner übergeben
-- Backup, Installation, Dienstneustart, Fortschrittsanzeige und Healthcheck bleiben unverändert zentral
-- keine Datenbankmodelle oder produktiven Daten geändert
+- manueller DEB-Upload unverändert erhalten
+- Paket und SHA256 werden gemeinsam geprüft
+- GitHub-Paket wird an denselben bestehenden Update-Runner übergeben
 
 ## 5.6.10
 
 - automatisches GitHub-Release-System für Debian-Pakete ergänzt
-- Release wird ausschließlich durch einen passenden Versions-Tag wie `v5.6.10` ausgelöst
-- Tag muss exakt mit `version.txt` und den Paketmetadaten übereinstimmen
-- `.deb`, SHA256, Buildbericht und Changelog werden dauerhaft am GitHub Release veröffentlicht
-- Release Notes werden automatisch aus diesem Versionsabschnitt erzeugt
-- normale Pushes auf `main` erzeugen weiterhin nur ein 14 Tage gespeichertes Workflow-Artefakt
-- GitHub-Workflow verwendet `contents: write` ausschließlich für tagbasierte Veröffentlichungen
-- bestehende Datenbank, Konfiguration und Anwendungsfunktionen bleiben unverändert
+- Release wird durch einen passenden Versions-Tag ausgelöst
+- DEB, SHA256, Buildbericht und Changelog werden veröffentlicht
 
 ## 5.6.00
 
 - Einrichtungsassistent als achtstufigen Wizard neu aufgebaut
-- Fortschrittsanzeige, Zurück/Weiter-Navigation und Wiederaufnahme ergänzt
-- Unternehmensdaten, Sprache und Zeitzone im Assistenten konfigurierbar
-- Administrator- und PostgreSQL-Prüfung ergänzt
-- Arbeitszeit, E-Mail, API, HTTPS und Backup im Assistenten zusammengeführt
-- Raspberry-Status integriert, bestehende Dashboard-Kachel unverändert gelassen
-- Abschlussprüfung mit vorhandener Systemdiagnose und Warnungsübersicht ergänzt
-- Einrichtungsassistent aus der Hauptnavigation entfernt und unter `Systemeinstellungen → Wartung` eingeordnet
+- Fortschrittsanzeige, Navigation und Wiederaufnahme ergänzt
+- Unternehmensdaten, Zeitzone, Datenbank, E-Mail, API, HTTPS und Backup zusammengeführt
 - bestehende Daten und Konfigurationen werden nicht überschrieben
-- keine Schema-Migration erforderlich
 
 ## 5.5.09
 
-- Offboarding aus dem Bereich `Wartung` entfernt
-- Offboarding direkt neben Onboarding unter `Systemeinstellungen → Personal & Arbeitszeit` eingeordnet
-- Beschreibung der Systemeinstellungsübersicht angepasst
-- keine Änderungen an Datenbankmodellen oder produktiven Daten
+- Offboarding unter `Systemeinstellungen → Personal & Arbeitszeit` eingeordnet
 
 ## 5.5.08
 
-- Systemdiagnose aus der Hauptnavigation entfernt
-- Systemdiagnose in `Systemeinstellungen` unter `Wartung` integriert
-- direkten Diagnosezugang im Systemstatus der Systemeinstellungen ergänzt
-- Rücknavigation von der Diagnose zu den Systemeinstellungen ergänzt
-- Diagnose-API und ZIP-Bericht unverändert erhalten
-- keine Änderungen an Datenbankmodellen oder produktiven Daten
+- Systemdiagnose unter `Systemeinstellungen → Wartung` integriert
 
 ## 5.5.07
 
-- neue Admin-Seite `Systemdiagnose` ergänzt
-- geschützte Diagnose-API unter `/diagnostics` und `/api/v1/diagnostics`
-- PostgreSQL-Verbindung, Latenz, Serverversion und Datenbestände prüfbar
-- Konfigurationsdatei auf fehlende Pflichtvariablen geprüft
-- Speicherplatz, wichtige Pfade und Schreibrechte geprüft
-- Diagnosebericht als ZIP ohne Passwörter, Tokens oder Secrets ergänzt
-- Startup-Checks um Konfiguration, Speicher und Verzeichnisrechte erweitert
+- Systemdiagnose, PostgreSQL-Prüfung und Diagnosebericht ergänzt
 
 ## 5.5.06
 
-- PostgreSQL-Verbindungs-URL mit `SQLAlchemy URL.create()` sicher aufgebaut
-- Sonderzeichen in Datenbankpasswörtern werden korrekt verarbeitet
-- lokale PostgreSQL-Verbindungen greifen nicht mehr auf `/root/.postgresql` zu
-- bestehende PostgreSQL-Rollenpasswörter werden bei Updates nicht mehr verändert
-- Migrationen laufen mit sauberer Umgebung des Benutzers `stempeluhr`
+- PostgreSQL-Verbindungsaufbau und Passwortbehandlung gehärtet
 - bestehende Datenbank und Konfiguration bleiben erhalten
 
 ## 5.5.05
 
-- Projektspezifischen Debian-Buildprozess erweitert
-- Automatischen Buildbericht mit Version, Git-Commit, Buildzeit, Debian-/Python-Version, Paketgröße und SHA256 ergänzt
-- Doppelte Datei `CHANGELOG.md` bereinigt; verbindlicher Änderungsverlauf bleibt `changelog.md`
-- Versionsprüfung für Anwendung, Dokumentation und Debian-Paket synchronisiert
-- Keine Änderung an produktiven Datenbankmodellen oder Zeiterfassungsfunktionen
+- Debian-Buildprozess und Buildbericht erweitert
+- verbindlicher Änderungsverlauf auf `changelog.md` vereinheitlicht
 
 ## 5.5.04
 
 - Onboarding aus dem Hauptmenü entfernt
-- Einladungsbutton in der Mitarbeiterverwaltung dauerhaft verfügbar
-- Installierter und maßgeblicher Repository-Stand auf Version 5.5.04 vereinheitlicht
-- Versionsdokumentation für neue ChatGPT-Unterhaltungen ergänzt
+- Einladungsbutton in der Mitarbeiterverwaltung verfügbar
 
 ## 5.5.0
 
-- Onboarding als eigener Einstellungsbereich sichtbar integriert
-- Einladungsmail mit Einmal-Token und Passwort-Erstsetzung
-- Datenschutzbestätigung beim ersten Login / bei neuer Datenschutz-Version
-- Onboarding-Protokoll in den Systemeinstellungen
-- Benutzer-REST-API erweitert
-- Plugin-/Odoo-Menüs entfernt bzw. deaktiviert
-- Raspberry-Monitoring und Screenshot-Funktion stabilisiert
+- Onboarding, Datenschutzbestätigung und Benutzer-REST-API erweitert
