@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Rollen &amp; Rechte</h1>
+{% if saved %}<div class="success-box">{{ message or 'Rolle gespeichert.' }}</div>{% endif %}
+{% if error %}<div class="error-box">{{ error }}</div>{% endif %}
+
+<section class="card settings-card">
+  <h2>Neue Rolle anlegen</h2>
+  <form action="/system/settings/roles/add" method="post" class="settings-form">
+    <div class="settings-grid">
+      <div class="form-field"><label>Rollenname</label><input name="name" minlength="2" maxlength="100" required></div>
+      <div class="form-field"><label>Beschreibung</label><input name="description" maxlength="500"></div>
+    </div>
+    {% for group, entries in permission_groups.items() %}
+    <fieldset class="settings-section">
+      <legend><strong>{{ group|capitalize }}</strong></legend>
+      <div class="settings-grid module-toggle-grid">
+      {% for key, label in entries.items() %}
+        <div class="form-field checkbox-field compact-checkbox"><label><input type="checkbox" name="permissions" value="{{ key }}"> {{ label }}</label></div>
+      {% endfor %}
+      </div>
+    </fieldset>
+    {% endfor %}
+    <div class="form-actions"><button type="submit">Rolle anlegen</button></div>
+  </form>
+</section>
+
+{% for role in roles %}
+<section class="card settings-card">
+  <h2>{{ role.name }} <small>({{ employee_counts.get(role.id, 0) }} Benutzer)</small></h2>
+  {% if role.name == 'Administrator' %}<p class="warning-box"><strong>Schutzrolle:</strong> Die Rolle Administrator behält immer Vollzugriff und kann nicht umbenannt oder gelöscht werden.</p>{% endif %}
+  <form action="/system/settings/roles/{{ role.id }}/save" method="post" class="settings-form">
+    <div class="settings-grid">
+      <div class="form-field"><label>Rollenname</label><input name="name" value="{{ role.name }}" {% if role.name in protected_roles %}readonly{% endif %} required></div>
+      <div class="form-field"><label>Beschreibung</label><input name="description" value="{{ role.description or '' }}"></div>
+    </div>
+    {% for group, entries in permission_groups.items() %}
+    <fieldset class="settings-section">
+      <legend><strong>{{ group|capitalize }}</strong></legend>
+      <div class="settings-grid module-toggle-grid">
+      {% for key, label in entries.items() %}
+        <div class="form-field checkbox-field compact-checkbox">
+          <label><input type="checkbox" name="permissions" value="{{ key }}" {% if role.name == 'Administrator' or key in role_values.get(role.id, []) %}checked{% endif %} {% if role.name == 'Administrator' %}disabled{% endif %}> {{ label }}</label>
+        </div>
+      {% endfor %}
+      </div>
+    </fieldset>
+    {% endfor %}
+    <div class="form-actions"><button type="submit">Rolle speichern</button></div>
+  </form>
+  {% if role.name not in protected_roles %}
+  <form action="/system/settings/roles/{{ role.id }}/delete" method="post" onsubmit="return confirm('Rolle wirklich löschen?');">
+    <button type="submit" class="danger" {% if employee_counts.get(role.id, 0) %}disabled title="Rolle ist noch Benutzern zugeordnet"{% endif %}>Rolle löschen</button>
+  </form>
+  {% endif %}
+</section>
+{% endfor %}
+
+<p><a class="button secondary" href="/system/settings">Zurück zu Systemeinstellungen</a></p>
+{% endblock %}
