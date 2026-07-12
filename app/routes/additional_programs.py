@@ -18,6 +18,7 @@ from app.services.role_permissions import has_permission
 router = APIRouter()
 SETTING_KEY = "additional_programs"
 _HOST_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9.-]{0,252}[A-Za-z0-9]$|^[A-Za-z0-9]$")
+STANDARD_ROLES_WITH_PROGRAM_ACCESS = {"Administrator", "Personal", "Teamleiter", "Mitarbeiter"}
 
 
 def _load_programs(db: Session) -> list[dict]:
@@ -83,13 +84,26 @@ def _validate_program(name: str, host: str, port: int) -> str | None:
     return None
 
 
+def _can_open_additional_programs(user) -> bool:
+    if not user:
+        return False
+    employee_number = str(getattr(user, "employee_number", "") or "").strip().lower()
+    role_name = str(getattr(getattr(user, "role", None), "name", "") or "")
+    return (
+        employee_number == "admin"
+        or role_name in STANDARD_ROLES_WITH_PROGRAM_ACCESS
+        or has_permission(user, "nav.additional_programs")
+    )
+
+
 @router.get("/additional-programs", response_class=HTMLResponse)
+@router.get("/additional-programs/", response_class=HTMLResponse, include_in_schema=False)
 def additional_programs_overview(request: Request, db: Session = Depends(get_db)):
     user = current_user(request, db)
     if not user:
         return RedirectResponse("/login", status_code=303)
-    if not has_permission(user, "nav.additional_programs"):
-        return RedirectResponse("/", status_code=303)
+    if not _can_open_additional_programs(user):
+        return RedirectResponse("/?error=" + quote("Für Zusatz-Programme fehlt die Berechtigung."), status_code=303)
     programs = [p for p in _load_programs(db) if p.get("enabled", True)]
     return templates.TemplateResponse("additional_programs.html", {
         "request": request,
