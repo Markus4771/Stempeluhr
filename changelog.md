@@ -1,3 +1,19 @@
+## 5.6.13
+
+- konfigurierbaren Schutz gegen wiederholte Fehlanmeldungen ergänzt
+- Anzahl der Fehlversuche bis zur Sperre einstellbar
+- Sperrdauer für Benutzerkonto und IP-Adresse getrennt konfigurierbar
+- Login-Sperrstatus wird in PostgreSQL gespeichert und durch Backup/Restore erhalten
+- fehlgeschlagene und blockierte Anmeldungen werden ohne Passwortdaten protokolliert
+- konfigurierbare Passwortregeln für Mindestlänge, Groß-/Kleinbuchstaben, Zahlen, Sonderzeichen, Leerzeichen und Identitätsbestandteile ergänzt
+- Passwortrichtlinien gelten für Onboarding, Passwort-Reset und Änderung des festen Admin-Passworts
+- bestehende Passwörter bleiben bis zur nächsten Änderung gültig
+- initiales Standardpasswort `admin123` des festen Benutzers `admin` bleibt als einmalige Einrichtungsausnahme zulässig
+- solange das Standardpasswort aktiv ist, erscheint auf jeder angemeldeten Seite eine dauerhafte Sicherheitswarnung
+- nach der ersten Änderung gelten alle konfigurierten Regeln; erneutes Setzen von `admin123` ist gesperrt
+- Sicherheitsrichtlinien unter `Systemeinstellungen → Allgemeine Einstellungen → Sicherheit` integriert
+- keine produktiven Mitarbeiter- oder Buchungsdaten verändert
+
 ## 5.6.12
 
 - Datenbankpasswort aus `stempeluhr.env` nach `/etc/stempeluhr/secrets/database.conf` ausgelagert
