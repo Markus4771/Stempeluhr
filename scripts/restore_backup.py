@@ -1,174 +1,79 @@
 #!/usr/bin/env python3
-"""Restore-Werkzeug für Stempeluhr Backups.
-
-Stellt ausgewählte Bereiche aus einer von backup_gfs.py erzeugten .tar.gz-Datei wieder her.
-Die Ausführung sollte als root/sudo erfolgen, weil /opt/stempeluhr und PostgreSQL-Zugriff benötigt werden.
-"""
-import argparse
-import gzip
-import os
-import shutil
-import subprocess
-import sys
-import tarfile
-import tempfile
+"""Restore-Werkzeug für Stempeluhr-Backups inklusive Secret-Verzeichnis."""
+import argparse, gzip, os, shutil, subprocess, sys, tarfile, tempfile
 from pathlib import Path
-
 from dotenv import load_dotenv
 
-APP_DIR = Path("/opt/stempeluhr")
-ENV_PATH = APP_DIR / ".env"
-if ENV_PATH.exists():
-    load_dotenv(ENV_PATH)
+APP_DIR=Path('/opt/stempeluhr'); CONFIG_DIR=Path('/etc/stempeluhr'); ENV_PATH=CONFIG_DIR/'stempeluhr.env'; SECRET_PATH=CONFIG_DIR/'secrets/database.conf'
+if ENV_PATH.exists(): load_dotenv(ENV_PATH,override=False)
+if SECRET_PATH.exists(): load_dotenv(SECRET_PATH,override=True)
+DB_HOST=os.getenv('DATABASE_HOST','127.0.0.1'); DB_PORT=os.getenv('DATABASE_PORT','5432'); DB_NAME=os.getenv('DATABASE_NAME','stempeluhr'); DB_USER=os.getenv('DATABASE_USER','stempeluhr'); DB_PASSWORD=os.getenv('DATABASE_PASSWORD','')
 
-DB_HOST = os.getenv("DATABASE_HOST", "127.0.0.1")
-DB_PORT = os.getenv("DATABASE_PORT", "5432")
-DB_NAME = os.getenv("DATABASE_NAME", "stempeluhr")
-DB_USER = os.getenv("DATABASE_USER", "stempeluhr")
-DB_PASSWORD = os.getenv("DATABASE_PASSWORD", "stempeluhr_passwort_aendern")
-
-
-def safe_extract(tar: tarfile.TarFile, target: Path) -> None:
-    """Verhindert Path-Traversal beim Entpacken."""
-    target_resolved = target.resolve()
+def safe_extract(tar,target):
+    root=target.resolve()
     for member in tar.getmembers():
-        member_path = (target / member.name).resolve()
-        if not str(member_path).startswith(str(target_resolved)):
-            raise RuntimeError(f"Unsicherer Pfad im Backup: {member.name}")
+        path=(target/member.name).resolve()
+        if not str(path).startswith(str(root)): raise RuntimeError(f'Unsicherer Pfad im Backup: {member.name}')
     tar.extractall(target)
-
-
-def find_first(root: Path, name: str):
-    for p in root.rglob(name):
-        return p
-    return None
-
-
-def find_dir(root: Path, name: str):
-    for p in root.rglob(name):
-        if p.is_dir() and p.name == name:
-            return p
-    return None
-
-
-def restore_database(extracted_root: Path) -> None:
-    sql_gz = find_first(extracted_root, "postgres.sql.gz")
-    if not sql_gz:
-        raise RuntimeError("Im Backup wurde keine postgres.sql.gz gefunden.")
-
-    env = os.environ.copy()
-    env["PGPASSWORD"] = DB_PASSWORD
-
-    # Bestehende Verbindungen trennen und Datenbank leeren.
-    terminate_sql = (
-        "SELECT pg_terminate_backend(pid) "
-        "FROM pg_stat_activity "
-        "WHERE datname = current_database() AND pid <> pg_backend_pid();"
-    )
-    subprocess.run(
-        ["psql", "-h", DB_HOST, "-p", DB_PORT, "-U", DB_USER, "-d", DB_NAME, "-c", terminate_sql],
-        env=env,
-        check=True,
-    )
-    drop_sql = "DROP SCHEMA public CASCADE; CREATE SCHEMA public;"
-    subprocess.run(
-        ["psql", "-h", DB_HOST, "-p", DB_PORT, "-U", DB_USER, "-d", DB_NAME, "-c", drop_sql],
-        env=env,
-        check=True,
-    )
-
-    psql = subprocess.Popen(
-        ["psql", "-h", DB_HOST, "-p", DB_PORT, "-U", DB_USER, "-d", DB_NAME],
-        env=env,
-        stdin=subprocess.PIPE,
-    )
-    with gzip.open(sql_gz, "rb") as src:
-        shutil.copyfileobj(src, psql.stdin)
-    psql.stdin.close()
-    rc = psql.wait()
-    if rc != 0:
-        raise RuntimeError("psql Restore ist fehlgeschlagen.")
-
-
-def copy_replace(src: Path, dst: Path) -> None:
-    if not src.exists():
-        raise RuntimeError(f"Quelle fehlt: {src}")
+def find_first(root,name):
+    return next(root.rglob(name),None)
+def find_dir(root,name):
+    return next((p for p in root.rglob(name) if p.is_dir() and p.name==name),None)
+def restore_database(root):
+    sql_gz=find_first(root,'postgres.sql.gz')
+    if not sql_gz: raise RuntimeError('Im Backup wurde keine postgres.sql.gz gefunden.')
+    env=os.environ.copy(); env['PGPASSWORD']=DB_PASSWORD; env['PGSSLMODE']='disable' if DB_HOST in {'127.0.0.1','localhost'} else env.get('PGSSLMODE','prefer')
+    terminate="SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname=current_database() AND pid<>pg_backend_pid();"
+    subprocess.run(['psql','-h',DB_HOST,'-p',DB_PORT,'-U',DB_USER,'-d',DB_NAME,'-c',terminate],env=env,check=True)
+    subprocess.run(['psql','-h',DB_HOST,'-p',DB_PORT,'-U',DB_USER,'-d',DB_NAME,'-c','DROP SCHEMA public CASCADE; CREATE SCHEMA public;'],env=env,check=True)
+    proc=subprocess.Popen(['psql','-h',DB_HOST,'-p',DB_PORT,'-U',DB_USER,'-d',DB_NAME],env=env,stdin=subprocess.PIPE)
+    with gzip.open(sql_gz,'rb') as src: shutil.copyfileobj(src,proc.stdin)
+    proc.stdin.close()
+    if proc.wait()!=0: raise RuntimeError('psql Restore ist fehlgeschlagen.')
+def copy_replace(src,dst):
+    if not src.exists(): raise RuntimeError(f'Quelle fehlt: {src}')
     if dst.exists():
-        backup = dst.with_name(dst.name + ".before_restore")
-        if backup.exists():
-            if backup.is_dir():
-                shutil.rmtree(backup)
-            else:
-                backup.unlink()
-        if dst.is_dir():
-            shutil.move(str(dst), str(backup))
-        else:
-            shutil.move(str(dst), str(backup))
-    if src.is_dir():
-        shutil.copytree(src, dst)
+        backup=dst.with_name(dst.name+'.before_restore')
+        if backup.exists(): shutil.rmtree(backup) if backup.is_dir() else backup.unlink()
+        shutil.move(str(dst),str(backup))
+    dst.parent.mkdir(parents=True,exist_ok=True)
+    shutil.copytree(src,dst) if src.is_dir() else shutil.copy2(src,dst)
+def restore_config(root):
+    config=find_dir(root,'config')
+    if config:
+        env_file=config/'stempeluhr.env'; secrets=config/'secrets'
+        if env_file.exists(): copy_replace(env_file,CONFIG_DIR/'stempeluhr.env')
+        if secrets.exists(): copy_replace(secrets,CONFIG_DIR/'secrets')
     else:
-        dst.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(src, dst)
-
-
-def main() -> int:
-    parser = argparse.ArgumentParser(description="Stempeluhr Backup wiederherstellen")
-    parser.add_argument("backup_file", help="Pfad zur .tar.gz Backup-Datei")
-    parser.add_argument("--database", action="store_true")
-    parser.add_argument("--no-database", action="store_true")
-    parser.add_argument("--config", action="store_true")
-    parser.add_argument("--no-config", action="store_true")
-    parser.add_argument("--uploads", action="store_true")
-    parser.add_argument("--no-uploads", action="store_true")
-    parser.add_argument("--docs", action="store_true")
-    parser.add_argument("--no-docs", action="store_true")
-    args = parser.parse_args()
-
-    backup_file = Path(args.backup_file)
-    allowed_root = Path("/opt/stempeluhr/backups").resolve()
-    if not backup_file.exists() or not backup_file.is_file():
-        print("Backup-Datei existiert nicht.", file=sys.stderr)
-        return 2
-    if not str(backup_file.resolve()).startswith(str(allowed_root)):
-        print("Backup-Datei liegt nicht im erlaubten Backup-Verzeichnis.", file=sys.stderr)
-        return 2
-
-    with tempfile.TemporaryDirectory(prefix="stempeluhr_restore_") as tmp:
-        tmp_path = Path(tmp)
-        with tarfile.open(backup_file, "r:gz") as tar:
-            safe_extract(tar, tmp_path)
-
-        if args.database:
-            restore_database(tmp_path)
-            print("Datenbank wiederhergestellt.")
-
-        if args.config:
-            env_file = find_first(tmp_path, ".env")
-            if not env_file:
-                raise RuntimeError("Keine .env im Backup gefunden.")
-            copy_replace(env_file, APP_DIR / ".env")
-            print("Konfiguration wiederhergestellt.")
-
+        legacy=find_first(root,'.env')
+        if not legacy: raise RuntimeError('Keine Konfiguration im Backup gefunden.')
+        copy_replace(legacy,CONFIG_DIR/'stempeluhr.env')
+    os.chown(CONFIG_DIR/'stempeluhr.env',0,shutil._get_gid('stempeluhr') if hasattr(shutil,'_get_gid') else 0)
+    os.chmod(CONFIG_DIR/'stempeluhr.env',0o640)
+    secrets=CONFIG_DIR/'secrets'
+    if secrets.exists():
+        os.chmod(secrets,0o750)
+        for path in secrets.glob('*.conf'): os.chmod(path,0o640)
+def main():
+    parser=argparse.ArgumentParser(); parser.add_argument('backup_file');
+    for option in ['database','config','uploads','docs']:
+        parser.add_argument('--'+option,action='store_true'); parser.add_argument('--no-'+option,action='store_true')
+    args=parser.parse_args(); backup=Path(args.backup_file); allowed=Path('/opt/stempeluhr/backups').resolve()
+    if not backup.exists() or not backup.is_file() or not str(backup.resolve()).startswith(str(allowed)): print('Ungültige Backup-Datei.',file=sys.stderr); return 2
+    with tempfile.TemporaryDirectory(prefix='stempeluhr_restore_') as tmp:
+        root=Path(tmp)
+        with tarfile.open(backup,'r:gz') as tar: safe_extract(tar,root)
+        if args.config: restore_config(root); print('Konfiguration und Secrets wiederhergestellt.')
+        if args.database: restore_database(root); print('Datenbank wiederhergestellt.')
         if args.uploads:
-            uploads = find_dir(tmp_path, "uploads")
-            if not uploads:
-                raise RuntimeError("Kein uploads-Ordner im Backup gefunden.")
-            copy_replace(uploads, APP_DIR / "app/static/uploads")
-            print("Uploads wiederhergestellt.")
-
+            src=find_dir(root,'uploads')
+            if not src: raise RuntimeError('Kein uploads-Ordner im Backup gefunden.')
+            copy_replace(src,APP_DIR/'app/static/uploads')
         if args.docs:
-            docs = find_dir(tmp_path, "docs")
-            if not docs:
-                raise RuntimeError("Kein docs-Ordner im Backup gefunden.")
-            copy_replace(docs, APP_DIR / "docs")
-            print("Dokumentation wiederhergestellt.")
-
+            src=find_dir(root,'docs')
+            if not src: raise RuntimeError('Kein docs-Ordner im Backup gefunden.')
+            copy_replace(src,APP_DIR/'docs')
     return 0
-
-
-if __name__ == "__main__":
-    try:
-        raise SystemExit(main())
-    except Exception as exc:
-        print(f"Restore fehlgeschlagen: {exc}", file=sys.stderr)
-        raise SystemExit(1)
+if __name__=='__main__':
+    try: raise SystemExit(main())
+    except Exception as exc: print(f'Restore fehlgeschlagen: {exc}',file=sys.stderr); raise SystemExit(1)
