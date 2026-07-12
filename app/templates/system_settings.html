@@ -1,92 +1,45 @@
 {% extends "base.html" %}
 {% block content %}
 <h1>Systemeinstellungen</h1>
-
-<section class="card">
-    <h2>Systemstatus</h2>
-    <div class="system-health-grid">
-        <div class="system-health-box"><strong>Version</strong><span class="badge-ok">{{ app_version }}</span></div>
-        <div class="system-health-box"><strong>Einrichtung</strong><a href="/setup">Assistent öffnen</a></div>
-        <div class="system-health-box"><strong>Updates</strong><a href="/system/settings/updates">DEB-Update öffnen</a></div>
-        <div class="system-health-box"><strong>Backup</strong><a href="/system/settings/backup">Backup &amp; Restore öffnen</a></div>
-        <div class="system-health-box"><strong>Systemdiagnose</strong><a href="/system/diagnostics">Diagnose öffnen</a></div>
-        <div class="system-health-box"><strong>Entwickler</strong><a href="/system/developer">Konsole öffnen</a></div>
-    </div>
-</section>
-
-<section class="card">
-    <h2>Übersicht</h2>
-    <p class="muted">Die Einstellungen sind nach Bereichen gruppiert. Onboarding und Offboarding befinden sich gemeinsam unter Personal &amp; Arbeitszeit. Der Einrichtungsassistent ist unter Wartung erreichbar.</p>
-
-    <div class="settings-section">
-        <h3>Allgemein</h3>
-        <div class="settings-menu">
-            <a class="settings-tile" href="/system/settings/general"><strong>Allgemeine Einstellungen</strong><span>Firma, Buchung, Testphase, Schnellbuchung und Modulsteuerung</span></a>
-            {% if settings.get('module_settings_departments_enabled', '1') in ['1', 'true', 'on'] %}<a class="settings-tile" href="/system/settings/departments"><strong>Abteilungen</strong><span>Abteilungen definieren und Mitarbeitern zuordnen</span></a>{% endif %}
-            {% if settings.get('module_settings_time_enabled', '1') in ['1', 'true', 'on'] %}<a class="settings-tile" href="/system/settings/time"><strong>Uhrzeit &amp; Zeitserver</strong><span>NTP-Server, Zeitzone, manuelle Zeitkorrektur und Terminal-Zeitbasis</span></a>{% endif %}
-        </div>
-    </div>
-
-    <div class="settings-section">
-        <h3>Personal &amp; Arbeitszeit</h3>
-        <div class="settings-menu">
-            {% if settings.get('module_settings_plausibility_enabled', '1') in ['1', 'true', 'on'] %}<a class="settings-tile" href="/system/settings/plausibility"><strong>Plausibilitätsprüfung</strong><span>Auffälligkeiten, Pausenprüfung und E-Mail-Benachrichtigungen</span></a>{% endif %}
-            {% if settings.get('module_settings_breaks_enabled', '1') in ['1', 'true', 'on'] %}<a class="settings-tile" href="/system/settings/breaks"><strong>Pausenregelung</strong><span>Automatische Pausenabzüge für Wochen- und Monatsarbeitszeit</span></a>{% endif %}
-            <a class="settings-tile" href="/system/settings/absence-types"><strong>Abwesenheitsarten</strong><span>Urlaub, Krank, Sonstiges und eigene Arten konfigurieren</span></a>
-            <a class="settings-tile" href="/system/settings/roles"><strong>Rollen &amp; Rechte</strong><span>Eigene Rollen anlegen, Rechte vergeben und Systemrollen verwalten</span></a>
-            <a class="settings-tile" href="/system/settings/onboarding"><strong>Onboarding</strong><span>Einladungsmails, Einmal-Token, Passwort-Ersteinrichtung und Datenschutzbestätigung</span></a>
-            {% if settings.get('module_settings_offboarding_enabled', '1') in ['1', 'true', 'on'] %}<a class="settings-tile" href="/system/settings/offboarding"><strong>Offboarding</strong><span>Austritt, Archivierung, RFID-Freigabe und Mitarbeiter-Neuanfang</span></a>{% endif %}
-        </div>
-    </div>
-
-    <div class="settings-section">
-        <h3>Integrationen</h3>
-        <div class="settings-menu">
-            {% if settings.get('module_settings_email_enabled', '1') in ['1', 'true', 'on'] %}<a class="settings-tile" href="/system/settings/email"><strong>E-Mail</strong><span>SMTP-Server, Passwort-Reset und Testversand konfigurieren</span></a>{% endif %}
-            {% if settings.get('module_settings_caldav_enabled', '1') in ['1', 'true', 'on'] %}<a class="settings-tile" href="/system/settings/caldav"><strong>Kalender IN/OUT</strong><span>Feiertagsimport für Arbeitszeitberechnung und Abwesenheitsexport</span></a>{% endif %}
-            {% if settings.get('module_settings_api_enabled', '1') in ['1', 'true', 'on'] %}<a class="settings-tile" href="/system/settings/api"><strong>API</strong><span>API aktivieren, Schlüssel verwalten und Zugriffe protokollieren</span></a>{% endif %}
-            {% if settings.get('module_settings_terminals_enabled', '1') in ['1', 'true', 'on'] %}<a class="settings-tile" href="/system/settings/terminals"><strong>Terminalverwaltung</strong><span>Zusätzliche Raspberry-Clients anlegen, Keys verwalten und Status prüfen</span></a>{% endif %}
-            <a class="settings-tile" href="/system/settings/kiosk"><strong>Raspberry Kiosk</strong><span>Kiosk-URL, Autostart-Datei und Chromium-Start für den lokalen Raspberry einrichten</span></a>
-        </div>
-    </div>
-
-    <div class="settings-section">
-        <h3>Sicherheit</h3>
-        <div class="settings-menu">
-            {% if settings.get('module_settings_https_enabled', '1') in ['1', 'true', 'on'] %}<a class="settings-tile" href="/system/settings/https"><strong>HTTPS &amp; Zertifikate</strong><span>Webseite per HTTPS absichern und Nginx vorbereiten</span></a>{% endif %}
-            {% if settings.get('module_settings_security_enabled', '1') in ['1', 'true', 'on'] %}<a class="settings-tile" href="/system/settings/security"><strong>Sicherheit &amp; Netzwerkzugriff</strong><span>Erlaubte Netzwerke, Admin-/API-Netzfilter und HTTPS-Erzwingen</span></a>{% endif %}
-        </div>
-    </div>
-
-    <div class="settings-section settings-section-maintenance">
-        <h3>Wartung</h3>
-        <div class="settings-menu">
-            <a class="settings-tile" href="/setup"><strong>Einrichtungsassistent</strong><span>Grundkonfiguration schrittweise prüfen, speichern und abschließen</span></a>
-            {% if settings.get('module_settings_backup_enabled', '1') in ['1', 'true', 'on'] %}<a class="settings-tile" href="/system/settings/backup"><strong>Backup &amp; Restore</strong><span>Backup-Zeit, Aufbewahrung, manuelle Sicherung und Wiederherstellung</span></a>{% endif %}
-            <a class="settings-tile" href="/system/settings/updates"><strong>Updates</strong><span>DEB-Paket hochladen, Installation starten und Protokoll ansehen</span></a>
-            <a class="settings-tile" href="/system/diagnostics"><strong>Systemdiagnose</strong><span>Anwendung, PostgreSQL, Konfiguration, Speicherplatz und Verzeichnisrechte prüfen</span></a>
-            <a class="settings-tile" href="/system/developer"><strong>Entwicklerkonsole</strong><span>Modulstatus, Routen, Selbsttest und Logs anzeigen</span></a>
-            {% if settings.get('module_settings_dsgvo_enabled', '1') in ['1', 'true', 'on'] %}<a class="settings-tile" href="/system/settings/dsgvo"><strong>DSGVO-Manager</strong><span>Fristen, Vorschau, Archivierung, Anonymisierung und Löschprotokoll</span></a>{% endif %}
-        </div>
-    </div>
-</section>
-
-<section class="card">
-<h2>Aktuelle Werte</h2>
-<table>
-<tr><th>Einstellung</th><th>Wert</th></tr>
-<tr><td>Firmenname</td><td>{{ settings.get("company_name", "") }}</td></tr>
-<tr><td>Logo</td><td>{{ settings.get("logo_path", "") or "Kein Logo hinterlegt" }}</td></tr>
-<tr><td>Korrektur möglich für</td><td>{{ settings.get("correction_days_back", "14") }} Tage rückwirkend</td></tr>
-<tr><td>Automatische Pausenregelung</td><td>{{ "aktiv" if settings.get("auto_break_enabled", "0") in ["1", "true"] else "inaktiv" }}</td></tr>
-<tr><td>Plausibilitätsprüfung</td><td>{{ "aktiv" if settings.get("plausibility_enabled", "true") == "true" else "inaktiv" }}</td></tr>
-<tr><td>API</td><td>{{ "aktiv" if settings.get("api_enabled", "false") in ["true", "1"] else "inaktiv" }}</td></tr>
-<tr><td>Terminal-API</td><td>{{ "aktiv" if settings.get("terminal_api_enabled", "true") in ["true", "1"] else "inaktiv" }}</td></tr>
-<tr><td>NTP-Server</td><td>{{ settings.get("time_ntp_server", "de.pool.ntp.org") }}</td></tr>
-<tr><td>Zeitserver-Sync</td><td>{{ "aktiv" if settings.get("time_ntp_enabled", "1") in ["1", "true"] else "inaktiv" }}</td></tr>
-<tr><td>HTTPS</td><td>{{ "aktiv" if settings.get("https_enabled", "0") in ["1", "true"] else "inaktiv" }}</td></tr>
-<tr><td>Netzwerkfilter</td><td>{{ "aktiv" if settings.get("security_network_filter_enabled", "false") in ["true", "1"] else "inaktiv" }}</td></tr>
-<tr><td>HTTPS erzwingen</td><td>{{ "aktiv" if settings.get("security_force_https", "false") in ["true", "1"] else "inaktiv" }}</td></tr>
-</table>
-</section>
+<section class="card"><h2>Systemstatus</h2><div class="system-health-grid">
+<div class="system-health-box"><strong>Version</strong><span class="badge-ok">{{ app_version }}</span></div>
+<div class="system-health-box"><strong>Einrichtung</strong><a href="/setup">Assistent öffnen</a></div>
+<div class="system-health-box"><strong>Updates</strong><a href="/system/settings/updates">Updates öffnen</a></div>
+<div class="system-health-box"><strong>Backup</strong><a href="/system/settings/backup">Backup &amp; Restore öffnen</a></div>
+<div class="system-health-box"><strong>Systemdiagnose</strong><a href="/system/diagnostics">Diagnose öffnen</a></div>
+</div></section>
+<section class="card"><h2>Übersicht</h2><p class="muted">Die Einstellungen sind nach Bereichen gruppiert.</p>
+<div class="settings-section"><h3>Allgemein</h3><div class="settings-menu">
+<a class="settings-tile" href="/system/settings/general"><strong>Allgemeine Einstellungen</strong><span>Firma, Buchung, Testphase, Schnellbuchung und Modulsteuerung</span></a>
+{% if settings.get('module_settings_departments_enabled', '1') in ['1','true','on'] %}<a class="settings-tile" href="/system/settings/departments"><strong>Abteilungen</strong><span>Abteilungen definieren und Mitarbeitern zuordnen</span></a>{% endif %}
+{% if settings.get('module_settings_time_enabled', '1') in ['1','true','on'] %}<a class="settings-tile" href="/system/settings/time"><strong>Uhrzeit &amp; Zeitserver</strong><span>NTP, Zeitzone und Zeitbasis</span></a>{% endif %}
+</div></div>
+<div class="settings-section"><h3>Personal &amp; Arbeitszeit</h3><div class="settings-menu">
+{% if settings.get('module_settings_plausibility_enabled', '1') in ['1','true','on'] %}<a class="settings-tile" href="/system/settings/plausibility"><strong>Plausibilitätsprüfung</strong><span>Auffälligkeiten und Benachrichtigungen</span></a>{% endif %}
+{% if settings.get('module_settings_breaks_enabled', '1') in ['1','true','on'] %}<a class="settings-tile" href="/system/settings/breaks"><strong>Pausenregelung</strong><span>Automatische Pausenabzüge</span></a>{% endif %}
+<a class="settings-tile" href="/system/settings/absence-types"><strong>Abwesenheitsarten</strong><span>Urlaub, Krank und eigene Arten</span></a>
+<a class="settings-tile" href="/system/settings/roles"><strong>Rollen &amp; Rechte</strong><span>Rollen und Berechtigungen verwalten</span></a>
+<a class="settings-tile" href="/system/settings/onboarding"><strong>Onboarding</strong><span>Einladungen und Ersteinrichtung</span></a>
+{% if settings.get('module_settings_offboarding_enabled', '1') in ['1','true','on'] %}<a class="settings-tile" href="/system/settings/offboarding"><strong>Offboarding</strong><span>Austritt und Archivierung</span></a>{% endif %}
+</div></div>
+<div class="settings-section"><h3>Integrationen</h3><div class="settings-menu">
+{% if settings.get('module_settings_email_enabled', '1') in ['1','true','on'] %}<a class="settings-tile" href="/system/settings/email"><strong>E-Mail</strong><span>SMTP und Testversand</span></a>{% endif %}
+{% if settings.get('module_settings_caldav_enabled', '1') in ['1','true','on'] %}<a class="settings-tile" href="/system/settings/caldav"><strong>Kalender IN/OUT</strong><span>Feiertage und Abwesenheiten</span></a>{% endif %}
+{% if settings.get('module_settings_api_enabled', '1') in ['1','true','on'] %}<a class="settings-tile" href="/system/settings/api"><strong>API</strong><span>API und Schlüssel verwalten</span></a>{% endif %}
+{% if settings.get('module_settings_terminals_enabled', '1') in ['1','true','on'] %}<a class="settings-tile" href="/system/settings/terminals"><strong>Terminalverwaltung</strong><span>Raspberry-Clients und Keys</span></a>{% endif %}
+<a class="settings-tile" href="/system/settings/kiosk"><strong>Raspberry Kiosk</strong><span>Kiosk und Chromium konfigurieren</span></a>
+</div></div>
+<div class="settings-section"><h3>Sicherheit</h3><div class="settings-menu">
+<a class="settings-tile" href="/system/settings/database-security"><strong>Datenbankzugang</strong><span>PostgreSQL-Verbindung prüfen und Datenbankpasswort sicher ändern</span></a>
+{% if settings.get('module_settings_https_enabled', '1') in ['1','true','on'] %}<a class="settings-tile" href="/system/settings/https"><strong>HTTPS &amp; Zertifikate</strong><span>Webseite absichern</span></a>{% endif %}
+{% if settings.get('module_settings_security_enabled', '1') in ['1','true','on'] %}<a class="settings-tile" href="/system/settings/security"><strong>Sicherheit &amp; Netzwerkzugriff</strong><span>Netzwerkfilter und HTTPS-Erzwingen</span></a>{% endif %}
+</div></div>
+<div class="settings-section settings-section-maintenance"><h3>Wartung</h3><div class="settings-menu">
+<a class="settings-tile" href="/setup"><strong>Einrichtungsassistent</strong><span>Grundkonfiguration schrittweise prüfen</span></a>
+{% if settings.get('module_settings_backup_enabled', '1') in ['1','true','on'] %}<a class="settings-tile" href="/system/settings/backup"><strong>Backup &amp; Restore</strong><span>Sicherung und Wiederherstellung</span></a>{% endif %}
+<a class="settings-tile" href="/system/settings/updates"><strong>Updates</strong><span>GitHub oder DEB-Paket verwenden</span></a>
+<a class="settings-tile" href="/system/diagnostics"><strong>Systemdiagnose</strong><span>Anwendung, PostgreSQL und Dateirechte prüfen</span></a>
+<a class="settings-tile" href="/system/developer"><strong>Entwicklerkonsole</strong><span>Routen, Selbsttest und Logs</span></a>
+{% if settings.get('module_settings_dsgvo_enabled', '1') in ['1','true','on'] %}<a class="settings-tile" href="/system/settings/dsgvo"><strong>DSGVO-Manager</strong><span>Fristen und Löschprotokoll</span></a>{% endif %}
+</div></div></section>
 {% endblock %}
