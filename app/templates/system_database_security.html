@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Systemeinstellungen · Datenbankzugang</h1>
+<p><a href="/system/settings">← Zurück zu den Systemeinstellungen</a></p>
+{% if message %}<div class="alert alert-success success-box">{{ message }}</div>{% endif %}
+{% if error %}<div class="alert alert-error">{{ error }}</div>{% endif %}
+<div class="grid">
+<section class="card">
+<h2>PostgreSQL-Status</h2>
+<table>
+<tr><th>Verbindung</th><td>{{ '✅ erreichbar' if status.connected else '❌ nicht erreichbar' }}</td></tr>
+<tr><th>Server</th><td><code>{{ status.host }}:{{ status.port }}</code></td></tr>
+<tr><th>Datenbank</th><td><code>{{ status.name }}</code></td></tr>
+<tr><th>Benutzer</th><td><code>{{ status.user }}</code></td></tr>
+<tr><th>PostgreSQL</th><td>{{ status.server_version }}</td></tr>
+<tr><th>Secret-Datei</th><td>{{ '✅ vorhanden' if status.secret_exists else '⚠ noch nicht ausgelagert' }}</td></tr>
+<tr><th>Dateirechte</th><td><code>{{ status.secret_mode }}</code></td></tr>
+</table>
+</section>
+<section class="card">
+<h2>Datenbankpasswort ändern</h2>
+<p>Das aktuelle Datenbankpasswort wird niemals angezeigt. Nach erfolgreicher Änderung wird es in <code>/etc/stempeluhr/secrets/database.conf</code> gespeichert und aus der allgemeinen Konfiguration entfernt.</p>
+<form method="post" action="/system/settings/database-security/change" autocomplete="off">
+<label>Administratorpasswort</label>
+<input type="password" name="admin_password" required autocomplete="current-password">
+<label>Neues Datenbankpasswort</label>
+<input type="password" name="new_password" minlength="16" required autocomplete="new-password">
+<label>Neues Datenbankpasswort wiederholen</label>
+<input type="password" name="new_password_repeat" minlength="16" required autocomplete="new-password">
+<p class="muted">Mindestens 16 Zeichen sowie Großbuchstaben, Kleinbuchstaben und Zahlen. Sonderzeichen sind erlaubt.</p>
+<button type="submit" class="btn btn-primary" onclick="return confirm('Datenbankpasswort ändern und Dienst neu starten?')">Passwort sicher ändern</button>
+</form>
+</section>
+</div>
+{% endblock %}
