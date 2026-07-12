@@ -13,6 +13,7 @@ PERMISSIONS: dict[str, dict[str, str]] = {
         "nav.corrections": "Korrekturen anzeigen",
         "nav.reports": "Auswertungen anzeigen",
         "nav.plausibility": "Plausibilitätsprüfung anzeigen",
+        "nav.additional_programs": "Zusatz-Programme anzeigen",
         "nav.settings": "Systemeinstellungen anzeigen",
         "nav.audit": "Audit-Protokoll anzeigen",
         "nav.monitoring": "Monitoring anzeigen",
@@ -42,14 +43,17 @@ DEFAULT_ROLE_PERMISSIONS: dict[str, set[str]] = {
     "Administrator": {"*"},
     "Personal": {
         "nav.dashboard", "nav.timeclock", "nav.absence", "nav.employees", "nav.corrections",
-        "nav.reports", "nav.plausibility", "employees.view", "employees.manage", "employees.invite",
-        "corrections.manage", "reports.all", "absence.approve", "plausibility.manage",
+        "nav.reports", "nav.plausibility", "nav.additional_programs", "employees.view",
+        "employees.manage", "employees.invite", "corrections.manage", "reports.all",
+        "absence.approve", "plausibility.manage",
     },
     "Teamleiter": {
         "nav.dashboard", "nav.timeclock", "nav.absence", "nav.corrections", "nav.reports",
-        "nav.plausibility", "plausibility.manage",
+        "nav.plausibility", "nav.additional_programs", "plausibility.manage",
     },
-    "Mitarbeiter": {"nav.dashboard", "nav.timeclock", "nav.absence", "nav.reports"},
+    "Mitarbeiter": {
+        "nav.dashboard", "nav.timeclock", "nav.absence", "nav.reports", "nav.additional_programs"
+    },
 }
 
 
