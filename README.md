@@ -1,6 +1,6 @@
 # Stempeluhr Professional 5.6.14
 
-Webbasierte Zeiterfassung für Debian-Server und Raspberry-Pi-Terminals mit PostgreSQL, FastAPI, konfigurierbaren Rollen und Rechten, Reporting, Onboarding und Raspberry-Kioskfunktionen.
+Webbasierte Zeiterfassung für Debian-Server und Raspberry-Pi-Terminals mit PostgreSQL, FastAPI, konfigurierbaren Rollen und Rechten, Reporting, Onboarding, Raspberry-Kioskfunktionen und Verknüpfungen zu externen Webprogrammen.
 
 ## Aktueller Stand
 
@@ -18,6 +18,13 @@ Webbasierte Zeiterfassung für Debian-Server und Raspberry-Pi-Terminals mit Post
 - die Rolle `Administrator` behält immer Vollzugriff und kann nicht umbenannt werden
 - vorhandenes Feld `roles.permissions` wird als JSON genutzt; keine neue Datenbanktabelle erforderlich
 - Navigation wird anhand der Rollenberechtigungen aufgebaut
+- eigene Berechtigung zum Anzeigen der Zusatz-Programme
+- Systemeinstellungs-Untermenüs in den Allgemeinen Einstellungen übersichtlich nach Bereichen gruppiert
+- optionale Untermenüs können gesammelt aktiviert oder deaktiviert werden
+- externe Webprogramme können mit Name, Beschreibung, HTTP/HTTPS, IP-Adresse oder Hostname, Port und optionalem Pfad hinterlegt werden
+- Zusatz-Programme können aktiviert, deaktiviert, bearbeitet, geöffnet und gelöscht werden
+- freigeschaltete Programme erscheinen unter **Zusatz-Programme** in der Hauptnavigation
+- die Stempeluhr speichert keine Zugangsdaten der verknüpften Programme
 - bestehende Standardrollen erhalten rückwärtskompatible Standardrechte, solange keine individuellen Rechte gespeichert wurden
 - Rollen werden weiterhin in der vorhandenen Mitarbeiterverwaltung zugeordnet
 - keine produktiven Mitarbeiter-, Buchungs- oder PostgreSQL-Daten werden gelöscht
@@ -39,4 +46,4 @@ releases/stempeluhr_5.6.14_BUILD_REPORT.md
 
 ## Test und Installation
 
-Version 5.6.14 zuerst auf der Debian-13-Test-VM installieren. Zu testen sind Rollen anlegen, Berechtigungen speichern, Rolle einem Testbenutzer zuweisen, Navigation prüfen, Standardrollen schützen sowie `/health` und `/version` kontrollieren.
+Version 5.6.14 zuerst auf der Debian-13-Test-VM installieren. Zu testen sind Rollen anlegen, Berechtigungen speichern, Rolle einem Testbenutzer zuweisen, Navigation prüfen, Zusatz-Programme anlegen/bearbeiten/deaktivieren/öffnen, Standardrollen schützen sowie `/health` und `/version` kontrollieren.
