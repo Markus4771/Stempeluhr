@@ -4,14 +4,15 @@ from . import dashboard, employees, reports, corrections, privacy_audit, backup,
 from app.modules.developer import routes as developer
 from app.modules.updates import github_routes
 from . import email_settings, departments, api_settings, terminals, time_settings, https_settings
-from . import security_general, offboarding, dsgvo, absence_types, kiosk_settings, monitoring, setup_wizard, raspberry_monitor, onboarding, diagnostics, database_security
+from . import security_general, security_login, security_policies, offboarding, dsgvo, absence_types, kiosk_settings, monitoring, setup_wizard, raspberry_monitor, onboarding, diagnostics, database_security
 
 router = APIRouter()
 
 for module in (
+    security_login,
     dashboard, employees, reports, corrections, privacy_audit, backup, vacation, plausibility,
     email_settings, departments, api_settings, terminals, time_settings, https_settings,
-    security_general, offboarding, dsgvo, absence_types, kiosk_settings, monitoring, setup_wizard,
+    security_general, security_policies, offboarding, dsgvo, absence_types, kiosk_settings, monitoring, setup_wizard,
     raspberry_monitor, onboarding, diagnostics, database_security, developer, github_routes,
 ):
     router.include_router(module.router)
