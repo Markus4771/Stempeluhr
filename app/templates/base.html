@@ -17,24 +17,14 @@
         <a href="/vacation">Abwesenheit</a>
         <a href="/vacation/my">Meine Abwesenheiten</a>
 
-        {% if role in ["Administrator", "Personal"] %}
-            <a href="/admin">Mitarbeiterverwaltung</a>
-        {% endif %}
-
-        {% if role in ["Administrator", "Personal", "Teamleiter"] or session_data.get("can_self_correct") or (user is defined and user and user.can_self_correct) %}
-            <a href="/corrections">Korrektur</a>
-        {% endif %}
-
-        {% if session_data.get("employee_name") %}
-            <a href="/reports">Mein Report</a>
-        {% endif %}
-
+        {% if role in ["Administrator", "Personal"] %}<a href="/admin">Mitarbeiterverwaltung</a>{% endif %}
+        {% if role in ["Administrator", "Personal", "Teamleiter"] or session_data.get("can_self_correct") or (user is defined and user and user.can_self_correct) %}<a href="/corrections">Korrektur</a>{% endif %}
+        {% if session_data.get("employee_name") %}<a href="/reports">Mein Report</a>{% endif %}
         {% if role in ["Administrator", "Personal", "Teamleiter"] %}
             <a href="/reports">Auswertung</a>
             <a href="/worktime-account">Arbeitszeitkonto</a>
             <a href="/plausibility">Plausibilität</a>
         {% endif %}
-
         {% if role == "Administrator" %}
             <a href="/system/settings">Systemeinstellungen</a>
             <a href="/system/privacy">Datenschutz</a>
@@ -43,18 +33,22 @@
             <a href="/system/developer">Entwickler</a>
         {% endif %}
     </div>
-
     <div class="nav-right">
         {% if session_data.get("employee_name") %}
             {% if user and user.can_self_manage %}<a href="/me/profile">Meine Daten</a>{% endif %}
             <span class="nav-user">{{ session_data.get("employee_name") }}</span>
             <a href="/logout">Abmelden</a>
-        {% else %}
-            <a href="/login">Login</a>
-        {% endif %}
+        {% else %}<a href="/login">Login</a>{% endif %}
     </div>
 </nav>
 <main class="container">
+    {% if session_data.get("default_admin_password_active") %}
+    <div class="warning-box" style="margin-bottom:1rem;border:2px solid #b42318;">
+        <strong>Sicherheitswarnung:</strong> Der Benutzer <code>admin</code> verwendet noch das Standardpasswort.
+        Bitte ändere es unter <a href="/system/settings/general#admin-password">Allgemeine Einstellungen → Sicherheit</a>.
+        Diese Erinnerung bleibt sichtbar, bis das Passwort ersetzt wurde.
+    </div>
+    {% endif %}
     {% block content %}{% endblock %}
 </main>
 <footer class="app-version">Version {{ app_version }}</footer>
