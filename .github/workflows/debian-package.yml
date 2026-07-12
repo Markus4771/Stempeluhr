@@ -8,8 +8,9 @@ on:
       - 'v*'
     paths:
       - 'app/**'
-      - 'scripts/build_release.sh'
+      - 'scripts/**'
       - 'debian/**'
+      - 'docs/**'
       - 'requirements.txt'
       - 'stempeluhr.service'
       - 'version.txt'
@@ -29,12 +30,10 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
       - name: Build-Werkzeuge installieren
         run: |
           sudo apt-get update
           sudo apt-get install -y rsync dpkg-dev
-
       - name: Version und Tag prüfen
         shell: bash
         run: |
@@ -42,17 +41,12 @@ jobs:
           VERSION="$(tr -d '[:space:]' < version.txt)"
           test -n "$VERSION"
           if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
-            test "${GITHUB_REF_NAME}" = "v${VERSION}" || {
-              echo "FEHLER: Tag ${GITHUB_REF_NAME} passt nicht zu version.txt=${VERSION}."
-              exit 1
-            }
+            test "${GITHUB_REF_NAME}" = "v${VERSION}" || { echo "FEHLER: Tag passt nicht zur Version."; exit 1; }
           fi
           git diff --exit-code
-          git status --porcelain
-
+          test -z "$(git status --porcelain)"
       - name: Debian-Paket bauen
         run: bash scripts/build_release.sh
-
       - name: Paketmetadaten prüfen
         shell: bash
         run: |
@@ -60,16 +54,14 @@ jobs:
           VERSION="$(tr -d '[:space:]' < version.txt)"
           DEB="releases/stempeluhr_${VERSION}_all.deb"
           REPORT="releases/stempeluhr_${VERSION}_BUILD_REPORT.md"
-          test -f "$DEB"
-          test -f "$DEB.sha256"
-          test -f "$REPORT"
+          test -f "$DEB" && test -f "$DEB.sha256" && test -f "$REPORT"
           test "$(dpkg-deb -f "$DEB" Package)" = "stempeluhr"
           test "$(dpkg-deb -f "$DEB" Version)" = "$VERSION"
           dpkg-deb --contents "$DEB" | grep -Fq './opt/stempeluhr/app/main.py'
+          dpkg-deb --contents "$DEB" | grep -Fq './opt/stempeluhr/scripts/database_secret_helper.py'
           dpkg-deb --contents "$DEB" | grep -Fq './etc/systemd/system/stempeluhr.service'
           sha256sum -c "$DEB.sha256"
           grep -Fq 'Status: **erfolgreich**' "$REPORT"
-
       - name: Release Notes vorbereiten
         if: github.ref_type == 'tag'
         shell: bash
@@ -82,26 +74,14 @@ jobs:
             echo "# Stempeluhr Professional ${VERSION}"
             echo
             echo "## Installation"
-            echo
             echo '```bash'
             echo "sudo dpkg -i stempeluhr_${VERSION}_all.deb"
             echo '```'
             echo
-            echo "Prüfsumme vor der Installation kontrollieren:"
-            echo
-            echo '```bash'
-            echo "sha256sum -c stempeluhr_${VERSION}_all.deb.sha256"
-            echo '```'
-            echo
             echo "## Änderungen"
-            awk -v version="$VERSION" '
-              $0 == "## " version {found=1; next}
-              found && /^## / {exit}
-              found {print}
-            ' changelog.md
+            awk -v version="$VERSION" '$0 == "## " version {found=1; next} found && /^## / {exit} found {print}' changelog.md
           } > "$NOTES"
           cp changelog.md "$CHANGELOG_COPY"
-
       - name: Build-Artefakt hochladen
         uses: actions/upload-artifact@v4
         with:
@@ -115,7 +95,6 @@ jobs:
             releases/*_changelog.md
           if-no-files-found: error
           retention-days: 14
-
       - name: GitHub Release veröffentlichen
         if: github.ref_type == 'tag'
         shell: bash
@@ -130,16 +109,9 @@ jobs:
           REPORT="releases/stempeluhr_${VERSION}_BUILD_REPORT.md"
           NOTES="releases/stempeluhr_${VERSION}_RELEASE_NOTES.md"
           CHANGELOG_COPY="releases/stempeluhr_${VERSION}_changelog.md"
-
           if gh release view "$TAG" >/dev/null 2>&1; then
             gh release edit "$TAG" --title "Stempeluhr Professional ${VERSION}" --notes-file "$NOTES"
           else
             gh release create "$TAG" --title "Stempeluhr Professional ${VERSION}" --notes-file "$NOTES" --verify-tag
           fi
-
-          gh release upload "$TAG" \
-            "$DEB" \
-            "$CHECKSUM" \
-            "$REPORT" \
-            "$CHANGELOG_COPY" \
-            --clobber
+          gh release upload "$TAG" "$DEB" "$CHECKSUM" "$REPORT" "$CHANGELOG_COPY" --clobber
