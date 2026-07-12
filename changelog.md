@@ -6,6 +6,12 @@
 - HTML-Leseansicht und browserbasierte Druckansicht ergänzt
 - PDF-Erzeugung und Download direkt aus der Anwendung mit ReportLab ergänzt
 - gemeinsame Volltextsuche über alle Handbücher ergänzt
+- Handbuchansicht mit festem Inhaltsverzeichnis und direkten Kapitelsprüngen überarbeitet
+- helle, kontrastreiche und umbrechende Codeblöcke für bessere Lesbarkeit ergänzt
+- Kopierfunktion für Befehle, URLs und API-Beispiele ergänzt
+- lokale Suche innerhalb des geöffneten Handbuchs ergänzt
+- Typografie, Zeilenbreite und mobile Darstellung der Dokumentation verbessert
+- Druckansicht blendet Navigation und Bedienelemente automatisch aus
 - Hilfebereich nur für angemeldete Benutzer erreichbar
 - neue Routen `/help`, `/help/{handbuch}` und `/help/{handbuch}/pdf`
 - Dokumentationsquellen werden zusammen mit dem Debian-Paket ausgeliefert
