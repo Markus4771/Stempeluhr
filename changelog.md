@@ -8,6 +8,14 @@
 - Standardrollen sind gegen Löschen geschützt
 - Rolle `Administrator` behält immer Vollzugriff und kann nicht umbenannt werden
 - Navigation wird anhand der Rollenberechtigungen aufgebaut
+- neue Rollenberechtigung `Zusatz-Programme anzeigen` ergänzt
+- Systemeinstellungs-Untermenüs in den Allgemeinen Einstellungen nach Allgemein, Personal & Arbeitszeit, Integrationen, Sicherheit und Wartung gruppiert
+- Schaltflächen `Alle aktivieren` und `Alle deaktivieren` für optionale Systemeinstellungs-Untermenüs ergänzt
+- wichtige Bereiche wie Allgemeine Einstellungen, Rollen & Rechte, Updates, Datenbankzugang und Systemdiagnose bleiben immer erreichbar
+- Zusatz-Programme mit Name, Beschreibung, HTTP/HTTPS, IP-Adresse oder Hostname, Port und optionalem Pfad konfigurierbar
+- Zusatz-Programme können aktiviert, deaktiviert, bearbeitet, geöffnet und gelöscht werden
+- freigeschaltete Zusatz-Programme erscheinen in einer eigenen WebGUI-Übersicht und in der Hauptnavigation
+- Zugangsdaten fremder Programme werden nicht in der Stempeluhr gespeichert
 - rückwärtskompatible Standardrechte für bestehende Rollen ohne gespeicherte Rechte
 - keine neue Datenbanktabelle und keine destruktive Migration erforderlich
 - keine produktiven Mitarbeiter- oder Buchungsdaten verändert
