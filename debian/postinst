@@ -6,26 +6,22 @@ APP_GROUP="stempeluhr"
 APP_DIR="/opt/stempeluhr"
 CONFIG_DIR="/etc/stempeluhr"
 ENV_FILE="$CONFIG_DIR/stempeluhr.env"
-EXAMPLE_ENV="$CONFIG_DIR/stempeluhr.env.example"
+SECRETS_DIR="$CONFIG_DIR/secrets"
+DB_SECRET_FILE="$SECRETS_DIR/database.conf"
 DATA_DIR="/var/lib/stempeluhr"
+TMP_DIR="$DATA_DIR/tmp"
 LOG_DIR="/var/log/stempeluhr"
+HELPER="/usr/local/sbin/stempeluhr-database-secret-helper"
 NEW_CONFIG=0
 
-log() {
-  printf '[stempeluhr-postinst] %s\n' "$*"
-}
+log(){ printf '[stempeluhr-postinst] %s\n' "$*"; }
 
-if ! getent group "$APP_GROUP" >/dev/null 2>&1; then
-  addgroup --system "$APP_GROUP"
-fi
-
-if ! id "$APP_USER" >/dev/null 2>&1; then
-  adduser --system --ingroup "$APP_GROUP" --home "$APP_DIR" --no-create-home --shell /usr/sbin/nologin "$APP_USER"
-fi
+getent group "$APP_GROUP" >/dev/null 2>&1 || addgroup --system "$APP_GROUP"
+id "$APP_USER" >/dev/null 2>&1 || adduser --system --ingroup "$APP_GROUP" --home "$APP_DIR" --no-create-home --shell /usr/sbin/nologin "$APP_USER"
 
 install -d -m 0755 -o "$APP_USER" -g "$APP_GROUP" "$APP_DIR"
-install -d -m 0750 -o "$APP_USER" -g "$APP_GROUP" "$DATA_DIR" "$LOG_DIR"
-install -d -m 0750 -o root -g "$APP_GROUP" "$CONFIG_DIR"
+install -d -m 0750 -o "$APP_USER" -g "$APP_GROUP" "$DATA_DIR" "$TMP_DIR" "$LOG_DIR"
+install -d -m 0750 -o root -g "$APP_GROUP" "$CONFIG_DIR" "$SECRETS_DIR"
 
 if [[ ! -f "$ENV_FILE" ]]; then
   NEW_CONFIG=1
@@ -36,22 +32,33 @@ DATABASE_HOST=127.0.0.1
 DATABASE_PORT=5432
 DATABASE_NAME=stempeluhr
 DATABASE_USER=stempeluhr
-DATABASE_PASSWORD=$DB_PASSWORD
 HOST=0.0.0.0
 PORT=8000
 EOF
-  log "Neue Konfiguration erzeugt."
+  printf 'DATABASE_PASSWORD=%s\n' "$DB_PASSWORD" > "$DB_SECRET_FILE"
+  log "Neue Grundkonfiguration und geschützte Datenbank-Secret-Datei erzeugt."
 else
-  log "Vorhandene Konfiguration bleibt unverändert erhalten."
+  log "Vorhandene Konfiguration bleibt erhalten."
+  if [[ ! -f "$DB_SECRET_FILE" ]]; then
+    OLD_PASSWORD="$(sed -n 's/^DATABASE_PASSWORD=//p' "$ENV_FILE" | tail -n1)"
+    if [[ -n "$OLD_PASSWORD" ]]; then
+      printf 'DATABASE_PASSWORD=%s\n' "$OLD_PASSWORD" > "$DB_SECRET_FILE"
+      sed -i '/^DATABASE_PASSWORD=/d' "$ENV_FILE"
+      log "Vorhandenes Datenbankpasswort in Secret-Datei migriert."
+    fi
+  fi
 fi
 
 chown root:"$APP_GROUP" "$ENV_FILE"
 chmod 0640 "$ENV_FILE"
-[[ ! -f "$EXAMPLE_ENV" ]] || chmod 0640 "$EXAMPLE_ENV"
+if [[ -f "$DB_SECRET_FILE" ]]; then
+  chown root:"$APP_GROUP" "$DB_SECRET_FILE"
+  chmod 0640 "$DB_SECRET_FILE"
+fi
 
 set -a
-# shellcheck disable=SC1090
 . "$ENV_FILE"
+[[ ! -f "$DB_SECRET_FILE" ]] || . "$DB_SECRET_FILE"
 set +a
 
 DATABASE_NAME="${DATABASE_NAME:-stempeluhr}"
@@ -60,69 +67,50 @@ DATABASE_PASSWORD="${DATABASE_PASSWORD:-}"
 DATABASE_HOST="${DATABASE_HOST:-127.0.0.1}"
 DATABASE_PORT="${DATABASE_PORT:-5432}"
 
-if [[ ! "$DATABASE_USER" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]]; then
-  echo "Ungültiger DATABASE_USER in $ENV_FILE" >&2
-  exit 1
-fi
-if [[ ! "$DATABASE_NAME" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]]; then
-  echo "Ungültiger DATABASE_NAME in $ENV_FILE" >&2
-  exit 1
-fi
+[[ "$DATABASE_USER" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]] || { echo "Ungültiger DATABASE_USER" >&2; exit 1; }
+[[ "$DATABASE_NAME" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]] || { echo "Ungültiger DATABASE_NAME" >&2; exit 1; }
 
 if [[ "$DATABASE_HOST" == "127.0.0.1" || "$DATABASE_HOST" == "localhost" ]]; then
   if command -v psql >/dev/null 2>&1 && id postgres >/dev/null 2>&1; then
     ROLE_EXISTS="$(runuser -u postgres -- psql -tAc "SELECT 1 FROM pg_roles WHERE rolname='$DATABASE_USER'" postgres || true)"
     DB_EXISTS="$(runuser -u postgres -- psql -tAc "SELECT 1 FROM pg_database WHERE datname='$DATABASE_NAME'" postgres || true)"
-
     if [[ "$ROLE_EXISTS" != "1" ]]; then
-      [[ -n "$DATABASE_PASSWORD" && "$DATABASE_PASSWORD" != "BITTE_SICHER_SETZEN" ]] || {
-        echo "DATABASE_PASSWORD fehlt für die Neuinstallation." >&2
-        exit 1
-      }
+      [[ -n "$DATABASE_PASSWORD" ]] || { echo "Datenbankpasswort fehlt." >&2; exit 1; }
       SQL_PASSWORD="${DATABASE_PASSWORD//\'/\'\'}"
-      runuser -u postgres -- psql -v ON_ERROR_STOP=1 postgres -c "CREATE ROLE \"$DATABASE_USER\" LOGIN PASSWORD '$SQL_PASSWORD';"
-      log "PostgreSQL-Rolle wurde neu angelegt."
+      runuser -u postgres -- psql -v ON_ERROR_STOP=1 postgres -c "SET password_encryption='scram-sha-256'; CREATE ROLE \"$DATABASE_USER\" LOGIN PASSWORD '$SQL_PASSWORD';"
+      log "PostgreSQL-Rolle neu angelegt."
     elif [[ "$NEW_CONFIG" == "1" ]]; then
       SQL_PASSWORD="${DATABASE_PASSWORD//\'/\'\'}"
-      runuser -u postgres -- psql -v ON_ERROR_STOP=1 postgres -c "ALTER ROLE \"$DATABASE_USER\" WITH LOGIN PASSWORD '$SQL_PASSWORD';"
-      log "PostgreSQL-Rolle wurde an die neue Konfiguration angepasst."
+      runuser -u postgres -- psql -v ON_ERROR_STOP=1 postgres -c "SET password_encryption='scram-sha-256'; ALTER ROLE \"$DATABASE_USER\" WITH LOGIN PASSWORD '$SQL_PASSWORD';"
     else
       log "Vorhandene PostgreSQL-Rolle bleibt unverändert."
     fi
-
     if [[ "$DB_EXISTS" != "1" ]]; then
       runuser -u postgres -- createdb --owner="$DATABASE_USER" "$DATABASE_NAME"
-      log "PostgreSQL-Datenbank wurde neu angelegt."
-    else
-      log "Vorhandene PostgreSQL-Datenbank bleibt erhalten."
     fi
-
     runuser -u postgres -- psql -v ON_ERROR_STOP=1 "$DATABASE_NAME" -c "GRANT ALL ON SCHEMA public TO \"$DATABASE_USER\";"
-  else
-    log "PostgreSQL-Server lokal nicht verfügbar; Datenbankvorbereitung übersprungen."
   fi
-else
-  log "Externe PostgreSQL-Datenbank konfiguriert; lokale Datenbankvorbereitung übersprungen."
 fi
 
 python3 -m venv "$APP_DIR/.venv"
 "$APP_DIR/.venv/bin/python" -m pip install --disable-pip-version-check --upgrade pip setuptools wheel
 "$APP_DIR/.venv/bin/python" -m pip install --disable-pip-version-check -r "$APP_DIR/requirements.txt"
 
-chown -R "$APP_USER:$APP_GROUP" "$APP_DIR"
+install -m 0750 -o root -g root "$APP_DIR/scripts/database_secret_helper.py" "$HELPER"
+cat > /etc/sudoers.d/stempeluhr-database-secret <<EOF
+$APP_USER ALL=(root) NOPASSWD: $HELPER $TMP_DIR/database-secret-*.json
+EOF
+chmod 0440 /etc/sudoers.d/stempeluhr-database-secret
+visudo -cf /etc/sudoers.d/stempeluhr-database-secret >/dev/null
 
-# Migration mit sauberer Benutzerumgebung ausführen. Die Anwendung liest ihre
-# Zugangsdaten selbst aus /etc/stempeluhr/stempeluhr.env.
+chown -R "$APP_USER:$APP_GROUP" "$APP_DIR"
+chown "$APP_USER:$APP_GROUP" "$TMP_DIR"
+chmod 0750 "$TMP_DIR"
+
 cd "$APP_DIR"
-runuser -u "$APP_USER" -- env \
-  HOME="$APP_DIR" \
-  USER="$APP_USER" \
-  LOGNAME="$APP_USER" \
-  PGSSLMODE="disable" \
-  "$APP_DIR/.venv/bin/python" -c 'from app.init_db import init_db; init_db()'
+runuser -u "$APP_USER" -- env HOME="$APP_DIR" USER="$APP_USER" LOGNAME="$APP_USER" PGSSLMODE="disable" "$APP_DIR/.venv/bin/python" -c 'from app.init_db import init_db; init_db()'
 
 systemctl daemon-reload
 systemctl enable stempeluhr.service >/dev/null
 systemctl restart stempeluhr.service
-
 log "Installation beziehungsweise Update abgeschlossen."
