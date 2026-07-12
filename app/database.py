@@ -6,14 +6,22 @@ from sqlalchemy import create_engine
 from sqlalchemy.engine import URL
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
 
-ENV_PATHS = [
+GENERAL_ENV_PATHS = [
     Path("/etc/stempeluhr/stempeluhr.env"),
     Path("/opt/stempeluhr/.env"),
 ]
-for ENV_PATH in ENV_PATHS:
-    if ENV_PATH.exists():
-        load_dotenv(ENV_PATH)
+DATABASE_SECRET_PATH = Path("/etc/stempeluhr/secrets/database.conf")
+
+for env_path in GENERAL_ENV_PATHS:
+    if env_path.exists():
+        load_dotenv(env_path, override=False)
         break
+
+# Secrets überschreiben gleichnamige allgemeine Variablen. Dadurch bleiben alte
+# Installationen kompatibel, während neue Installationen das Passwort getrennt
+# und mit strengeren Dateirechten verwalten.
+if DATABASE_SECRET_PATH.exists():
+    load_dotenv(DATABASE_SECRET_PATH, override=True)
 
 DATABASE_TYPE = os.getenv("DATABASE_TYPE", "postgresql").lower()
 
@@ -22,9 +30,8 @@ if DATABASE_TYPE == "postgresql":
     DB_PORT = int(os.getenv("DATABASE_PORT", "5432"))
     DB_NAME = os.getenv("DATABASE_NAME", "stempeluhr")
     DB_USER = os.getenv("DATABASE_USER", "stempeluhr")
-    DB_PASSWORD = os.getenv("DATABASE_PASSWORD", "stempeluhr_passwort_aendern")
+    DB_PASSWORD = os.getenv("DATABASE_PASSWORD", "")
 
-    # URL.create kodiert Sonderzeichen in Benutzername und Passwort korrekt.
     DATABASE_URL = URL.create(
         drivername="postgresql+psycopg2",
         username=DB_USER,
@@ -36,8 +43,6 @@ if DATABASE_TYPE == "postgresql":
 
     connect_args = {}
     if DB_HOST in {"127.0.0.1", "localhost"}:
-        # Lokale Verbindungen benötigen kein TLS und dürfen nicht von einer
-        # geerbten Root-Umgebung auf /root/.postgresql verwiesen werden.
         connect_args["sslmode"] = "disable"
 
     engine = create_engine(
@@ -55,11 +60,7 @@ else:
         connect_args={"check_same_thread": False},
     )
 
-SessionLocal = sessionmaker(
-    autocommit=False,
-    autoflush=False,
-    bind=engine,
-)
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
 class Base(DeclarativeBase):
