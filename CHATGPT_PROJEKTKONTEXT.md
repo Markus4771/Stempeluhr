@@ -7,7 +7,8 @@
 - Repository: `Markus4771/Stempeluhr`
 - Standardbranch: `main`
 - Aktuelle Entwicklungs- und Testversion: **5.6.15**
-- Letzte vor Beginn von 5.6.15 bestätigte Version: **5.6.13**; 5.6.14 und 5.6.15 müssen vollständig auf der Proxmox-Test-VM geprüft werden
+- Letzte vor Beginn von 5.6.15 bestätigte Version: **5.6.13**
+- Versionen 5.6.14 und 5.6.15 müssen noch vollständig auf der Proxmox-Test-VM abgenommen werden
 - Zielplattform: Debian 13 und Raspberry Pi OS
 - Backend: Python, FastAPI, Uvicorn, SQLAlchemy
 - Standarddatenbank: PostgreSQL
@@ -31,7 +32,7 @@ Bei jeder neuen Version synchron aktualisieren: `version.txt`, `app/version.py`,
 - Rollen & Rechte: `/system/settings/roles`
 - Zusatz-Programme: `/additional-programs`
 - Konfiguration Zusatz-Programme: `/system/settings/general/additional-programs`
-- Hilfe: `/help`
+- Hilfe und Dokumentation: `/help`
 
 ## Version 5.6.15 – Dokumentation und Hilfesystem
 
@@ -43,13 +44,29 @@ Umgesetzt:
 - Benutzerhandbuch
 - Installations- und Einrichterhandbuch
 - API-Handbuch
-- HTML-Leseansicht
-- Volltextsuche über alle Handbücher
-- Druckansicht über den Browser
+- gemeinsame Volltextsuche über alle Handbücher
+- HTML-Leseansicht und browserbasierte Druckansicht
 - PDF-Erzeugung direkt in der Anwendung mit ReportLab
 - PDF-Routen `/help/{slug}/pdf`
 - Hilfebereich nur für angemeldete Benutzer
+- feste Kapitelnavigation mit Sprunglinks
+- lokale Suche innerhalb eines geöffneten Handbuchs
+- helle, kontrastreiche Codeblöcke mit automatischem Umbruch
+- Kopierfunktion für Befehle, URLs und API-Beispiele
+- responsive Darstellung für kleinere Bildschirme
+- Druckansicht ohne Navigation und Bedienelemente
 - keine Datenbankmigration und keine Änderung produktiver Daten
+
+Zentrale Dateien:
+
+- `app/routes/help_docs.py`
+- `app/templates/help_index.html`
+- `app/templates/help_manual.html`
+- `app/static/help.css`
+- `docs/manuals/administrator.md`
+- `docs/manuals/benutzer.md`
+- `docs/manuals/installation.md`
+- `docs/manuals/api.md`
 
 ## Stand aus Version 5.6.14
 
@@ -61,19 +78,25 @@ Umgesetzt:
 - Zusatz-Programme sind bearbeitbar, aktivierbar und rollenabhängig sichtbar
 - tatsächliche Router-Registrierung erfolgt über `app/routes/web.py`
 
+## Bekannter offener Punkt
+
+Der GitHub-Actions-Workflow **„Debian-Paket bauen und veröffentlichen“** ist zuletzt fehlgeschlagen. Der konkrete rote Fehler aus dem Joblog wurde noch nicht ausgewertet und muss vor einer automatischen Veröffentlichung behoben werden. Ein lokal gebautes Paket darf nur nach erfolgreichem Build und Test als fertig bezeichnet werden.
+
 ## Offene Prüfungen vor Freigabe 5.6.15
 
 - Python-Syntax und Imports prüfen
-- Debian-Paket bauen und Prüfsumme validieren
+- Debian-Paket bauen und SHA256 validieren
 - Upgrade auf der Proxmox-Test-VM installieren
-- `/help` öffnen
-- alle vier Handbücher öffnen
-- Suchbegriffe wie `Backup`, `RFID`, `Passwort` und `API` testen
+- `/help` und alle vier Handbücher öffnen
+- feste Kapitelnavigation und Sprunglinks testen
+- helle Codeblöcke und Kopierfunktion testen
+- Suche nach `Backup`, `RFID`, `Passwort` und `API` testen
 - alle vier PDF-Dateien erzeugen und öffnen
 - Druckansicht testen
 - prüfen, dass nicht angemeldete Aufrufe auf `/login` umleiten
 - Zusatz-Programme und Rollen aus 5.6.14 erneut testen
 - `/health`, `/version`, Mitarbeiter und Buchungen prüfen
+- GitHub-Actions-Fehler anhand des Joblogs beheben
 - erst danach Tag und GitHub Release veröffentlichen
 
 ## Build
