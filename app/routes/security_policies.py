@@ -7,7 +7,7 @@ from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models import Employee
+from app.models import Employee, Setting
 from app.routes.common import log_action, require_system_admin_response
 from app.security import hash_password, verify_password
 from app.services.security_policy import DEFAULT_ADMIN_PASSWORD, ensure_security_policy_defaults, validate_password
@@ -27,7 +27,6 @@ def save_security_policy(
     security_login_max_attempts: int = Form(5),
     security_login_lock_minutes: int = Form(15),
     security_login_ip_enabled: str = Form("0"),
-    security_login_ip_lock_minutes: int = Form(15),
     security_password_min_length: int = Form(12),
     security_password_require_upper: str = Form("0"),
     security_password_require_lower: str = Form("0"),
@@ -42,12 +41,14 @@ def save_security_policy(
         return redirect
 
     ensure_security_policy_defaults(db)
+    lock_minutes = max(1, min(int(security_login_lock_minutes or 15), 1440))
     values = {
         "security_login_protection_enabled": _flag(security_login_protection_enabled),
         "security_login_max_attempts": str(max(1, min(int(security_login_max_attempts or 5), 20))),
-        "security_login_lock_minutes": str(max(1, min(int(security_login_lock_minutes or 15), 1440))),
+        "security_login_lock_minutes": str(lock_minutes),
         "security_login_ip_enabled": _flag(security_login_ip_enabled),
-        "security_login_ip_lock_minutes": str(max(1, min(int(security_login_ip_lock_minutes or 15), 1440))),
+        # Kompatibilitätswert: IP und Benutzerkonto nutzen dieselbe Sperrdauer.
+        "security_login_ip_lock_minutes": str(lock_minutes),
         "security_password_min_length": str(max(8, min(int(security_password_min_length or 12), 64))),
         "security_password_require_upper": _flag(security_password_require_upper),
         "security_password_require_lower": _flag(security_password_require_lower),
@@ -58,9 +59,22 @@ def save_security_policy(
     }
     for key, value in values.items():
         set_setting(db, key, value)
+
+    # Bereits bestehende Test- oder Altsperren löschen, damit neue Werte sofort gelten.
+    cleared = db.query(Setting).filter(Setting.key.like("security_login_state_%")).delete(synchronize_session=False)
     db.commit()
-    log_action(db, user.employee_number, "security_policy_saved", "settings", "security-policy", "Login- und Passwortrichtlinien geändert")
-    return RedirectResponse("/system/settings/general?saved=1&message=" + quote("Sicherheitsrichtlinien gespeichert."), status_code=303)
+    log_action(
+        db,
+        user.employee_number,
+        "security_policy_saved",
+        "settings",
+        "security-policy",
+        f"Login- und Passwortrichtlinien geändert; Sperrdauer={lock_minutes} Minuten; alte Sperren gelöscht={cleared}",
+    )
+    return RedirectResponse(
+        "/system/settings/general?saved=1&message=" + quote(f"Sicherheitsrichtlinien gespeichert. Sperrdauer: {lock_minutes} Minuten. Bestehende Sperren wurden aufgehoben."),
+        status_code=303,
+    )
 
 
 @router.post("/system/settings/general/admin-password")
