@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Restore-Werkzeug für Stempeluhr-Backups inklusive Secret-Verzeichnis."""
-import argparse, gzip, os, shutil, subprocess, sys, tarfile, tempfile
+import argparse, gzip, grp, os, shutil, subprocess, sys, tarfile, tempfile
 from pathlib import Path
 from dotenv import load_dotenv
 
@@ -15,10 +15,8 @@ def safe_extract(tar,target):
         path=(target/member.name).resolve()
         if not str(path).startswith(str(root)): raise RuntimeError(f'Unsicherer Pfad im Backup: {member.name}')
     tar.extractall(target)
-def find_first(root,name):
-    return next(root.rglob(name),None)
-def find_dir(root,name):
-    return next((p for p in root.rglob(name) if p.is_dir() and p.name==name),None)
+def find_first(root,name): return next(root.rglob(name),None)
+def find_dir(root,name): return next((p for p in root.rglob(name) if p.is_dir() and p.name==name),None)
 def restore_database(root):
     sql_gz=find_first(root,'postgres.sql.gz')
     if not sql_gz: raise RuntimeError('Im Backup wurde keine postgres.sql.gz gefunden.')
@@ -48,14 +46,14 @@ def restore_config(root):
         legacy=find_first(root,'.env')
         if not legacy: raise RuntimeError('Keine Konfiguration im Backup gefunden.')
         copy_replace(legacy,CONFIG_DIR/'stempeluhr.env')
-    os.chown(CONFIG_DIR/'stempeluhr.env',0,shutil._get_gid('stempeluhr') if hasattr(shutil,'_get_gid') else 0)
-    os.chmod(CONFIG_DIR/'stempeluhr.env',0o640)
+    gid=grp.getgrnam('stempeluhr').gr_gid
+    env_target=CONFIG_DIR/'stempeluhr.env'; os.chown(env_target,0,gid); os.chmod(env_target,0o640)
     secrets=CONFIG_DIR/'secrets'
     if secrets.exists():
-        os.chmod(secrets,0o750)
-        for path in secrets.glob('*.conf'): os.chmod(path,0o640)
+        os.chown(secrets,0,gid); os.chmod(secrets,0o750)
+        for path in secrets.glob('*.conf'): os.chown(path,0,gid); os.chmod(path,0o640)
 def main():
-    parser=argparse.ArgumentParser(); parser.add_argument('backup_file');
+    parser=argparse.ArgumentParser(); parser.add_argument('backup_file')
     for option in ['database','config','uploads','docs']:
         parser.add_argument('--'+option,action='store_true'); parser.add_argument('--no-'+option,action='store_true')
     args=parser.parse_args(); backup=Path(args.backup_file); allowed=Path('/opt/stempeluhr/backups').resolve()
