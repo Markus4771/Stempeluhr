@@ -14,9 +14,10 @@ from typing import Any, Dict, List
 from app.version import APP_VERSION, validate_runtime_version, write_version_file
 
 ENV_FILE = Path("/etc/stempeluhr/stempeluhr.env")
-REQUIRED_DATABASE_KEYS = (
+DATABASE_SECRET_FILE = Path("/etc/stempeluhr/secrets/database.conf")
+REQUIRED_DATABASE_ENV_KEYS = (
     "DATABASE_TYPE", "DATABASE_HOST", "DATABASE_PORT", "DATABASE_NAME",
-    "DATABASE_USER", "DATABASE_PASSWORD",
+    "DATABASE_USER",
 )
 
 
@@ -41,7 +42,9 @@ def _env_keys(path: Path) -> set[str]:
             if line.startswith("export "):
                 line = line[7:].lstrip()
             if "=" in line:
-                keys.add(line.split("=", 1)[0].strip())
+                key, value = line.split("=", 1)
+                if value.strip():
+                    keys.add(key.strip())
     except OSError:
         pass
     return keys
@@ -64,15 +67,21 @@ def run_startup_checks(app_dir: str | Path | None = None) -> Dict[str, Any]:
     checks.append(_check_path("data", "/var/lib/stempeluhr", writable=True))
     checks.append(_check_path("logs", "/var/log/stempeluhr", writable=True))
 
-    keys = _env_keys(ENV_FILE)
-    missing = [key for key in REQUIRED_DATABASE_KEYS if key not in keys]
+    env_keys = _env_keys(ENV_FILE)
+    secret_keys = _env_keys(DATABASE_SECRET_FILE)
+    missing = [key for key in REQUIRED_DATABASE_ENV_KEYS if key not in env_keys]
+    if "DATABASE_PASSWORD" not in secret_keys:
+        missing.append("DATABASE_PASSWORD (secrets/database.conf)")
+    configuration_ok = ENV_FILE.exists() and DATABASE_SECRET_FILE.exists() and not missing
     checks.append({
         "name": "configuration",
-        "ok": ENV_FILE.exists() and not missing,
+        "ok": configuration_ok,
         "path": str(ENV_FILE),
+        "secret_path": str(DATABASE_SECRET_FILE),
         "exists": ENV_FILE.exists(),
+        "secret_exists": DATABASE_SECRET_FILE.exists(),
         "missing_required": missing,
-        "message": "OK" if ENV_FILE.exists() and not missing else "Datenbankkonfiguration unvollständig",
+        "message": "OK" if configuration_ok else "Datenbankkonfiguration unvollständig",
     })
 
     try:
