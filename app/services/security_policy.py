@@ -55,12 +55,15 @@ def ensure_security_policy_defaults(db: Session) -> None:
 
 def get_security_policy(db: Session) -> dict[str, Any]:
     ensure_security_policy_defaults(db)
+    lock_minutes = _integer(get_setting(db, "security_login_lock_minutes", "15"), 15, 1, 1440)
     return {
         "login_protection_enabled": _flag(get_setting(db, "security_login_protection_enabled", "true"), True),
         "login_max_attempts": _integer(get_setting(db, "security_login_max_attempts", "5"), 5, 1, 20),
-        "login_lock_minutes": _integer(get_setting(db, "security_login_lock_minutes", "15"), 15, 1, 1440),
+        "login_lock_minutes": lock_minutes,
         "login_ip_enabled": _flag(get_setting(db, "security_login_ip_enabled", "true"), True),
-        "login_ip_lock_minutes": _integer(get_setting(db, "security_login_ip_lock_minutes", "15"), 15, 1, 1440),
+        # Benutzerkonto und IP verwenden bewusst dieselbe konfigurierte Sperrdauer.
+        # Der alte separate Wert bleibt nur aus Kompatibilitätsgründen in der Datenbank.
+        "login_ip_lock_minutes": lock_minutes,
         "password_min_length": _integer(get_setting(db, "security_password_min_length", "12"), 12, 8, 64),
         "password_require_upper": _flag(get_setting(db, "security_password_require_upper", "true"), True),
         "password_require_lower": _flag(get_setting(db, "security_password_require_lower", "true"), True),
