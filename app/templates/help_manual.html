@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="help-toolbar">
+  <a class="button secondary" href="/help">Zur Übersicht</a>
+  <a class="button secondary" href="/help/{{ slug }}/pdf">PDF herunterladen</a>
+  <button type="button" onclick="window.print()">Drucken</button>
+</div>
+<article class="card help-document">
+  {{ content_html | safe }}
+</article>
+{% endblock %}
