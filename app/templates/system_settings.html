@@ -10,7 +10,7 @@
 </div></section>
 <section class="card"><h2>Übersicht</h2><p class="muted">Die Einstellungen sind nach Bereichen gruppiert.</p>
 <div class="settings-section"><h3>Allgemein</h3><div class="settings-menu">
-<a class="settings-tile" href="/system/settings/general"><strong>Allgemeine Einstellungen</strong><span>Firma, Buchung, Testphase, Schnellbuchung und Modulsteuerung</span></a>
+<a class="settings-tile" href="/system/settings/general"><strong>Allgemeine Einstellungen</strong><span>Firma, Buchung, Sicherheit und Sichtbarkeit der Untermenüs</span></a>
 {% if settings.get('module_settings_departments_enabled', '1') in ['1','true','on'] %}<a class="settings-tile" href="/system/settings/departments"><strong>Abteilungen</strong><span>Abteilungen definieren und Mitarbeitern zuordnen</span></a>{% endif %}
 {% if settings.get('module_settings_time_enabled', '1') in ['1','true','on'] %}<a class="settings-tile" href="/system/settings/time"><strong>Uhrzeit &amp; Zeitserver</strong><span>NTP, Zeitzone und Zeitbasis</span></a>{% endif %}
 </div></div>
@@ -28,6 +28,7 @@
 {% if settings.get('module_settings_api_enabled', '1') in ['1','true','on'] %}<a class="settings-tile" href="/system/settings/api"><strong>API</strong><span>API und Schlüssel verwalten</span></a>{% endif %}
 {% if settings.get('module_settings_terminals_enabled', '1') in ['1','true','on'] %}<a class="settings-tile" href="/system/settings/terminals"><strong>Terminalverwaltung</strong><span>Raspberry-Clients und Keys</span></a>{% endif %}
 <a class="settings-tile" href="/system/settings/kiosk"><strong>Raspberry Kiosk</strong><span>Kiosk und Chromium konfigurieren</span></a>
+<a class="settings-tile" href="/system/settings/general/additional-programs"><strong>Zusatz-Programme</strong><span>Externe Webprogramme per IP, Hostname und Port verknüpfen</span></a>
 </div></div>
 <div class="settings-section"><h3>Sicherheit</h3><div class="settings-menu">
 <a class="settings-tile" href="/system/settings/database-security"><strong>Datenbankzugang</strong><span>PostgreSQL-Verbindung prüfen und Datenbankpasswort sicher ändern</span></a>
