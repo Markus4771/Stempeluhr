@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Privilegierter Helfer zum atomaren Ändern des lokalen PostgreSQL-Passworts."""
 from __future__ import annotations
-import json, os, re, shutil, subprocess, sys, tempfile
+import json, os, re, shutil, subprocess, sys, tempfile, time
 from pathlib import Path
 CONFIG_DIR=Path('/etc/stempeluhr'); ENV_FILE=CONFIG_DIR/'stempeluhr.env'; SECRETS_DIR=CONFIG_DIR/'secrets'; DB_SECRET_FILE=SECRETS_DIR/'database.conf'; BACKUP_DIR=CONFIG_DIR/'backup-secrets'; ALLOWED_NAME=re.compile(r'^[A-Za-z_][A-Za-z0-9_]*$')
 def fail(message,code=1): print(message,file=sys.stderr); raise SystemExit(code)
@@ -55,5 +55,6 @@ def main():
         if old_secret is not None: write_atomic(DB_SECRET_FILE,old_secret)
         write_atomic(ENV_FILE,old_env); fail(f'Datenbankpasswort konnte nicht sicher geändert werden: {type(exc).__name__}')
     finally: payload_path.unlink(missing_ok=True)
-    subprocess.run(['systemd-run','--unit=stempeluhr-db-secret-restart','--on-active=2s','/bin/systemctl','restart','stempeluhr.service'],check=False,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
+    unit=f'stempeluhr-db-secret-restart-{os.getpid()}-{int(time.time())}'
+    subprocess.run(['systemd-run',f'--unit={unit}','--on-active=2s','/bin/systemctl','restart','stempeluhr.service'],check=False,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
 if __name__=='__main__': main()
