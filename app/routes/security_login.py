@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.auth import login_user
 from app.database import get_db
-from app.models import Employee, PasswordResetToken
+from app.models import Employee, OnboardingToken, PasswordResetToken, Setting
 from app.routes.common import (
     get_employee_number_length,
     is_fixed_admin_employee,
@@ -30,18 +30,21 @@ from app.services.security_policy import (
 router = APIRouter()
 
 
+def _onboarding_policy_context(db: Session) -> dict:
+    settings = {row.key: row.value for row in db.query(Setting).all()}
+    return {
+        "privacy_text": settings.get("onboarding_privacy_text", "Ich habe die Datenschutzbestimmungen gelesen und stimme zu."),
+        "privacy_version": settings.get("onboarding_privacy_version", "1.0"),
+    }
+
+
 @router.get("/login", response_class=HTMLResponse)
 def secure_login_form(request: Request):
     return templates.TemplateResponse("login.html", {"request": request, "error": None})
 
 
 @router.post("/login")
-def secure_login_submit(
-    request: Request,
-    employee_number: str = Form(...),
-    password: str = Form(...),
-    db: Session = Depends(get_db),
-):
+def secure_login_submit(request: Request, employee_number: str = Form(...), password: str = Form(...), db: Session = Depends(get_db)):
     raw_identifier = (employee_number or "").strip()
     ip_address = request.client.host if request.client else ""
     blocked, remaining = login_block_status(db, raw_identifier, ip_address)
@@ -50,10 +53,7 @@ def secure_login_submit(
             log_action(db, raw_identifier or "unbekannt", "login_blocked", "security", "login", f"Anmeldung gesperrt; Restdauer ca. {remaining} Minuten; IP={ip_address}")
         except Exception:
             pass
-        return templates.TemplateResponse("login.html", {
-            "request": request,
-            "error": f"Anmeldung vorübergehend gesperrt. Bitte in etwa {remaining} Minute(n) erneut versuchen.",
-        }, status_code=429)
+        return templates.TemplateResponse("login.html", {"request": request, "error": f"Anmeldung vorübergehend gesperrt. Bitte in etwa {remaining} Minute(n) erneut versuchen."}, status_code=429)
 
     if raw_identifier.lower() == "admin":
         normalized_identifier = "admin"
@@ -93,33 +93,18 @@ def secure_login_submit(
 @router.get("/password-reset/{token}", response_class=HTMLResponse)
 def secure_password_reset_form(request: Request, token: str, db: Session = Depends(get_db)):
     token_hash = hashlib.sha256((token or "").encode("utf-8")).hexdigest()
-    reset_token = db.query(PasswordResetToken).filter(
-        PasswordResetToken.token_hash == token_hash,
-        PasswordResetToken.used_at.is_(None),
-        PasswordResetToken.expires_at >= datetime.now(),
-    ).first()
+    reset_token = db.query(PasswordResetToken).filter(PasswordResetToken.token_hash == token_hash, PasswordResetToken.used_at.is_(None), PasswordResetToken.expires_at >= datetime.now()).first()
     if not reset_token:
         return templates.TemplateResponse("password_reset.html", {"request": request, "token": "", "error": "Dieser Link ist ungültig oder abgelaufen.", "message": None})
     return templates.TemplateResponse("password_reset.html", {"request": request, "token": token, "error": None, "message": None})
 
 
 @router.post("/password-reset/{token}", response_class=HTMLResponse)
-def secure_password_reset_submit(
-    request: Request,
-    token: str,
-    password: str = Form(...),
-    password_repeat: str = Form(...),
-    db: Session = Depends(get_db),
-):
+def secure_password_reset_submit(request: Request, token: str, password: str = Form(...), password_repeat: str = Form(...), db: Session = Depends(get_db)):
     token_hash = hashlib.sha256((token or "").encode("utf-8")).hexdigest()
-    reset_token = db.query(PasswordResetToken).filter(
-        PasswordResetToken.token_hash == token_hash,
-        PasswordResetToken.used_at.is_(None),
-        PasswordResetToken.expires_at >= datetime.now(),
-    ).first()
+    reset_token = db.query(PasswordResetToken).filter(PasswordResetToken.token_hash == token_hash, PasswordResetToken.used_at.is_(None), PasswordResetToken.expires_at >= datetime.now()).first()
     if not reset_token:
         return templates.TemplateResponse("password_reset.html", {"request": request, "token": "", "error": "Dieser Link ist ungültig oder abgelaufen.", "message": None})
-
     employee = db.query(Employee).filter(Employee.id == reset_token.employee_id, Employee.active == True).first()
     if not employee or is_fixed_admin_employee(employee):
         reset_token.used_at = datetime.now()
@@ -127,14 +112,52 @@ def secure_password_reset_submit(
         return templates.TemplateResponse("password_reset.html", {"request": request, "token": "", "error": "Dieser Link ist ungültig oder abgelaufen.", "message": None})
     if password != password_repeat:
         return templates.TemplateResponse("password_reset.html", {"request": request, "token": token, "error": "Die Passwörter stimmen nicht überein.", "message": None})
-
     valid, message = validate_password(password, db, [employee.employee_number, employee.first_name, employee.last_name, employee.email])
     if not valid:
         return templates.TemplateResponse("password_reset.html", {"request": request, "token": token, "error": message, "message": None})
-
     employee.password_hash = hash_password(password)
     employee.updated_at = datetime.now()
     reset_token.used_at = datetime.now()
     db.commit()
     log_action(db, employee.employee_number, "password_reset_completed", "employees", str(employee.id), "Passwort nach konfigurierter Richtlinie geändert")
     return templates.TemplateResponse("password_reset.html", {"request": request, "token": "", "error": None, "message": "Dein Passwort wurde geändert. Du kannst dich jetzt anmelden."})
+
+
+@router.post("/onboarding/{token}", response_class=HTMLResponse)
+def secure_onboarding_submit(
+    request: Request,
+    token: str,
+    password: str = Form(...),
+    password_repeat: str = Form(...),
+    privacy_accept: str = Form("off"),
+    db: Session = Depends(get_db),
+):
+    token_hash = hashlib.sha256((token or "").encode("utf-8")).hexdigest()
+    invite = db.query(OnboardingToken).filter(OnboardingToken.token_hash == token_hash, OnboardingToken.used_at.is_(None), OnboardingToken.expires_at >= datetime.now()).first()
+    context = _onboarding_policy_context(db)
+    if not invite:
+        return templates.TemplateResponse("onboarding_accept.html", {"request": request, "token": "", "employee": None, **context, "error": "Dieser Einladungslink ist ungültig oder abgelaufen.", "message": None})
+    employee = db.query(Employee).filter(Employee.id == invite.employee_id, Employee.active == True).first()
+    if not employee:
+        invite.used_at = datetime.now()
+        invite.status = "invalid_employee"
+        db.commit()
+        return templates.TemplateResponse("onboarding_accept.html", {"request": request, "token": "", "employee": None, **context, "error": "Dieser Einladungslink ist ungültig oder abgelaufen.", "message": None})
+    if password != password_repeat:
+        return templates.TemplateResponse("onboarding_accept.html", {"request": request, "token": token, "employee": employee, **context, "error": "Die Passwörter stimmen nicht überein.", "message": None})
+    valid, message = validate_password(password, db, [employee.employee_number, employee.first_name, employee.last_name, employee.email])
+    if not valid:
+        return templates.TemplateResponse("onboarding_accept.html", {"request": request, "token": token, "employee": employee, **context, "error": message, "message": None})
+    if privacy_accept != "on":
+        return templates.TemplateResponse("onboarding_accept.html", {"request": request, "token": token, "employee": employee, **context, "error": "Bitte bestätige die Datenschutzbestimmungen.", "message": None})
+    now = datetime.now()
+    employee.password_hash = hash_password(password)
+    employee.privacy_accepted_at = now
+    employee.privacy_version_accepted = str(context["privacy_version"] or "1.0")
+    employee.onboarding_completed_at = now
+    employee.updated_at = now
+    invite.used_at = now
+    invite.status = "completed"
+    db.commit()
+    log_action(db, employee.employee_number, "onboarding_completed", "employees", str(employee.id), "Passwort nach konfigurierter Richtlinie gesetzt und Datenschutz bestätigt")
+    return templates.TemplateResponse("onboarding_accept.html", {"request": request, "token": "", "employee": employee, **context, "error": None, "message": "Dein Konto wurde eingerichtet. Du kannst dich jetzt anmelden."})
