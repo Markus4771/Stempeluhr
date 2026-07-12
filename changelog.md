@@ -1,3 +1,19 @@
+## 5.6.12
+
+- Datenbankpasswort aus `stempeluhr.env` nach `/etc/stempeluhr/secrets/database.conf` ausgelagert
+- bestehende Passwörter werden beim Paketupdate automatisch und ohne Rollenänderung migriert
+- systemd und SQLAlchemy laden die geschützte Secret-Datei zusätzlich zur allgemeinen Konfiguration
+- neue Seite `Systemeinstellungen → Sicherheit → Datenbankzugang`
+- Administrator muss sein eigenes Passwort erneut bestätigen
+- neues Datenbankpasswort wird auf Mindestlänge und Komplexität geprüft
+- lokaler PostgreSQL-Rollenwechsel verwendet SCRAM-SHA-256
+- neue Verbindung wird vor Speicherung getestet
+- vorherige Konfiguration und Secret-Datei werden vor Änderung gesichert
+- automatischer Rollback auf das alte PostgreSQL-Passwort bei Fehlern
+- enger Root-Helfer und begrenzter sudoers-Eintrag statt allgemeiner sudo-Rechte
+- Audit protokolliert nur das Ereignis, niemals Passwortwerte
+- keine Datenbankmodelle oder produktiven Daten geändert
+
 ## 5.6.11
 
 - bestehende Updateverwaltung um stabile GitHub Releases erweitert
