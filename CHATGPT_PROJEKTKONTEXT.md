@@ -7,7 +7,7 @@
 - Name: **Stempeluhr Professional**
 - Repository: `Markus4771/Stempeluhr`
 - Standardbranch: `main`
-- Aktuelle Version: **5.6.11**
+- Aktuelle Version: **5.6.12**
 - Zielplattform: Debian 13 und Raspberry Pi OS
 - Backend: Python, FastAPI, Uvicorn, SQLAlchemy
 - Standarddatenbank: PostgreSQL
@@ -15,78 +15,55 @@
 
 ## Verbindliche Regeln
 
-PostgreSQL bleibt Standarddatenbank. Bestehende Daten und Konfigurationen dürfen bei Updates nicht gelöscht werden. Secrets gehören niemals ins Repository, in Logs oder Diagnoseberichte. Debian 13, Raspberry Pi OS, Wayland und labwc sind zu berücksichtigen. Paketartefakte gelten erst nach tatsächlichem Build und Prüfung als fertig.
+PostgreSQL bleibt Standarddatenbank. Bestehende Daten und Konfigurationen dürfen bei Updates nicht gelöscht werden. Secrets gehören niemals ins Repository, in Logs oder Diagnoseberichte. Paketartefakte gelten erst nach tatsächlichem Build und Prüfung als fertig.
 
-Bei jeder neuen Version synchron aktualisieren:
-
-- `version.txt`
-- `app/version.py`
-- `debian/control`
-- `README.md`
-- `changelog.md`
-- `CHATGPT_PROJEKTKONTEXT.md`
-
-Die Dateien `VERSION` und `CHANGELOG.md` dürfen nicht existieren.
-
-## Aktueller Funktionsstand
-
-Zum System gehören Mitarbeiterverwaltung, Arbeitszeiterfassung, RFID, Dashboard, Rollen und Rechte, Plausibilitätsprüfung, Korrekturworkflow, DSGVO, REST-API, HTTPS, CalDAV/iCal, Reporting, PDF/CSV-Export, E-Mail-Funktionen, Backup, Raspberry-Kiosk, Agent, Heartbeat, Monitoring, Onboarding, Offboarding, Systemdiagnose, mehrstufiger Einrichtungsassistent, automatisches GitHub-Release-System und eine integrierte Updateverwaltung mit manueller sowie GitHub-basierter Paketquelle.
+Bei jeder neuen Version synchron aktualisieren: `version.txt`, `app/version.py`, `debian/control`, `README.md`, `changelog.md` und `CHATGPT_PROJEKTKONTEXT.md`. Die Dateien `VERSION` und `CHANGELOG.md` dürfen nicht existieren.
 
 ## Architektur und Betrieb
 
 - Anwendung: `/opt/stempeluhr`
-- Konfiguration: `/etc/stempeluhr/stempeluhr.env`
+- allgemeine Konfiguration: `/etc/stempeluhr/stempeluhr.env`
+- Datenbank-Secret: `/etc/stempeluhr/secrets/database.conf`
 - variable Daten: `/var/lib/stempeluhr`
+- geschützte temporäre Übergaben: `/var/lib/stempeluhr/tmp`
 - Logs: systemd-Journal und `/var/log/stempeluhr`
 - Dienst: `stempeluhr.service`
-- Standardport: 8000
+- Datenbankzugang: **Systemeinstellungen → Sicherheit → Datenbankzugang**
+- Updates: **Systemeinstellungen → Wartung → Updates**
 - Healthcheck: `/health`
 - Versionsauskunft: `/version`
-- Updates: **Systemeinstellungen → Wartung → Updates**
-- Einrichtungsassistent: **Systemeinstellungen → Wartung → Einrichtungsassistent** beziehungsweise `/setup`
-- Systemdiagnose: **Systemeinstellungen → Wartung → Systemdiagnose** beziehungsweise `/system/diagnostics`
 
-## Version 5.6.11
+## Version 5.6.12
 
-Schwerpunkt: GitHub Releases mit der bestehenden Updatefunktion verbinden.
+Schwerpunkt: Datenbankpasswort und Secret-Verwaltung.
 
 Umgesetzt:
 
-- vorhandene Update-Seite um GitHub-Release-Prüfung erweitert
-- neueste stabile Version und Release Notes werden auf derselben Seite angezeigt
-- GitHub-Release muss ein passendes `.deb` und die zugehörige `.sha256` enthalten
-- beide Dateien werden heruntergeladen und die SHA256 wird vor Übergabe geprüft
-- nur eine tatsächlich neuere Version wird zur Installation angeboten
-- das GitHub-Paket wird anschließend an die vorhandene Upload-/Paketprüfung und denselben privilegierten Update-Runner übergeben
-- manueller DEB-Upload bleibt vollständig erhalten
-- Backup, Installation, Neustart, Statusdatei, Fortschrittsanzeige, Protokoll und Healthcheck bleiben zentral im bestehenden Ablauf
-- Repository kann über `STEMPELUHR_GITHUB_REPOSITORY` abweichend konfiguriert werden; Standard ist `Markus4771/Stempeluhr`
-- keine Datenbankmodelle geändert; keine Schema-Migration erforderlich
+- `DATABASE_PASSWORD` wird getrennt in `/etc/stempeluhr/secrets/database.conf` gespeichert
+- Paketupdate migriert ein vorhandenes Passwort aus `stempeluhr.env`, ohne die bestehende PostgreSQL-Rolle zu verändern
+- SQLAlchemy und systemd laden die Secret-Datei zusätzlich zur allgemeinen Konfiguration
+- neue Administratorseite `/system/settings/database-security`
+- aktuelles Administratorpasswort ist vor einer Änderung erneut erforderlich
+- neues Datenbankpasswort muss mindestens 16 Zeichen sowie Groß-/Kleinbuchstaben und Zahlen enthalten
+- Passwortwechsel ist nur für die lokale Standard-PostgreSQL-Instanz zulässig
+- privilegierter Helfer liegt unter `/usr/local/sbin/stempeluhr-database-secret-helper`
+- Webdienst erhält nur einen eng begrenzten sudoers-Aufruf für geschützte JSON-Dateien unter `/var/lib/stempeluhr/tmp`
+- PostgreSQL-Rollenpasswort wird mit `password_encryption=scram-sha-256` gesetzt
+- Verbindung mit dem neuen Passwort wird vor Speicherung geprüft
+- bisherige Konfiguration und Secret-Datei werden unter `/etc/stempeluhr/backup-secrets` gesichert
+- bei einem Fehler wird versucht, das vorherige Rollenpasswort und die vorherige Konfiguration wiederherzustellen
+- erfolgreicher Wechsel wird ohne Passwortwerte im Audit-Protokoll vermerkt
+- keine Datenbankmodelle oder produktiven Mitarbeiter-/Buchungsdaten geändert
 
-## Release- und Updateablauf
+## Sicherheitsregeln
 
-1. Versionsdateien und Dokumentation synchronisieren.
-2. Lokal bauen und testen.
-3. Produktives Upgrade und `/health` prüfen.
-4. Passenden Tag erstellen und pushen, zum Beispiel:
-
-```bash
-git tag -a v5.6.11 -m "Stempeluhr Professional 5.6.11"
-git push origin v5.6.11
-```
-
-5. GitHub Actions veröffentlicht `.deb`, SHA256, Buildbericht und Changelog.
-6. Eine ältere installierte Stempeluhr kann danach unter **Updates** das Release prüfen und über denselben vorhandenen Update-Runner installieren.
-
-## Datenbankregeln
-
-- Standarddatenbank und Rolle: `stempeluhr`
-- Zugangsdaten ausschließlich aus geschützter Konfiguration
-- SQLAlchemy-Verbindungen müssen Sonderzeichen sicher verarbeiten
-- lokale Verbindungen dürfen keine Root-Zertifikatsumgebung erben
+- `stempeluhr.env`: `root:stempeluhr`, Modus `0640`
+- Secret-Verzeichnis: `root:stempeluhr`, Modus `0750`
+- `database.conf`: `root:stempeluhr`, Modus `0640`
+- keine Passwörter in URLs, Logs, Auditdetails, Shell-Historie oder Prozessargumenten
 - Rollenpasswörter bei normalen Updates nicht verändern
-- Migrationen wiederholbar und PostgreSQL-kompatibel ausführen
-- keine produktiven Daten in Pakete oder Repository aufnehmen
+- Secret-Änderungen müssen Verbindungstest und Rollbackpfad besitzen
+- Webprozess darf keine allgemeinen Root-Rechte erhalten
 
 ## Debian-Buildsystem
 
@@ -94,29 +71,31 @@ git push origin v5.6.11
 bash scripts/build_release.sh
 ```
 
-Erwartete lokale Artefakte:
+Erwartete Artefakte:
 
 ```text
-releases/stempeluhr_5.6.11_all.deb
-releases/stempeluhr_5.6.11_all.deb.sha256
-releases/stempeluhr_5.6.11_build.log
-releases/stempeluhr_5.6.11_BUILD_REPORT.md
+releases/stempeluhr_5.6.12_all.deb
+releases/stempeluhr_5.6.12_all.deb.sha256
+releases/stempeluhr_5.6.12_build.log
+releases/stempeluhr_5.6.12_BUILD_REPORT.md
 ```
 
-## Offene Prüfungen
+## Offene Prüfungen vor Freigabe
 
-- Python-Syntax und Import der neuen GitHub-Update-Module prüfen
-- GitHub-Actions-Build für 5.6.11 erfolgreich abschließen
-- Upgrade von produktiver 5.6.10 auf 5.6.11 testen
-- manuelle Updatequelle weiterhin testen
-- GitHub-Prüfung gegen ein echtes Release testen
-- `.deb`-/SHA256-Download und Übergabe an den bestehenden Runner testen
-- `/health`, `/version`, Mitarbeiter und Buchungen prüfen
-- erst danach den Tag `v5.6.11` veröffentlichen
+- Python-Syntax und Imports aller neuen Module prüfen
+- Debian-Paket auf einer frischen Debian-13-Test-VM installieren
+- Upgrade von 5.6.11 auf 5.6.12 testen
+- automatische Secret-Migration kontrollieren
+- Dateieigentümer und Modi prüfen
+- Datenbankpasswort erfolgreich ändern
+- absichtlich fehlerhaften Wechsel und Rollback prüfen
+- Dienstneustart und `/health` prüfen
+- Mitarbeiter und Buchungen kontrollieren
+- erst danach Tag `v5.6.12` und GitHub Release veröffentlichen
 
 ## Releasefreigabe
 
-Eine Version gilt erst als freigegeben, wenn Versionsdateien und Dokumentation übereinstimmen, `.deb`/SHA256/Buildlog/Buildbericht vorhanden sind, das Upgrade getestet wurde, der Dienst läuft, `/health` die erwartete Version meldet und bestehende Daten erhalten sind. Das integrierte GitHub-Update gilt erst nach einem erfolgreichen Test mit einem echten veröffentlichten Release als produktiv bestätigt.
+5.6.12 ist erst freigegeben, wenn `.deb`, SHA256, Buildlog und Buildbericht tatsächlich vorhanden sind, Neuinstallation und Upgrade getestet wurden, der Passwortwechsel samt Rollback erfolgreich geprüft wurde und produktive Daten erhalten bleiben.
 
 ## Startanweisung für neue Chats
 
