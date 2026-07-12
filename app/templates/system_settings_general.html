@@ -5,11 +5,95 @@
 {% if saved %}<div class="success-box">{{ message or 'Einstellungen gespeichert.' }}</div>{% endif %}
 {% if error %}<div class="error-box">{{ error }}</div>{% endif %}
 <form action="/system/settings/general" method="post" enctype="multipart/form-data" class="settings-form">
-  <div class="settings-section"><h2>Firma</h2><div class="settings-grid"><div class="form-field"><label>Firmenname</label><input name="company_name" value="{{ settings.get('company_name', '') }}" placeholder="Firmenname"></div><div class="form-field"><label>Logo hochladen</label><input name="logo_file" type="file" accept=".png,.jpg,.jpeg,.webp,.gif,.svg"></div></div></div>
-  <div class="settings-section"><h2>Mitarbeiter &amp; Korrektur</h2><div class="settings-grid"><div class="form-field"><label>Mitarbeiternummer Stellenanzahl</label><input name="employee_number_length" type="number" min="1" max="20" step="1" value="{{ settings.get('employee_number_length', '4') }}" required><p class="help-text">Beispiel: 3 = 001, 002, 123.</p></div><div class="form-field"><label>Rückwirkende Korrektur in Tagen</label><input name="correction_days_back" type="number" min="0" max="365" value="{{ settings.get('correction_days_back', '14') }}"></div></div></div>
-  <div class="settings-section"><h2>Buchung &amp; Anzeige</h2><div class="settings-grid"><div class="form-field"><label>Zeit bis Automatikbuchung / Weiterschalten</label><div class="input-with-unit"><input name="booking_auto_delay_seconds" type="number" min="1" max="30" step="1" value="{{ settings.get('booking_auto_delay_seconds', '3') }}" required><span>Sekunden</span></div></div><div class="form-field"><label>Dauer der Statusseite nach Buchung</label><div class="input-with-unit"><input name="booking_status_display_seconds" type="number" min="1" max="60" step="1" value="{{ settings.get('booking_status_display_seconds', '5') }}" required><span>Sekunden</span></div></div><div class="form-field"><label>Name des Abwesenheitskalenders</label><input name="absence_calendar_name" value="{{ settings.get('absence_calendar_name', 'Abwesenheit') }}"></div><div class="form-field checkbox-field"><label><input type="checkbox" name="holiday_ics_import_enabled" value="1" {% if settings.get('holiday_ics_import_enabled', '1') in ['1','true','on'] %}checked{% endif %}> Feiertagsimport aus ICS-Dateien erlauben</label></div><div class="form-field checkbox-field"><label><input type="checkbox" name="holiday_ics_expiry_warning_enabled" value="1" {% if settings.get('holiday_ics_expiry_warning_enabled', '1') in ['1','true','on'] %}checked{% endif %}> Warnmail bei Ablauf des Feiertagskalenders</label></div><div class="form-field"><label>Warnung vor Ablauf in Tagen</label><input name="holiday_ics_warn_days" type="number" min="1" max="365" value="{{ settings.get('holiday_ics_warn_days', '45') }}"></div></div></div>
-  <div class="settings-section"><h2>Pausen</h2><div class="form-field checkbox-field"><label><input type="checkbox" name="auto_break_enabled" value="1" {% if settings.get('auto_break_enabled', '0') == '1' %}checked{% endif %}> Automatische Pausenregelung anwenden</label></div></div>
-  <div class="settings-section"><h2>Systemeinstellungs-Untermenüs</h2><div class="settings-grid module-toggle-grid">{% set modules = [('module_settings_departments_enabled','Abteilungen'),('module_settings_plausibility_enabled','Plausibilitätsprüfung'),('module_settings_breaks_enabled','Pausenregelung'),('module_settings_backup_enabled','Backup'),('module_settings_email_enabled','E-Mail'),('module_settings_caldav_enabled','CalDAV'),('module_settings_api_enabled','API'),('module_settings_terminals_enabled','Terminalverwaltung'),('module_settings_time_enabled','Uhrzeit & Zeitserver'),('module_settings_https_enabled','HTTPS & Zertifikate'),('module_settings_security_enabled','Sicherheit & Netzwerkzugriff'),('module_settings_offboarding_enabled','Offboarding'),('module_settings_dsgvo_enabled','DSGVO-Manager')] %}{% for key,label in modules %}<div class="form-field checkbox-field compact-checkbox"><label><input type="checkbox" name="{{ key }}" value="1" {% if settings.get(key,'1') in ['1','true','on'] %}checked{% endif %}> {{ label }}</label></div>{% endfor %}</div></div>
+  <div class="settings-section">
+    <h2>Firma</h2>
+    <div class="settings-grid">
+      <div class="form-field"><label>Firmenname</label><input name="company_name" value="{{ settings.get('company_name', '') }}" placeholder="Firmenname"></div>
+      <div class="form-field"><label>Logo hochladen</label><input name="logo_file" type="file" accept=".png,.jpg,.jpeg,.webp,.gif,.svg"></div>
+    </div>
+  </div>
+
+  <div class="settings-section">
+    <h2>Mitarbeiter &amp; Korrektur</h2>
+    <div class="settings-grid">
+      <div class="form-field"><label>Mitarbeiternummer Stellenanzahl</label><input name="employee_number_length" type="number" min="1" max="20" step="1" value="{{ settings.get('employee_number_length', '4') }}" required><p class="help-text">Beispiel: 3 = 001, 002, 123.</p></div>
+      <div class="form-field"><label>Rückwirkende Korrektur in Tagen</label><input name="correction_days_back" type="number" min="0" max="365" value="{{ settings.get('correction_days_back', '14') }}"></div>
+    </div>
+  </div>
+
+  <div class="settings-section">
+    <h2>Buchung &amp; Anzeige</h2>
+    <div class="settings-grid">
+      <div class="form-field"><label>Zeit bis Automatikbuchung / Weiterschalten</label><div class="input-with-unit"><input name="booking_auto_delay_seconds" type="number" min="1" max="30" step="1" value="{{ settings.get('booking_auto_delay_seconds', '3') }}" required><span>Sekunden</span></div></div>
+      <div class="form-field"><label>Dauer der Statusseite nach Buchung</label><div class="input-with-unit"><input name="booking_status_display_seconds" type="number" min="1" max="60" step="1" value="{{ settings.get('booking_status_display_seconds', '5') }}" required><span>Sekunden</span></div></div>
+      <div class="form-field"><label>Name des Abwesenheitskalenders</label><input name="absence_calendar_name" value="{{ settings.get('absence_calendar_name', 'Abwesenheit') }}"></div>
+      <div class="form-field checkbox-field"><label><input type="checkbox" name="holiday_ics_import_enabled" value="1" {% if settings.get('holiday_ics_import_enabled', '1') in ['1','true','on'] %}checked{% endif %}> Feiertagsimport aus ICS-Dateien erlauben</label></div>
+      <div class="form-field checkbox-field"><label><input type="checkbox" name="holiday_ics_expiry_warning_enabled" value="1" {% if settings.get('holiday_ics_expiry_warning_enabled', '1') in ['1','true','on'] %}checked{% endif %}> Warnmail bei Ablauf des Feiertagskalenders</label></div>
+      <div class="form-field"><label>Warnung vor Ablauf in Tagen</label><input name="holiday_ics_warn_days" type="number" min="1" max="365" value="{{ settings.get('holiday_ics_warn_days', '45') }}"></div>
+    </div>
+  </div>
+
+  <div class="settings-section">
+    <h2>Pausen</h2>
+    <div class="form-field checkbox-field"><label><input type="checkbox" name="auto_break_enabled" value="1" {% if settings.get('auto_break_enabled', '0') == '1' %}checked{% endif %}> Automatische Pausenregelung anwenden</label></div>
+  </div>
+
+  <div class="settings-section" id="submenu-settings">
+    <h2>Systemeinstellungs-Untermenüs</h2>
+    <p class="help-text">Hier legst du fest, welche optionalen Kacheln in den Systemeinstellungen sichtbar sind. Allgemeine Einstellungen, Rollen &amp; Rechte, Updates, Datenbankzugang und Systemdiagnose bleiben immer erreichbar.</p>
+
+    {% set module_groups = [
+      ('Allgemein', [
+        ('module_settings_departments_enabled','Abteilungen'),
+        ('module_settings_time_enabled','Uhrzeit & Zeitserver')
+      ]),
+      ('Personal & Arbeitszeit', [
+        ('module_settings_plausibility_enabled','Plausibilitätsprüfung'),
+        ('module_settings_breaks_enabled','Pausenregelung'),
+        ('module_settings_offboarding_enabled','Offboarding'),
+        ('module_settings_dsgvo_enabled','DSGVO-Manager')
+      ]),
+      ('Integrationen', [
+        ('module_settings_email_enabled','E-Mail'),
+        ('module_settings_caldav_enabled','CalDAV / Kalender'),
+        ('module_settings_api_enabled','API'),
+        ('module_settings_terminals_enabled','Terminalverwaltung')
+      ]),
+      ('Sicherheit', [
+        ('module_settings_https_enabled','HTTPS & Zertifikate'),
+        ('module_settings_security_enabled','Sicherheit & Netzwerkzugriff')
+      ]),
+      ('Wartung', [
+        ('module_settings_backup_enabled','Backup & Restore')
+      ])
+    ] %}
+
+    {% for group_name, modules in module_groups %}
+    <div class="settings-section">
+      <h3>{{ group_name }}</h3>
+      <div class="settings-grid module-toggle-grid">
+        {% for key, label in modules %}
+        <div class="form-field checkbox-field compact-checkbox"><label><input type="checkbox" class="submenu-toggle" name="{{ key }}" value="1" {% if settings.get(key,'1') in ['1','true','on'] %}checked{% endif %}> {{ label }}</label></div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endfor %}
+
+    <div class="form-actions">
+      <button type="button" class="secondary" onclick="document.querySelectorAll('.submenu-toggle').forEach(e => e.checked = true)">Alle aktivieren</button>
+      <button type="button" class="secondary" onclick="document.querySelectorAll('.submenu-toggle').forEach(e => e.checked = false)">Alle deaktivieren</button>
+    </div>
+  </div>
+
+  <div class="settings-section">
+    <h2>Zusatz-Programme</h2>
+    <p class="help-text">Weboberflächen anderer Programme können mit Name, IP-Adresse oder Hostname, Port und optionalem Pfad eingebunden werden.</p>
+    <div class="form-actions">
+      <a class="button" href="/system/settings/general/additional-programs">Zusatz-Programme konfigurieren</a>
+      <a class="button secondary" href="/additional-programs">Programmübersicht öffnen</a>
+    </div>
+  </div>
+
   <div class="form-actions"><button>Allgemeine Einstellungen speichern</button><a class="button secondary" href="/system/settings">Zurück</a></div>
 </form>
 </section>
