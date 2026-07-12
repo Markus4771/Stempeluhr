@@ -13,6 +13,7 @@ from app.auth import current_user
 from app.database import get_db
 from app.models import Setting
 from app.routes.common import log_action, require_system_admin_response, templates
+from app.services.role_permissions import has_permission
 
 router = APIRouter()
 SETTING_KEY = "additional_programs"
@@ -53,11 +54,42 @@ def _build_url(protocol: str, host: str, port: int, path: str) -> str:
     return f"{protocol}://{host}:{port}{path}"
 
 
+def _normalize_program(name: str, description: str, protocol: str, host: str, port: int, path: str, enabled: str) -> dict:
+    host = (host or "").strip()
+    port = int(port)
+    return {
+        "name": (name or "").strip()[:100],
+        "description": (description or "").strip()[:300],
+        "protocol": "https" if protocol == "https" else "http",
+        "host": host,
+        "port": port,
+        "path": (path or "").strip()[:300],
+        "enabled": str(enabled).lower() in {"1", "true", "on", "yes", "ja"},
+        "url": _build_url(protocol, host, port, path),
+    }
+
+
+def _validate_program(name: str, host: str, port: int) -> str | None:
+    try:
+        port = int(port)
+    except (TypeError, ValueError):
+        return "Der Port ist ungültig."
+    if not (name or "").strip():
+        return "Der Name darf nicht leer sein."
+    if not _valid_host(host):
+        return "Die IP-Adresse oder der Hostname ist ungültig."
+    if not 1 <= port <= 65535:
+        return "Der Port muss zwischen 1 und 65535 liegen."
+    return None
+
+
 @router.get("/additional-programs", response_class=HTMLResponse)
 def additional_programs_overview(request: Request, db: Session = Depends(get_db)):
     user = current_user(request, db)
     if not user:
         return RedirectResponse("/login", status_code=303)
+    if not has_permission(user, "nav.additional_programs"):
+        return RedirectResponse("/", status_code=303)
     programs = [p for p in _load_programs(db) if p.get("enabled", True)]
     return templates.TemplateResponse("additional_programs.html", {
         "request": request,
@@ -95,26 +127,48 @@ def additional_program_add(
     user, redirect = require_system_admin_response(request, db)
     if redirect:
         return redirect
-    name = (name or "").strip()
-    host = (host or "").strip()
-    if not name or not _valid_host(host) or not 1 <= int(port) <= 65535:
-        return RedirectResponse("/system/settings/general/additional-programs?error=" + quote("Name, IP/Hostname oder Port ist ungültig."), status_code=303)
+    error = _validate_program(name, host, port)
+    if error:
+        return RedirectResponse("/system/settings/general/additional-programs?error=" + quote(error), status_code=303)
     programs = _load_programs(db)
     next_id = max([int(p.get("id", 0)) for p in programs] + [0]) + 1
-    programs.append({
-        "id": next_id,
-        "name": name[:100],
-        "description": (description or "").strip()[:300],
-        "protocol": "https" if protocol == "https" else "http",
-        "host": host,
-        "port": int(port),
-        "path": (path or "").strip()[:300],
-        "enabled": str(enabled).lower() in {"1", "true", "on", "yes", "ja"},
-        "url": _build_url(protocol, host, int(port), path),
-    })
+    program = _normalize_program(name, description, protocol, host, port, path, enabled)
+    program["id"] = next_id
+    programs.append(program)
     _save_programs(db, programs)
-    log_action(db, user.employee_number, "additional_program_created", "settings", str(next_id), name)
+    log_action(db, user.employee_number, "additional_program_created", "settings", str(next_id), program["name"])
     return RedirectResponse("/system/settings/general/additional-programs?message=" + quote("Zusatz-Programm gespeichert."), status_code=303)
+
+
+@router.post("/system/settings/general/additional-programs/{program_id}/save")
+def additional_program_save(
+    program_id: int,
+    request: Request,
+    name: str = Form(...),
+    description: str = Form(""),
+    protocol: str = Form("http"),
+    host: str = Form(...),
+    port: int = Form(...),
+    path: str = Form(""),
+    enabled: str = Form("0"),
+    db: Session = Depends(get_db),
+):
+    user, redirect = require_system_admin_response(request, db)
+    if redirect:
+        return redirect
+    error = _validate_program(name, host, port)
+    if error:
+        return RedirectResponse("/system/settings/general/additional-programs?error=" + quote(error), status_code=303)
+    programs = _load_programs(db)
+    program = next((p for p in programs if int(p.get("id", 0)) == program_id), None)
+    if not program:
+        return RedirectResponse("/system/settings/general/additional-programs?error=" + quote("Zusatz-Programm nicht gefunden."), status_code=303)
+    updated = _normalize_program(name, description, protocol, host, port, path, enabled)
+    updated["id"] = program_id
+    programs = [updated if int(p.get("id", 0)) == program_id else p for p in programs]
+    _save_programs(db, programs)
+    log_action(db, user.employee_number, "additional_program_updated", "settings", str(program_id), updated["name"])
+    return RedirectResponse("/system/settings/general/additional-programs?message=" + quote("Zusatz-Programm aktualisiert."), status_code=303)
 
 
 @router.post("/system/settings/general/additional-programs/{program_id}/delete")
