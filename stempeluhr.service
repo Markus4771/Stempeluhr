@@ -10,6 +10,7 @@ Group=stempeluhr
 WorkingDirectory=/opt/stempeluhr
 Environment=PYTHONPATH=/opt/stempeluhr
 EnvironmentFile=-/etc/stempeluhr/stempeluhr.env
+EnvironmentFile=-/etc/stempeluhr/secrets/database.conf
 ExecStart=/bin/bash -lc 'exec /opt/stempeluhr/.venv/bin/uvicorn app.main:app --host "${HOST:-0.0.0.0}" --port "${PORT:-8000}"'
 Restart=always
 RestartSec=5
