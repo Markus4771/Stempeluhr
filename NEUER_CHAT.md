@@ -1,109 +1,44 @@
-# Neuer Chat – Stempeluhr Professional
+# Neuer Chat – Stempeluhr Professional 5.6.15
 
-Diese Datei ist der verbindliche Einstiegspunkt für jede neue ChatGPT-Unterhaltung zum Projekt **Stempeluhr Professional**.
+Diese Datei ist der Einstiegspunkt für jede neue ChatGPT-Unterhaltung zu diesem Projekt.
 
-## Aktueller Projektstand
+## Startanweisung
 
-- Repository: `Markus4771/Stempeluhr`
-- Standardbranch: `main`
-- aktuelle Entwicklungs- und Testversion: **5.6.14**
-- letzte freigegebene Version: **5.6.13**
-- 5.6.14 ist umgesetzt, aber erst nach Build und Test auf der Proxmox-Test-VM freigabefähig
-- Standarddatenbank: PostgreSQL
-- Zielsysteme: Debian 13 und Raspberry Pi OS
-- Installationsformat: Debian-Paket
+> Arbeite am GitHub-Projekt `Markus4771/Stempeluhr`. Lies zuerst `NEUER_CHAT.md`, danach `CHATGPT_PROJEKTKONTEXT.md`, `version.txt`, `README.md` und `changelog.md`. Prüfe anschließend den tatsächlichen aktuellen Quellcode. Bestätige zuerst die gefundene Version und den relevanten Ist-Stand. Arbeite ausschließlich auf Basis des Repository-Stands. Keine Rekonstruktion, keine erfundenen Dateien und keine behaupteten Builds oder Releases.
 
-## Text für einen neuen Chat
+## Aktueller Schwerpunkt
 
-Kopiere den folgenden Text vollständig in einen neuen Chat:
-
-> Arbeite am GitHub-Projekt `Markus4771/Stempeluhr`. Lies zuerst `NEUER_CHAT.md`, anschließend `CHATGPT_PROJEKTKONTEXT.md`, `version.txt`, `app/version.py`, `debian/control`, `README.md` und `changelog.md`. Prüfe danach den tatsächlichen aktuellen Quellcode und bestätige mir zuerst die gefundene Version, den Freigabestatus und den für meine Aufgabe relevanten Ist-Stand. Arbeite ausschließlich auf Basis dieses Repository-Stands weiter. Bestehende Mitarbeiter, Buchungen, PostgreSQL-Daten und Konfigurationen dürfen nicht verloren gehen. Keine Rekonstruktion, keine erfundenen Dateien und keine behaupteten Builds, Pakete, Tags oder Releases ohne tatsächlich vorhandene Artefakte.
+Version **5.6.15** integriert das Hilfesystem mit Administrator-, Benutzer-, Installations- und API-Handbuch, Volltextsuche, Druckansicht und PDF-Ausgabe. Die Quellen liegen unter `docs/manuals/`. Der Router ist in `app/routes/help_docs.py` implementiert und muss über `app/routes/web.py` registriert bleiben.
 
 ## Verbindliche Arbeitsreihenfolge
 
-1. Repository `Markus4771/Stempeluhr` und Branch `main` prüfen.
-2. `NEUER_CHAT.md` und `CHATGPT_PROJEKTKONTEXT.md` vollständig lesen.
-3. Versionen aus `version.txt`, `app/version.py` und `debian/control` vergleichen.
-4. `README.md` und `changelog.md` mit dem tatsächlichen Code abgleichen.
-5. Betroffene Quellcodedateien, Templates, Dienste und Datenbankmodelle suchen.
-6. Vorhandene Funktionen erweitern statt parallele Ersatzlösungen zu erfinden.
-7. PostgreSQL-, API-, UI-, systemd- und Debian-Kompatibilität erhalten.
-8. Änderungen direkt im echten GitHub-Repository umsetzen.
-9. Syntax-, Import-, Start-, Health- und Versionsprüfungen vorbereiten oder durchführen.
-10. Bei Versionsänderungen alle Versions- und Dokumentationsdateien synchron aktualisieren.
-11. `.deb` auf der Proxmox-Test-VM installieren und testen.
-12. Erst nach erfolgreichem Test eine Version freigeben oder ein GitHub Release erstellen.
+1. Repository und Branch `main` prüfen.
+2. Projektkontext vollständig lesen.
+3. Versionen in `version.txt`, `app/version.py` und `debian/control` vergleichen.
+4. README und Changelog prüfen.
+5. Betroffene Quellcodedateien und echte Router-Registrierung analysieren.
+6. Bestehende PostgreSQL-Daten und Kompatibilität erhalten.
+7. Änderungen direkt im Repository umsetzen.
+8. Syntax, Imports, Build und Healthcheck prüfen beziehungsweise auf der Test-VM testen lassen.
+9. Dokumentation gemeinsam mit der Funktion aktualisieren.
 
-## Wichtige Projektregeln
+## Wichtige Regeln
 
-- Es gibt nur eine gemeinsame **Stempeluhr Professional**, keine unterschiedlichen Editionen.
-- PostgreSQL bleibt die Standarddatenbank.
-- Keine Umstellung auf SQLite ohne ausdrücklichen Auftrag.
-- Bestehende Mitarbeiter, Buchungen, Einstellungen und Konfigurationen dürfen durch Updates nicht gelöscht werden.
-- Keine vorhandenen Funktionen entfernen, außer der Benutzer verlangt es ausdrücklich.
-- Raspberry Pi OS, Debian 13, Wayland und labwc berücksichtigen.
-- Secrets, echte Passwörter, Tokens und Zugangsdaten niemals ins Repository, in Logs oder Auditdetails schreiben.
-- Externe Zusatz-Programme nur als geprüfte HTTP-/HTTPS-Verknüpfung einbinden; keine fremden Zugangsdaten speichern.
-- Administrator-Vollzugriff und Notfallzugang dürfen nicht versehentlich entfernt werden.
-- Nicht geprüfte Annahmen deutlich kennzeichnen.
-- Ein `.deb`, ZIP, Tag oder Release darf erst als fertig bezeichnet werden, wenn es tatsächlich gebaut und vorhanden ist.
+- PostgreSQL bleibt Standarddatenbank.
+- Bestehende Daten dürfen nicht gelöscht werden.
+- Keine Secrets oder Passwörter ins Repository schreiben.
+- Debian 13 und Raspberry Pi OS berücksichtigen.
+- Ein Paket oder Release erst nach tatsächlichem Build und Test als fertig bezeichnen.
+- `docs/manuals/` muss im Debian-Paket enthalten sein, weil die integrierte Hilfe diese Dateien zur Laufzeit liest.
 
-## Aktuelle Funktionen von Version 5.6.14
+## Vor Freigabe von 5.6.15 testen
 
-### Rollen und Rechte
-
-- Rollenverwaltung unter **Systemeinstellungen → Personal & Arbeitszeit → Rollen & Rechte**
-- eigene Rollen mit Name, Beschreibung und Berechtigungen
-- geschützte Standardrollen
-- Administrator besitzt immer Vollzugriff
-- Berechtigungen im vorhandenen Feld `roles.permissions`
-- Navigation wird über Rollenrechte gesteuert
-
-### Systemeinstellungs-Untermenüs
-
-Unter **Allgemeine Einstellungen** gruppiert nach:
-
-- Allgemein
-- Personal & Arbeitszeit
-- Integrationen
-- Sicherheit
-- Wartung
-
-Zusätzlich:
-
-- Alle aktivieren
-- Alle deaktivieren
-- wichtige Kernmenüs bleiben erreichbar
-
-### Zusatz-Programme
-
-- Konfiguration unter **Systemeinstellungen → Allgemeine Einstellungen → Zusatz-Programme**
-- Name, Beschreibung, HTTP/HTTPS, IP/Hostname, Port, optionaler Pfad und Aktivstatus
-- Programme anlegen, bearbeiten, aktivieren, deaktivieren, öffnen und löschen
-- Übersicht unter **Zusatz-Programme**
-- Rollenrecht steuert die Sichtbarkeit
-- keine fremden Zugangsdaten in der Stempeluhr speichern
-
-## Bei jeder neuen Version aktualisieren
-
-- `version.txt`
-- `app/version.py`
-- `debian/control`
-- `README.md`
-- `changelog.md`
-- `CHATGPT_PROJEKTKONTEXT.md`
-- bei wesentlichen Änderungen `NEUER_CHAT.md`
-
-## Aktuelles Hauptziel
-
-Version **5.6.14** vollständig auf der Proxmox-Test-VM prüfen:
-
-- Rollen und Berechtigungen
-- Schutz der Standardrollen
-- gruppierte Systemeinstellungs-Untermenüs
-- Alle-aktivieren/Alle-deaktivieren
-- Zusatz-Programme inklusive Bearbeitung und Aktivstatus
-- rollenabhängige Navigation
-- Erhalt aller Mitarbeiter und Buchungen
+- `/help`
+- alle vier Handbuchseiten
+- Suche
+- alle PDF-Downloads
+- Druckansicht
+- Anmeldungsschutz der Hilferouten
+- Zusatz-Programme und Rollen aus 5.6.14
 - `/health` und `/version`
-- anschließend erst Freigabe und GitHub Release
+- Mitarbeiter und Buchungen
