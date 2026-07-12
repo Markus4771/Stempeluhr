@@ -7,7 +7,7 @@
 - Name: **Stempeluhr Professional**
 - Repository: `Markus4771/Stempeluhr`
 - Standardbranch: `main`
-- Aktuelle Version: **5.6.13**
+- Aktuelle Version: **5.6.14**
 - Zielplattform: Debian 13 und Raspberry Pi OS
 - Backend: Python, FastAPI, Uvicorn, SQLAlchemy
 - Standarddatenbank: PostgreSQL
@@ -27,42 +27,46 @@ Bei jeder neuen Version synchron aktualisieren: `version.txt`, `app/version.py`,
 - variable Daten: `/var/lib/stempeluhr`
 - Logs: systemd-Journal und `/var/log/stempeluhr`
 - Dienst: `stempeluhr.service`
+- Rollenverwaltung: **Systemeinstellungen → Personal & Arbeitszeit → Rollen & Rechte**
 - Sicherheitsrichtlinien: **Systemeinstellungen → Allgemeine Einstellungen → Sicherheit**
-- Datenbankzugang: **Systemeinstellungen → Sicherheit → Datenbankzugang**
 - Updates: **Systemeinstellungen → Wartung → Updates**
 - Healthcheck: `/health`
 - Versionsauskunft: `/version`
 
-## Version 5.6.13
+## Version 5.6.14
 
-Schwerpunkt: konfigurierbare Anmelde- und Passwortrichtlinien.
+Schwerpunkt: konfigurierbare Rollen und Berechtigungen.
 
 Umgesetzt:
 
-- Brute-Force-Schutz kann aktiviert oder deaktiviert werden
-- Fehlversuche bis zur Sperre sind von 1 bis 20 konfigurierbar
-- Sperrdauer für Benutzerkonto und IP-Adresse ist von 1 bis 1440 Minuten konfigurierbar
-- IP-Sperre kann unabhängig aktiviert oder deaktiviert werden
-- Sperrstände werden als interne Settings in PostgreSQL gespeichert und durch vorhandene Backups erfasst
-- fehlgeschlagene und blockierte Anmeldungen werden ohne Passwortwerte im Audit protokolliert
-- Passwort-Mindestlänge ist von 8 bis 64 Zeichen konfigurierbar
-- Großbuchstaben, Kleinbuchstaben, Zahlen, Sonderzeichen, Leerzeichen und Identitätsbestandteile sind einzeln konfigurierbar
-- Regeln gelten beim Onboarding, beim Passwort-Reset und beim Ändern des festen Admin-Passworts
-- bestehende Passwörter werden nicht rückwirkend ungültig
-- der feste Benutzer `admin` wird bei Neuinstallationen weiterhin einmalig mit `admin123` angelegt
-- solange der Hash noch `admin123` entspricht, zeigt jede angemeldete Seite eine dauerhafte Warnung
-- nach der ersten Änderung gelten sämtliche Richtlinien; `admin123` darf nicht erneut gesetzt werden
-- die Erkennung des Standardpassworts erfolgt ausschließlich über Hash-Prüfung, ohne zusätzliches Klartextmerkmal
+- Rollenverwaltung unter `/system/settings/roles`
+- neue Rollen mit Name, Beschreibung und Berechtigungsauswahl anlegbar
+- vorhandene Rollen bearbeitbar
+- eigene Rollen nur löschbar, wenn ihnen keine Benutzer zugeordnet sind
+- Standardrollen `Administrator`, `Personal`, `Teamleiter` und `Mitarbeiter` sind gegen Löschen geschützt
+- Rolle `Administrator` behält immer Vollzugriff und kann nicht umbenannt werden
+- Berechtigungen werden als JSON im bereits vorhandenen Feld `roles.permissions` gespeichert
+- keine neue Tabelle und keine destruktive Migration erforderlich
+- vorhandene Standardrollen erhalten rückwärtskompatible Standardrechte, solange keine individuellen Rechte gespeichert wurden
+- Navigation liest die Rollenberechtigungen aus der Sitzung
+- Rollen werden weiterhin über die vorhandene Mitarbeiterverwaltung zugeordnet
+- Änderungen an Rollen werden im Audit-Protokoll erfasst
+
+## Berechtigungsgruppen
+
+- Navigation: Dashboard, Zeiterfassung, Abwesenheit, Mitarbeiter, Korrektur, Auswertung, Plausibilität, Systemeinstellungen, Audit und Monitoring
+- Mitarbeiter: ansehen, verwalten und Onboarding-Einladungen
+- Arbeitszeit: Korrekturen, Gesamtauswertungen, Abwesenheitsfreigabe und Plausibilitätsbearbeitung
+- System: Einstellungen, Backup, Updates, Diagnose, Audit und Monitoring
 
 ## Sicherheitsregeln
 
-- niemals Passwörter in Logs, Auditdetails, URLs oder Prozessargumenten speichern
-- Login-Fehlermeldungen dürfen keine Benutzerexistenz offenlegen
-- erfolgreiche Anmeldung löscht den zugehörigen Fehlversuchsstatus
-- bestehende Konten dürfen durch neue Richtlinien nicht ohne Passwortänderung ausgesperrt werden
-- das Standardpasswort des festen Admins ist nur eine einmalige Einrichtungsausnahme
-- Passwortänderungen müssen die zentralen Richtlinien verwenden
-- Webprozess darf keine allgemeinen Root-Rechte erhalten
+- Administrator-Vollzugriff darf nicht entfernbar sein
+- Standardrollen dürfen nicht versehentlich gelöscht werden
+- Rollen mit zugeordneten Benutzern dürfen nicht gelöscht werden
+- unbekannte Berechtigungswerte werden beim Speichern verworfen
+- bestehende Installationen ohne gespeicherte JSON-Rechte müssen weiterhin funktionieren
+- keine Passwörter oder Secrets in Rollen- oder Auditdaten speichern
 
 ## Debian-Buildsystem
 
@@ -73,31 +77,29 @@ bash scripts/build_release.sh
 Erwartete Artefakte:
 
 ```text
-releases/stempeluhr_5.6.13_all.deb
-releases/stempeluhr_5.6.13_all.deb.sha256
-releases/stempeluhr_5.6.13_build.log
-releases/stempeluhr_5.6.13_BUILD_REPORT.md
+releases/stempeluhr_5.6.14_all.deb
+releases/stempeluhr_5.6.14_all.deb.sha256
+releases/stempeluhr_5.6.14_build.log
+releases/stempeluhr_5.6.14_BUILD_REPORT.md
 ```
 
 ## Offene Prüfungen vor Freigabe
 
 - Python-Syntax und Imports der neuen Module prüfen
-- Upgrade von 5.6.12 auf 5.6.13 auf der Proxmox-Test-VM durchführen
-- korrekten Login mit bestehendem Passwort prüfen
-- Sperre nach konfigurierter Anzahl falscher Anmeldungen prüfen
-- automatische Entsperrung nach Ablauf prüfen
-- IP-Sperre getrennt prüfen
-- deaktivierten Brute-Force-Schutz prüfen
-- Standardpasswort-Warnung für `admin` prüfen
-- Admin-Passwort nach konfigurierter Richtlinie ändern und Verschwinden der Warnung prüfen
-- erneutes Setzen von `admin123` muss abgelehnt werden
-- Passwort-Reset und Onboarding gegen die Richtlinien testen
+- Upgrade von 5.6.13 auf 5.6.14 auf der Proxmox-Test-VM durchführen
+- Rollenverwaltung öffnen
+- neue Testrolle anlegen und speichern
+- Testrolle einem Testbenutzer zuweisen
+- Navigation und Zugriffe mit der Testrolle prüfen
+- Rolle mit zugeordnetem Benutzer darf nicht löschbar sein
+- Rolle nach Entfernung der Zuordnung löschen
+- Standardrollen und Administrator-Vollzugriff prüfen
 - `/health`, `/version`, Mitarbeiter und Buchungen prüfen
-- erst danach Tag `v5.6.13` und GitHub Release veröffentlichen
+- erst danach Tag `v5.6.14` und GitHub Release veröffentlichen
 
 ## Releasefreigabe
 
-5.6.13 ist erst freigegeben, wenn `.deb`, SHA256, Buildlog und Buildbericht tatsächlich vorhanden sind und Login-Sperre, Entsperrung, Passwortregeln, Admin-Ausnahme, Warnung, Onboarding und Passwort-Reset auf der Test-VM erfolgreich geprüft wurden.
+5.6.14 ist erst freigegeben, wenn `.deb`, SHA256, Buildlog und Buildbericht tatsächlich vorhanden sind und Rollenanlage, Bearbeitung, Zuordnung, Navigation, Schutzregeln und bestehende Daten auf der Test-VM geprüft wurden.
 
 ## Startanweisung für neue Chats
 
