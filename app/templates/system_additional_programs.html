@@ -15,25 +15,31 @@
       <div class="form-field"><label>Optionaler Pfad</label><input name="path" placeholder="z. B. web/login"></div>
       <div class="form-field checkbox-field"><label><input type="checkbox" name="enabled" value="1" checked> In der Übersicht anzeigen</label></div>
     </div>
-    <div class="form-actions"><button type="submit">Zusatz-Programm hinzufügen</button><a class="button secondary" href="/system/settings/general">Zurück</a></div>
+    <div class="form-actions"><button type="submit">Zusatz-Programm hinzufügen</button><a class="button secondary" href="/system/settings/general">Zurück</a><a class="button secondary" href="/additional-programs">Übersicht öffnen</a></div>
   </form>
 </section>
 <section class="card settings-card">
   <h2>Konfigurierte Zusatz-Programme</h2>
   {% if programs %}
-  <div class="settings-menu">
     {% for program in programs %}
-    <div class="settings-tile">
-      <strong>{{ program.name }}</strong>
-      <span>{{ program.description or 'Keine Beschreibung' }}</span>
-      <code>{{ program.url }}</code>
-      <div class="form-actions">
-        <a class="button secondary" href="{{ program.url }}" target="_blank" rel="noopener noreferrer">Öffnen</a>
-        <form action="/system/settings/general/additional-programs/{{ program.id }}/delete" method="post" onsubmit="return confirm('Zusatz-Programm wirklich löschen?');"><button class="danger" type="submit">Löschen</button></form>
+    <form action="/system/settings/general/additional-programs/{{ program.id }}/save" method="post" class="settings-form settings-section">
+      <div class="settings-grid">
+        <div class="form-field"><label>Name</label><input name="name" required maxlength="100" value="{{ program.name }}"></div>
+        <div class="form-field"><label>Beschreibung</label><input name="description" maxlength="300" value="{{ program.description or '' }}"></div>
+        <div class="form-field"><label>Protokoll</label><select name="protocol"><option value="http" {% if program.protocol == 'http' %}selected{% endif %}>HTTP</option><option value="https" {% if program.protocol == 'https' %}selected{% endif %}>HTTPS</option></select></div>
+        <div class="form-field"><label>IP-Adresse oder Hostname</label><input name="host" required value="{{ program.host }}"></div>
+        <div class="form-field"><label>Port</label><input name="port" type="number" min="1" max="65535" required value="{{ program.port }}"></div>
+        <div class="form-field"><label>Optionaler Pfad</label><input name="path" value="{{ program.path or '' }}"></div>
+        <div class="form-field checkbox-field"><label><input type="checkbox" name="enabled" value="1" {% if program.enabled %}checked{% endif %}> In der Übersicht anzeigen</label></div>
       </div>
-    </div>
+      <p class="help-text">Aktuelle Adresse: <code>{{ program.url }}</code></p>
+      <div class="form-actions">
+        <button type="submit">Änderungen speichern</button>
+        <a class="button secondary" href="{{ program.url }}" target="_blank" rel="noopener noreferrer">Öffnen</a>
+        <button class="danger" type="submit" formaction="/system/settings/general/additional-programs/{{ program.id }}/delete" onclick="return confirm('Zusatz-Programm wirklich löschen?');">Löschen</button>
+      </div>
+    </form>
     {% endfor %}
-  </div>
   {% else %}<p>Noch keine Zusatz-Programme konfiguriert.</p>{% endif %}
 </section>
 {% endblock %}
