@@ -1,25 +1,25 @@
-# Stempeluhr Professional 5.6.12
+# Stempeluhr Professional 5.6.13
 
 Webbasierte Zeiterfassung für Debian-Server und Raspberry-Pi-Terminals mit PostgreSQL, FastAPI, Rollen und Rechten, Reporting, Onboarding und Raspberry-Kioskfunktionen.
 
 ## Aktueller Stand
 
-- Version: **5.6.12**
+- Version: **5.6.13**
 - Standarddatenbank: PostgreSQL
 - Zielplattform: Debian 13 / Raspberry Pi OS
 - Standardbranch: `main`
 
 Änderungen dieser Version:
 
-- Datenbankpasswort aus der allgemeinen Konfiguration nach `/etc/stempeluhr/secrets/database.conf` ausgelagert
-- bestehende Installationen werden beim Paketupdate automatisch und ohne Passwortänderung migriert
-- neue Seite **Systemeinstellungen → Sicherheit → Datenbankzugang**
-- Administrator kann das lokale PostgreSQL-Passwort nach erneuter Bestätigung seines Admin-Passworts ändern
-- Passwortwechsel verwendet SCRAM-SHA-256, Verbindungstest, Konfigurationssicherung und Rollback
-- Datenbankpasswort erscheint weder im Audit-Protokoll noch in Ausgaben
-- systemd lädt allgemeine Konfiguration und Datenbank-Secret getrennt
-- manueller und GitHub-basierter Updateweg bleiben erhalten
-- keine Datenbankmodelle oder produktiven Mitarbeiter-/Buchungsdaten geändert
+- konfigurierbarer Schutz gegen wiederholte Fehlanmeldungen
+- Fehlversuche bis Sperre sowie Benutzer- und IP-Sperrdauer unter **Allgemeine Einstellungen → Sicherheit** einstellbar
+- konfigurierbare Passwortregeln für Mindestlänge, Groß-/Kleinbuchstaben, Zahlen, Sonderzeichen, Leerzeichen und Identitätsbestandteile
+- Richtlinien gelten für Onboarding, Passwort-Reset und die Änderung des festen Admin-Passworts
+- der feste Benutzer `admin` darf das initiale Standardpasswort `admin123` zunächst weiter verwenden
+- solange das Standardpasswort aktiv ist, erscheint nach jeder Anmeldung eine dauerhafte Sicherheitswarnung
+- nach der ersten Änderung gelten alle konfigurierten Regeln; `admin123` kann nicht erneut gesetzt werden
+- fehlgeschlagene und gesperrte Anmeldungen werden ohne Passwortdaten im Audit protokolliert
+- bestehende Passwörter bleiben gültig, bis sie geändert werden
 
 ## Debian-Paket lokal bauen
 
@@ -30,16 +30,12 @@ bash scripts/build_release.sh
 Ergebnis:
 
 ```text
-releases/stempeluhr_5.6.12_all.deb
-releases/stempeluhr_5.6.12_all.deb.sha256
-releases/stempeluhr_5.6.12_build.log
-releases/stempeluhr_5.6.12_BUILD_REPORT.md
+releases/stempeluhr_5.6.13_all.deb
+releases/stempeluhr_5.6.13_all.deb.sha256
+releases/stempeluhr_5.6.13_build.log
+releases/stempeluhr_5.6.13_BUILD_REPORT.md
 ```
 
 ## Test und Installation
 
-Version 5.6.12 soll zuerst auf einer Debian-13-Test-VM installiert werden. Nach erfolgreichem Test kann der Tag `v5.6.12` das GitHub Release erzeugen.
-
-## Sicherheit
-
-`stempeluhr.env` enthält keine Datenbankpasswörter mehr. `database.conf` gehört `root:stempeluhr` und hat Modus `0640`. Der Webdienst erhält keine allgemeinen Root-Rechte; nur der fest definierte Datenbank-Secret-Helfer darf über einen eng begrenzten sudoers-Eintrag aufgerufen werden.
+Version 5.6.13 zuerst auf der Debian-13-Test-VM installieren. Besonders zu testen sind Login-Sperre, Entsperrung nach Ablauf, IP-Sperre, Passwortregeln, Onboarding, Passwort-Reset und die dauerhafte Admin-Warnung.
