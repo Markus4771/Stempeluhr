@@ -1,11 +1,69 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="help-toolbar">
-  <a class="button secondary" href="/help">Zur Übersicht</a>
-  <a class="button secondary" href="/help/{{ slug }}/pdf">PDF herunterladen</a>
-  <button type="button" onclick="window.print()">Drucken</button>
+<link rel="stylesheet" href="/static/help.css">
+<div class="help-page">
+  <div class="help-toolbar">
+    <a class="button secondary" href="/help">Zur Übersicht</a>
+    <a class="button secondary" href="/help/{{ slug }}/pdf">PDF herunterladen</a>
+    <button type="button" onclick="window.print()">Drucken</button>
+  </div>
+
+  <div class="help-layout">
+    <aside class="help-sidebar" aria-label="Handbuchnavigation">
+      <h2>{{ manual.title }}</h2>
+      <div class="help-meta">Version 5.6.15</div>
+      <nav>
+        {% for entry in toc %}
+          <a href="#{{ entry.anchor }}" {% if entry.level == 3 %}style="padding-left:24px;font-size:0.94em"{% endif %}>{{ entry.title }}</a>
+        {% endfor %}
+      </nav>
+      <hr>
+      <h2>Weitere Handbücher</h2>
+      {% for other_slug, other in manuals.items() %}
+        {% if other_slug != slug %}<a href="/help/{{ other_slug }}">{{ other.title }}</a>{% endif %}
+      {% endfor %}
+    </aside>
+
+    <main>
+      <div class="help-search-inline">
+        <input id="helpPageSearch" type="search" placeholder="In diesem Handbuch suchen …" aria-label="In diesem Handbuch suchen">
+      </div>
+      <article class="card help-document" id="helpDocument">
+        {{ content_html | safe }}
+      </article>
+    </main>
+  </div>
 </div>
-<article class="card help-document">
-  {{ content_html | safe }}
-</article>
+
+<script>
+document.querySelectorAll('.copy-code').forEach(function (button) {
+  button.addEventListener('click', async function () {
+    const code = button.parentElement.querySelector('code');
+    try {
+      await navigator.clipboard.writeText(code.innerText);
+      button.textContent = 'Kopiert';
+      button.classList.add('copied');
+      setTimeout(function () {
+        button.textContent = 'Kopieren';
+        button.classList.remove('copied');
+      }, 1600);
+    } catch (error) {
+      const range = document.createRange();
+      range.selectNodeContents(code);
+      const selection = window.getSelection();
+      selection.removeAllRanges();
+      selection.addRange(range);
+    }
+  });
+});
+
+const search = document.getElementById('helpPageSearch');
+const documentRoot = document.getElementById('helpDocument');
+search.addEventListener('input', function () {
+  const term = search.value.trim().toLocaleLowerCase('de');
+  documentRoot.querySelectorAll('h1,h2,h3,p,li,pre').forEach(function (element) {
+    element.style.display = !term || element.innerText.toLocaleLowerCase('de').includes(term) ? '' : 'none';
+  });
+});
+</script>
 {% endblock %}
