@@ -1,25 +1,26 @@
-# Stempeluhr Professional 5.6.13
+# Stempeluhr Professional 5.6.14
 
-Webbasierte Zeiterfassung für Debian-Server und Raspberry-Pi-Terminals mit PostgreSQL, FastAPI, Rollen und Rechten, Reporting, Onboarding und Raspberry-Kioskfunktionen.
+Webbasierte Zeiterfassung für Debian-Server und Raspberry-Pi-Terminals mit PostgreSQL, FastAPI, konfigurierbaren Rollen und Rechten, Reporting, Onboarding und Raspberry-Kioskfunktionen.
 
 ## Aktueller Stand
 
-- Version: **5.6.13**
+- Version: **5.6.14**
 - Standarddatenbank: PostgreSQL
 - Zielplattform: Debian 13 / Raspberry Pi OS
 - Standardbranch: `main`
 
 Änderungen dieser Version:
 
-- konfigurierbarer Schutz gegen wiederholte Fehlanmeldungen
-- Fehlversuche bis Sperre sowie Benutzer- und IP-Sperrdauer unter **Allgemeine Einstellungen → Sicherheit** einstellbar
-- konfigurierbare Passwortregeln für Mindestlänge, Groß-/Kleinbuchstaben, Zahlen, Sonderzeichen, Leerzeichen und Identitätsbestandteile
-- Richtlinien gelten für Onboarding, Passwort-Reset und die Änderung des festen Admin-Passworts
-- der feste Benutzer `admin` darf das initiale Standardpasswort `admin123` zunächst weiter verwenden
-- solange das Standardpasswort aktiv ist, erscheint nach jeder Anmeldung eine dauerhafte Sicherheitswarnung
-- nach der ersten Änderung gelten alle konfigurierten Regeln; `admin123` kann nicht erneut gesetzt werden
-- fehlgeschlagene und gesperrte Anmeldungen werden ohne Passwortdaten im Audit protokolliert
-- bestehende Passwörter bleiben gültig, bis sie geändert werden
+- neue Rollenverwaltung unter **Systemeinstellungen → Personal & Arbeitszeit → Rollen & Rechte**
+- neue Rollen können mit Beschreibung und auswählbaren Berechtigungen angelegt werden
+- vorhandene Rollen können bearbeitet und nicht verwendete eigene Rollen gelöscht werden
+- Standardrollen bleiben gegen Löschen geschützt
+- die Rolle `Administrator` behält immer Vollzugriff und kann nicht umbenannt werden
+- vorhandenes Feld `roles.permissions` wird als JSON genutzt; keine neue Datenbanktabelle erforderlich
+- Navigation wird anhand der Rollenberechtigungen aufgebaut
+- bestehende Standardrollen erhalten rückwärtskompatible Standardrechte, solange keine individuellen Rechte gespeichert wurden
+- Rollen werden weiterhin in der vorhandenen Mitarbeiterverwaltung zugeordnet
+- keine produktiven Mitarbeiter-, Buchungs- oder PostgreSQL-Daten werden gelöscht
 
 ## Debian-Paket lokal bauen
 
@@ -30,12 +31,12 @@ bash scripts/build_release.sh
 Ergebnis:
 
 ```text
-releases/stempeluhr_5.6.13_all.deb
-releases/stempeluhr_5.6.13_all.deb.sha256
-releases/stempeluhr_5.6.13_build.log
-releases/stempeluhr_5.6.13_BUILD_REPORT.md
+releases/stempeluhr_5.6.14_all.deb
+releases/stempeluhr_5.6.14_all.deb.sha256
+releases/stempeluhr_5.6.14_build.log
+releases/stempeluhr_5.6.14_BUILD_REPORT.md
 ```
 
 ## Test und Installation
 
-Version 5.6.13 zuerst auf der Debian-13-Test-VM installieren. Besonders zu testen sind Login-Sperre, Entsperrung nach Ablauf, IP-Sperre, Passwortregeln, Onboarding, Passwort-Reset und die dauerhafte Admin-Warnung.
+Version 5.6.14 zuerst auf der Debian-13-Test-VM installieren. Zu testen sind Rollen anlegen, Berechtigungen speichern, Rolle einem Testbenutzer zuweisen, Navigation prüfen, Standardrollen schützen sowie `/health` und `/version` kontrollieren.
