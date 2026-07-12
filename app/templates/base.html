@@ -30,6 +30,7 @@
         {% if full_access or 'nav.audit' in permissions %}<a href="/system/audit">Audit-Protokoll</a>{% endif %}
         {% if full_access or 'nav.monitoring' in permissions %}<a href="/system/monitoring">Monitoring</a>{% endif %}
         {% if full_access %}<a href="/system/developer">Entwickler</a>{% endif %}
+        {% if session_data.get("employee_name") %}<a href="/help">Hilfe &amp; Dokumentation</a>{% endif %}
     </div>
     <div class="nav-right">
         {% if session_data.get("employee_name") %}
