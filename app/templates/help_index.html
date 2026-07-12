@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Hilfe &amp; Dokumentation</h1>
+<section class="card settings-card">
+  <form method="get" action="/help" class="settings-form">
+    <div class="settings-grid">
+      <div class="form-field"><label>Handbücher durchsuchen</label><input name="q" value="{{ query }}" placeholder="z. B. Backup, RFID, Passwort, API"></div>
+    </div>
+    <div class="form-actions"><button type="submit">Suchen</button></div>
+  </form>
+  {% if query %}
+    <h2>Suchergebnisse für „{{ query }}“</h2>
+    {% if results %}
+      <div class="settings-menu">
+      {% for result in results %}
+        <a class="settings-tile" href="/help/{{ result.slug }}"><strong>{{ result.title }}</strong><span>{{ result.snippet }}</span></a>
+      {% endfor %}
+      </div>
+    {% else %}<p>Keine Treffer gefunden.</p>{% endif %}
+  {% endif %}
+</section>
+<section class="card settings-card">
+  <h2>Handbücher</h2>
+  <div class="settings-menu">
+  {% for slug, manual in manuals.items() %}
+    <div class="settings-tile">
+      <strong>{{ manual.title }}</strong>
+      <span>{{ manual.description }}</span>
+      <div class="form-actions">
+        <a class="button" href="/help/{{ slug }}">Lesen</a>
+        <a class="button secondary" href="/help/{{ slug }}/pdf">PDF herunterladen</a>
+      </div>
+    </div>
+  {% endfor %}
+  </div>
+</section>
+<section class="card settings-card">
+  <h2>Weitere Informationen</h2>
+  <div class="settings-menu">
+    <a class="settings-tile" href="/help/benutzer"><strong>Erste Schritte</strong><span>Anmelden, buchen und eigene Zeiten prüfen.</span></a>
+    <a class="settings-tile" href="/help/administrator"><strong>FAQ &amp; Fehlerbehebung</strong><span>Typische Probleme und sichere Lösungswege.</span></a>
+    <a class="settings-tile" href="/system/settings/updates"><strong>Versionshinweise</strong><span>Installierte Version und verfügbare Aktualisierungen.</span></a>
+  </div>
+</section>
+{% endblock %}
