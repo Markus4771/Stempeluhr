@@ -1,3 +1,16 @@
+## 5.6.15
+
+- Hauptmenüpunkt `Hilfe & Dokumentation` ergänzt
+- Administratorhandbuch, Benutzerhandbuch, Installations- und Einrichterhandbuch sowie API-Handbuch integriert
+- Handbuchquellen unter `docs/manuals/` versioniert
+- HTML-Leseansicht und browserbasierte Druckansicht ergänzt
+- PDF-Erzeugung und Download direkt aus der Anwendung mit ReportLab ergänzt
+- gemeinsame Volltextsuche über alle Handbücher ergänzt
+- Hilfebereich nur für angemeldete Benutzer erreichbar
+- neue Routen `/help`, `/help/{handbuch}` und `/help/{handbuch}/pdf`
+- Dokumentationsquellen werden zusammen mit dem Debian-Paket ausgeliefert
+- keine produktiven Mitarbeiter-, Buchungs- oder Datenbankdaten verändert
+
 ## 5.6.14
 
 - Rollenverwaltung unter `Systemeinstellungen → Personal & Arbeitszeit → Rollen & Rechte` ergänzt
