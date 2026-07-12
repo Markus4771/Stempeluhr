@@ -1,5 +1,5 @@
 Package: stempeluhr
-Version: 5.6.12
+Version: 5.6.13
 Section: web
 Priority: optional
 Architecture: all
@@ -10,5 +10,5 @@ Replaces: stempeluhr-professional
 Breaks: stempeluhr-professional
 Description: Stempeluhr Professional
  Webbasierte Zeiterfassung mit RFID, Rollen/Rechten, Reporting,
- geschützter Secret-Verwaltung und sicherer PostgreSQL-Passwortänderung.
+ geschützter Secret-Verwaltung und konfigurierbaren Sicherheitsrichtlinien.
  Dieses Release-Paket ist für Neuinstallation und Update geeignet.
