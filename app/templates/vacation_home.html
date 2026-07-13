@@ -1,16 +1,19 @@
 {% extends "base.html" %}
 {% block content %}
-<h1>Abwesenheit</h1>
+<h1>Abwesenheiten</h1>
 <section class="card">
-    <h2>Abwesenheitsmenü</h2>
+    <h2>Übersicht</h2>
     <div class="settings-menu">
-        <a class="settings-tile" href="/vacation/request"><strong>Abwesenheitsantrag</strong><span>Neuen Antrag stellen</span></a>
+        <a class="settings-tile" href="/vacation/request"><strong>Neuer Antrag</strong><span>Abwesenheit erfassen oder beantragen</span></a>
         <a class="settings-tile" href="/vacation/my"><strong>Meine Abwesenheiten</strong><span>Status ansehen und eigene Abwesenheiten korrigieren</span></a>
         {% if can_approve %}
         <a class="settings-tile" href="/vacation/approvals"><strong>Genehmigungen</strong><span>Offene Anträge: {{ open_count }}</span></a>
         {% endif %}
         <a class="settings-tile" href="/vacation/calendar"><strong>Abwesenheitskalender</strong><span>Genehmigte Abwesenheiten und Feiertage</span></a>
         <a class="settings-tile" href="/vacation/balance"><strong>Resturlaub</strong><span>Abwesenheitsstand anzeigen</span></a>
+        {% if full_access %}
+        <a class="settings-tile" href="/system/settings/absence-types"><strong>Abwesenheitsarten</strong><span>Arten, Genehmigungspflicht und Pflichtfelder verwalten</span></a>
+        {% endif %}
     </div>
 </section>
 <section class="card">
