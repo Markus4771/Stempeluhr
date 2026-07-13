@@ -47,24 +47,25 @@
         <th>Aktion</th>
       </tr>
       {% for item in types %}
+      {% set update_form_id = "absence-type-update-" ~ item.id %}
       <tr>
-        <form method="post" action="/system/settings/absence-types/{{ item.id }}/update">
-          <td><input type="number" name="sort_order" value="{{ item.sort_order or 100 }}" style="width:90px"></td>
-          <td><input name="name" value="{{ item.name }}" required></td>
-          <td><code>{{ item.code }}</code></td>
-          <td>
-            <label><input type="checkbox" name="active" {% if item.active %}checked{% endif %}> aktiv</label><br>
-            <label><input type="checkbox" name="requires_approval" {% if item.requires_approval %}checked{% endif %}> Genehmigung</label><br>
-            <label><input type="checkbox" name="requires_text" {% if item.requires_text %}checked{% endif %}> Text Pflicht</label>
-          </td>
-          <td>{{ used.get(item.code, 0) }}</td>
-          <td>
-            <button>Speichern</button>
-        </form>
-            <form method="post" action="/system/settings/absence-types/{{ item.id }}/delete" onsubmit="return confirm('Diese Abwesenheitsart löschen oder deaktivieren? Bereits verwendete Arten werden nur deaktiviert.');" style="margin-top:8px">
-              <button class="danger" type="submit">Löschen</button>
-            </form>
-          </td>
+        <td><input form="{{ update_form_id }}" type="number" name="sort_order" value="{{ item.sort_order or 100 }}" style="width:90px"></td>
+        <td><input form="{{ update_form_id }}" name="name" value="{{ item.name }}" required></td>
+        <td><code>{{ item.code }}</code></td>
+        <td>
+          <label><input form="{{ update_form_id }}" type="checkbox" name="active" {% if item.active %}checked{% endif %}> aktiv</label><br>
+          <label><input form="{{ update_form_id }}" type="checkbox" name="requires_approval" {% if item.requires_approval %}checked{% endif %}> Genehmigung</label><br>
+          <label><input form="{{ update_form_id }}" type="checkbox" name="requires_text" {% if item.requires_text %}checked{% endif %}> Text Pflicht</label>
+        </td>
+        <td>{{ used.get(item.code, 0) }}</td>
+        <td>
+          <form id="{{ update_form_id }}" method="post" action="/system/settings/absence-types/{{ item.id }}/update">
+            <button type="submit">Speichern</button>
+          </form>
+          <form method="post" action="/system/settings/absence-types/{{ item.id }}/delete" onsubmit="return confirm('Diese Abwesenheitsart löschen oder deaktivieren? Bereits verwendete Arten werden nur deaktiviert.');" style="margin-top:8px">
+            <button class="danger" type="submit">Löschen</button>
+          </form>
+        </td>
       </tr>
       {% endfor %}
     </table>
