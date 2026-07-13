@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Datenschutzerklärung</h1>
+<section class="card">
+  <p><strong>Version:</strong> {{ privacy_version }}</p>
+
+  {% if privacy_notice_text %}
+  <div class="info-box privacy-text">{{ privacy_notice_text }}</div>
+  {% endif %}
+
+  {% if privacy_processing_purpose %}
+  <h2>Zweck der Verarbeitung</h2>
+  <p>{{ privacy_processing_purpose }}</p>
+  {% endif %}
+
+  {% if privacy_legal_basis %}
+  <h2>Rechtsgrundlage</h2>
+  <p>{{ privacy_legal_basis }}</p>
+  {% endif %}
+
+  <h2>Hinweis zur Arbeitszeiterfassung</h2>
+  <div class="info-box privacy-text">{{ privacy_text }}</div>
+
+  <h2>Aufbewahrung</h2>
+  <p>Die konfigurierte Aufbewahrungsdauer beträgt {{ privacy_retention_years }} Jahre.</p>
+
+  {% if privacy_officer_name or privacy_officer_email %}
+  <h2>Datenschutzkontakt</h2>
+  <p>
+    {% if privacy_officer_name %}{{ privacy_officer_name }}{% endif %}
+    {% if privacy_officer_email %}<br><a href="mailto:{{ privacy_officer_email }}">{{ privacy_officer_email }}</a>{% endif %}
+  </p>
+  {% endif %}
+
+  <p><button type="button" onclick="window.close()">Fenster schließen</button></p>
+</section>
+{% endblock %}
