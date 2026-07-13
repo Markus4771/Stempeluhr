@@ -47,14 +47,28 @@ inaktiv. Es werden nur manuell gebuchte Pausen abgezogen.
 &nbsp; | &nbsp;<strong>Soll:</strong> {{ '%.2f'|format(worktime_totals.target_hours) }} Stunden
 </div>
 
+<div class="table-wrap">
 <table>
 <tr>
-<th>Datum</th><th>Mitarbeiter</th><th>Soll</th><th>Brutto</th><th>Manuelle Pause</th><th>Auto-Pause</th><th>Pause gesamt</th><th>Netto</th><th>Tag +/-</th><th>Status</th>
+<th>Datum</th><th>Mitarbeiter</th><th>Kommen</th><th>Gehen</th><th>Soll</th><th>Brutto</th><th>Manuelle Pause</th><th>Auto-Pause</th><th>Pause gesamt</th><th>Netto</th><th>Tag +/-</th><th>Status</th>
 </tr>
 {% for row in worktime_rows %}
+{% set stamp = namespace(come='', leave='') %}
+{% for e in entries %}
+  {% if e.employee_id == row.employee_id and e.timestamp.date() == row.date %}
+    {% set typ = (e.entry_type or '')|lower %}
+    {% if typ in ['kommen', 'come', 'in'] and not stamp.come %}
+      {% set stamp.come = e.timestamp.strftime('%H:%M:%S') %}
+    {% elif typ in ['gehen', 'leave', 'out'] %}
+      {% set stamp.leave = e.timestamp.strftime('%H:%M:%S') %}
+    {% endif %}
+  {% endif %}
+{% endfor %}
 <tr>
 <td>{{ row.date.strftime('%d.%m.%Y') }}</td>
 <td>{{ row.employee_name }}</td>
+<td>{% if stamp.come %}<strong>{{ stamp.come }}</strong>{% else %}–{% endif %}</td>
+<td>{% if stamp.leave %}<strong>{{ stamp.leave }}</strong>{% else %}–{% endif %}</td>
 <td>{{ '%.2f'|format(row.target_hours) }}</td>
 <td>{{ '%.2f'|format(row.gross_hours) }}</td>
 <td>{{ '%.2f'|format(row.manual_break_hours) }}</td>
@@ -66,7 +80,7 @@ inaktiv. Es werden nur manuell gebuchte Pausen abgezogen.
 </tr>
 {% endfor %}
 <tr>
-<th colspan="2">Summe</th>
+<th colspan="4">Summe</th>
 <th>{{ '%.2f'|format(worktime_totals.target_hours) }}</th>
 <th>{{ '%.2f'|format(worktime_totals.gross_hours) }}</th>
 <th>{{ '%.2f'|format(worktime_totals.manual_break_hours) }}</th>
@@ -77,6 +91,7 @@ inaktiv. Es werden nur manuell gebuchte Pausen abgezogen.
 <th></th>
 </tr>
 </table>
+</div>
 </section>
 
 {% if mail_status == 'sent' %}<div class="alert success">Report wurde per E-Mail versendet.</div>{% endif %}
@@ -145,29 +160,6 @@ inaktiv. Es werden nur manuell gebuchte Pausen abgezogen.
 {% else %}
 <tr><td colspan="5">Keine Abwesenheiten im gewählten Zeitraum.</td></tr>
 {% endfor %}
-</table>
-</section>
-
-<section class="card">
-<h2>Stempelzeiten im gewählten Zeitraum</h2>
-<p class="help-text">Aufgeführt werden die Buchungen des ausgewählten Mitarbeiters innerhalb des oben gewählten Zeitraums.</p>
-<table>
-<tr><th>Zeit</th><th>Mitarbeiter</th><th>Typ</th><th>Methode</th><th>Terminal</th></tr>
-{% set stamp_rows = namespace(count=0) %}
-{% for e in entries %}
-{% set stamp_date = e.timestamp.strftime('%Y-%m-%d') %}
-{% if stamp_date >= filters.date_from and stamp_date <= filters.date_to and (not filters.employee_id or e.employee_id == filters.employee_id) %}
-{% set stamp_rows.count = stamp_rows.count + 1 %}
-<tr>
-<td>{{ e.timestamp.strftime("%d.%m.%Y %H:%M:%S") }}</td>
-<td>{{ e.employee.first_name }} {{ e.employee.last_name }}</td>
-<td>{{ e.entry_type }}</td>
-<td>{{ e.method }}</td>
-<td>{{ e.terminal or "" }}</td>
-</tr>
-{% endif %}
-{% endfor %}
-{% if stamp_rows.count == 0 %}<tr><td colspan="5">Keine Stempelzeiten im gewählten Zeitraum vorhanden.</td></tr>{% endif %}
 </table>
 </section>
 {% endblock %}
