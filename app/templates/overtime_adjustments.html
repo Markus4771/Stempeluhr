@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Überstunden verwalten</h1>
+{% if message %}<div class="info-box">{{ message }}</div>{% endif %}
+<section class="card">
+  <h2>Änderung mit Mitarbeiterfreigabe beantragen</h2>
+  <p class="help-text">Der neue Zielstand kann 0, positiv oder negativ sein. Die Änderung wird erst nach Freigabe durch den Mitarbeiter und frühestens zum gewählten Zeitpunkt wirksam.</p>
+  <form method="post" action="/overtime-adjustments/request" class="form-grid">
+    <label>Mitarbeiter</label>
+    <select name="employee_id" required>
+      {% for e in employees %}<option value="{{ e.id }}">{{ e.last_name }}, {{ e.first_name }} – aktuell {{ '%.2f'|format(e.overtime_balance or 0) }} Stunden</option>{% endfor %}
+    </select>
+    <label>Neuer Zielstand in Stunden</label>
+    <input type="number" name="target_balance" step="0.01" value="0" required>
+    <label>Wirksam ab</label>
+    <input type="datetime-local" name="effective_at">
+    <label>Begründung</label>
+    <textarea name="reason" required></textarea>
+    <button type="submit">Genehmigung per E-Mail anfordern</button>
+  </form>
+</section>
+<section class="card table-card">
+  <h2>Änderungsverlauf</h2>
+  <div class="table-wrap"><table>
+    <tr><th>Erstellt</th><th>Mitarbeiter</th><th>Alt</th><th>Neu</th><th>Wirksam ab</th><th>Status</th><th>Begründung</th></tr>
+    {% for row in rows %}
+    <tr>
+      <td>{{ row.created_at.strftime('%d.%m.%Y %H:%M') }}</td>
+      <td>{{ row.employee.first_name }} {{ row.employee.last_name }}</td>
+      <td>{{ '%.2f'|format(row.old_balance) }}</td>
+      <td>{{ '%.2f'|format(row.target_balance) }}</td>
+      <td>{{ row.effective_at.strftime('%d.%m.%Y %H:%M') }}</td>
+      <td>{{ row.status }}</td>
+      <td>{{ row.reason }}</td>
+    </tr>
+    {% else %}<tr><td colspan="7">Noch keine Änderungen beantragt.</td></tr>{% endfor %}
+  </table></div>
+</section>
+{% endblock %}
