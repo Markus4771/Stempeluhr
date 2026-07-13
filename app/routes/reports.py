@@ -28,9 +28,7 @@ def _month_range(year: int, month: int):
 
 
 def _previous_month(year: int, month: int):
-    if month == 1:
-        return year - 1, 12
-    return year, month - 1
+    return (year - 1, 12) if month == 1 else (year, month - 1)
 
 
 def _resolve_report_range(period: str, date_from: str = "", date_to: str = ""):
@@ -39,8 +37,7 @@ def _resolve_report_range(period: str, date_from: str = "", date_to: str = ""):
         start_day = today - timedelta(days=today.weekday())
         end_day = start_day + timedelta(days=6)
     elif period == "year":
-        start_day = date(today.year, 1, 1)
-        end_day = date(today.year, 12, 31)
+        start_day, end_day = date(today.year, 1, 1), date(today.year, 12, 31)
     elif period == "custom":
         start_day = today.replace(day=1)
         end_day = date(today.year, 12, 31) if today.month == 12 else date(today.year, today.month + 1, 1) - timedelta(days=1)
@@ -100,8 +97,7 @@ def _absence_summary(db: Session, start_day: date, end_day: date, employee_ids: 
     for item in rows:
         emp = getattr(item, "employee", None)
         name = f"{getattr(emp, 'last_name', '')}, {getattr(emp, 'first_name', '')}".strip(", ") if emp else str(item.employee_id)
-        typ = item.request_type or "abwesenheit"
-        status = item.status or ""
+        typ, status = item.request_type or "abwesenheit", item.status or ""
         key = (item.employee_id, typ, status)
         row = summary.setdefault(key, {"employee_name": name, "type": typ, "status": status, "days": 0.0, "count": 0})
         row["days"] += float(item.days or 0.0)
@@ -130,6 +126,86 @@ def _team_statistics(worktime_rows: list) -> list[dict]:
     return result
 
 
+def _report_csv_bytes(result: dict, entries: list | None = None) -> bytes:
+    output = io.StringIO()
+    writer = csv.writer(output, delimiter=";")
+    writer.writerow(["Datum", "Mitarbeiter", "Soll", "Brutto", "Pause gesamt", "Netto", "Tag +/-", "Status"])
+    for row in result.get("rows", []):
+        writer.writerow([row.date.strftime("%d.%m.%Y"), row.employee_name, f"{row.target_hours:.2f}".replace(".", ","), f"{row.gross_hours:.2f}".replace(".", ","), f"{row.break_hours:.2f}".replace(".", ","), f"{row.net_hours:.2f}".replace(".", ","), f"{row.overtime_hours:.2f}".replace(".", ","), "unvollständig" if row.incomplete else "OK"])
+    writer.writerow([])
+    writer.writerow(["Stempelzeiten"])
+    writer.writerow(["Datum", "Uhrzeit", "Mitarbeiter", "Buchung", "Methode", "Terminal"])
+    for entry in entries or []:
+        typ = (entry.entry_type or "").lower()
+        label = "Kommen" if typ in ["kommen", "come", "in"] else "Gehen" if typ in ["gehen", "leave", "out"] else entry.entry_type
+        writer.writerow([entry.timestamp.strftime("%d.%m.%Y"), entry.timestamp.strftime("%H:%M:%S"), f"{entry.employee.first_name} {entry.employee.last_name}", label, entry.method or "", entry.terminal or ""])
+    return ("\ufeff" + output.getvalue()).encode("utf-8")
+
+
+def _log_month_report(db: Session, employee_id: int, year: int, month: int, status: str, recipient: str, message: str):
+    try:
+        details = json.dumps({"year": year, "month": month, "recipient": recipient, "status": status, "message": message}, ensure_ascii=False)
+        db.add(AuditLog(actor="SYSTEM", action="employee_month_report", entity="employee", entity_id=str(employee_id), details=details))
+        db.commit()
+    except Exception:
+        db.rollback()
+
+
+def build_employee_month_report(db: Session, employee: Employee, year: int, month: int, avg_months: int = 6):
+    start_day, end_day = _month_range(year, month)
+    result = calculate_period(db, start_day, end_day, employee.id, [employee.id])
+    totals = result.get("totals") or {}
+    entries = _stamp_entries(db, [employee.id], start_day, end_day)
+    name = f"{employee.first_name} {employee.last_name}".strip()
+    subject = f"Arbeitszeitreport {month:02d}/{year} - {name}"
+    body = (
+        f"Arbeitszeitreport {month:02d}/{year}\n\nMitarbeiter: {name}\n"
+        f"Zeitraum: {start_day.strftime('%d.%m.%Y')} bis {end_day.strftime('%d.%m.%Y')}\n\n"
+        f"Sollzeit: {float(totals.get('target_hours') or 0):.2f} Stunden\n"
+        f"Istzeit/Netto: {float(totals.get('net_hours') or 0):.2f} Stunden\n"
+        f"Saldo: {float(totals.get('overtime_hours') or 0):.2f} Stunden\n\n"
+        "Arbeitszeitübersicht und Kommen-/Gehen-Buchungen befinden sich im CSV-Anhang.\n"
+    )
+    filename = f"arbeitszeitreport_{employee.employee_number}_{year}_{month:02d}.csv"
+    return subject, body, [(filename, _report_csv_bytes(result, entries), "text/csv")]
+
+
+def send_employee_month_report(db: Session, employee: Employee, year: int, month: int, avg_months: int = 6):
+    from app.mailer import send_email_with_attachments_from_settings
+    if not (employee.email or "").strip():
+        raise RuntimeError("Beim Mitarbeiter ist keine E-Mail-Adresse hinterlegt.")
+    subject, body, attachments = build_employee_month_report(db, employee, year, month, avg_months)
+    send_email_with_attachments_from_settings(db, employee.email.strip(), subject, body, attachments)
+    _log_month_report(db, employee.id, year, month, "sent", employee.email.strip(), "")
+
+
+def monthly_reporting_scheduler_tick(db: Session):
+    if _setting(db, "monthly_reporting_enabled", "0").lower() not in ["1", "true", "on", "ja", "yes"]:
+        return {"enabled": False, "sent": 0, "failed": 0}
+    now = datetime.now()
+    day = max(1, min(int(_setting(db, "monthly_reporting_day", "1") or "1"), 28))
+    run_time = (_setting(db, "monthly_reporting_time", "06:00") or "06:00")[:5]
+    if now.day != day or now.strftime("%H:%M") != run_time:
+        return {"enabled": True, "sent": 0, "failed": 0, "due": False}
+    year, month = _previous_month(now.year, now.month)
+    marker = f"monthly_reporting_last_run_{year}_{month:02d}"
+    if _setting(db, marker, ""):
+        return {"enabled": True, "sent": 0, "failed": 0, "already_done": True}
+    sent = failed = 0
+    for emp in db.query(Employee).filter(Employee.active == True).all():
+        if is_fixed_admin_employee(emp) or not (emp.email or "").strip():
+            continue
+        try:
+            send_employee_month_report(db, emp, year, month, int(_setting(db, "monthly_reporting_average_months", "6") or "6"))
+            sent += 1
+        except Exception as exc:
+            failed += 1
+            _log_month_report(db, emp.id, year, month, "failed", emp.email or "", str(exc))
+    _set_setting(db, marker, datetime.now().isoformat(timespec="seconds"))
+    db.commit()
+    return {"enabled": True, "sent": sent, "failed": failed, "year": year, "month": month}
+
+
 @router.get("/reports", response_class=HTMLResponse)
 def reports(request: Request, employee_id: int = 0, period: str = "month", date_from: str = "", date_to: str = "", db: Session = Depends(get_db)):
     ctx = _resolve_report_context(request, db, employee_id, period, date_from, date_to)
@@ -155,13 +231,9 @@ def reports_export_csv(request: Request, employee_id: int = 0, period: str = "mo
     if not ctx:
         return RedirectResponse("/login", status_code=303)
     user, visible_ids, visible_employees, employee_id, period, start_day, end_day, result = ctx
-    output = io.StringIO(); writer = csv.writer(output, delimiter=";")
-    writer.writerow(["Datum", "Mitarbeiter", "Soll", "Brutto", "Manuelle Pause", "Auto-Pause", "Pause gesamt", "Netto", "Tag +/-", "Status"])
-    for row in result["rows"]:
-        writer.writerow([row.date.strftime("%d.%m.%Y"), row.employee_name, row.target_hours, row.gross_hours, row.manual_break_hours, row.auto_break_hours, row.break_hours, row.net_hours, row.overtime_hours, "unvollständig" if row.incomplete else "OK"])
-    writer.writerow([]); writer.writerow(["Summe", "", result["totals"]["target_hours"], result["totals"]["gross_hours"], result["totals"]["manual_break_hours"], result["totals"]["auto_break_hours"], result["totals"]["break_hours"], result["totals"]["net_hours"], result["totals"]["overtime_hours"], ""])
+    selected_ids = [employee_id] if employee_id else visible_ids
     filename = f"stempeluhr_report_{start_day.isoformat()}_{end_day.isoformat()}.csv"
-    return Response(content="\ufeff" + output.getvalue(), media_type="text/csv; charset=utf-8", headers={"Content-Disposition": f"attachment; filename={filename}"})
+    return Response(content=_report_csv_bytes(result, _stamp_entries(db, selected_ids, start_day, end_day)), media_type="text/csv; charset=utf-8", headers={"Content-Disposition": f"attachment; filename={filename}"})
 
 
 @router.get("/reports/print", response_class=HTMLResponse)
@@ -192,14 +264,49 @@ def worktime_account(request: Request, employee_id: int = 0, period: str = "mont
 
 @router.post("/reports/email")
 def reports_send_email(request: Request, employee_id: int = Form(0), period: str = Form("month"), date_from: str = Form(""), date_to: str = Form(""), db: Session = Depends(get_db)):
-    return RedirectResponse("/reports?mail=disabled", status_code=303)
+    user = current_user(request, db)
+    if not user:
+        return RedirectResponse("/login", status_code=303)
+    target_id = user.id
+    if (is_hr_or_admin(user) or role_name(user) == "Teamleiter") and employee_id in report_visible_employee_ids(db, user):
+        target_id = employee_id
+    period, start_day, end_day = _resolve_report_range(period, date_from, date_to)
+    target = db.query(Employee).filter(Employee.id == target_id).first()
+    if not target:
+        return RedirectResponse("/reports?mail=employee_missing", status_code=303)
+    try:
+        send_employee_month_report(db, target, start_day.year, start_day.month, int(_setting(db, "monthly_reporting_average_months", "6") or "6"))
+        return RedirectResponse(f"/reports?employee_id={target_id}&period={period}&date_from={start_day.isoformat()}&date_to={end_day.isoformat()}&mail=sent", status_code=303)
+    except Exception as exc:
+        _log_month_report(db, target.id, start_day.year, start_day.month, "failed", target.email or "", str(exc))
+        return RedirectResponse(f"/reports?employee_id={target_id}&period={period}&date_from={start_day.isoformat()}&date_to={end_day.isoformat()}&mail=failed", status_code=303)
 
 
 @router.post("/reports/monthly-settings")
-def reports_monthly_settings(request: Request, db: Session = Depends(get_db)):
-    return RedirectResponse("/reports", status_code=303)
+def reports_monthly_settings(request: Request, enabled: str = Form("0"), day: int = Form(1), run_time: str = Form("06:00"), average_months: int = Form(6), db: Session = Depends(get_db)):
+    user = current_user(request, db)
+    if not user or not is_hr_or_admin(user):
+        return RedirectResponse("/reports", status_code=303)
+    _set_setting(db, "monthly_reporting_enabled", "1" if enabled == "1" else "0")
+    _set_setting(db, "monthly_reporting_day", str(max(1, min(int(day), 28))))
+    _set_setting(db, "monthly_reporting_time", (run_time or "06:00")[:5])
+    _set_setting(db, "monthly_reporting_average_months", str(max(1, min(int(average_months), 24))))
+    db.commit()
+    return RedirectResponse("/reports?settings=saved", status_code=303)
 
 
 @router.post("/reports/monthly-send-all")
-def reports_monthly_send_all(request: Request, db: Session = Depends(get_db)):
-    return RedirectResponse("/reports", status_code=303)
+def reports_monthly_send_all(request: Request, year: int = Form(0), month: int = Form(0), db: Session = Depends(get_db)):
+    user = current_user(request, db)
+    if not user or not is_hr_or_admin(user):
+        return RedirectResponse("/reports", status_code=303)
+    if not year or not month:
+        year, month = _previous_month(date.today().year, date.today().month)
+    for emp in db.query(Employee).filter(Employee.active == True).all():
+        if is_fixed_admin_employee(emp) or not (emp.email or "").strip():
+            continue
+        try:
+            send_employee_month_report(db, emp, int(year), int(month), int(_setting(db, "monthly_reporting_average_months", "6") or "6"))
+        except Exception as exc:
+            _log_month_report(db, emp.id, int(year), int(month), "failed", emp.email or "", str(exc))
+    return RedirectResponse("/reports?bulkmail=done", status_code=303)
