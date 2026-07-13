@@ -1,3 +1,10 @@
+## 5.6.17
+
+- Menüpunkt `Zeiterfassung` aus der normalen Hauptnavigation entfernt
+- Kiosk-Seite `/raspberry` bleibt direkt erreichbar
+- Raspberry-Kiosk kann die Zeiterfassung weiterhin automatisch öffnen
+- keine Änderung an Buchungslogik, RFID-Funktion oder produktiven Daten
+
 ## 5.6.16
 
 - Hauptnavigation im Bereich `Abwesenheiten` zusammengefasst
@@ -19,105 +26,59 @@
 - HTML-Leseansicht und browserbasierte Druckansicht ergänzt
 - PDF-Erzeugung und Download direkt aus der Anwendung mit ReportLab ergänzt
 - gemeinsame Volltextsuche über alle Handbücher ergänzt
-- Handbuchansicht mit festem Inhaltsverzeichnis und direkten Kapitelsprüngen überarbeitet
-- helle, kontrastreiche und umbrechende Codeblöcke für bessere Lesbarkeit ergänzt
-- Kopierfunktion für Befehle, URLs und API-Beispiele ergänzt
-- lokale Suche innerhalb des geöffneten Handbuchs ergänzt
-- Typografie, Zeilenbreite und mobile Darstellung der Dokumentation verbessert
-- Druckansicht blendet Navigation und Bedienelemente automatisch aus
 - Hilfebereich nur für angemeldete Benutzer erreichbar
-- neue Routen `/help`, `/help/{handbuch}` und `/help/{handbuch}/pdf`
 - Dokumentationsquellen werden zusammen mit dem Debian-Paket ausgeliefert
 - keine produktiven Mitarbeiter-, Buchungs- oder Datenbankdaten verändert
 
 ## 5.6.14
 
-- Rollenverwaltung unter `Systemeinstellungen → Personal & Arbeitszeit → Rollen & Rechte` ergänzt
-- eigene Rollen mit Name, Beschreibung und auswählbaren Berechtigungen anlegbar
-- Rollenberechtigungen werden als JSON im vorhandenen Feld `roles.permissions` gespeichert
-- vorhandene Rollen können bearbeitet werden
-- eigene Rollen können nur ohne zugeordnete Benutzer gelöscht werden
-- Standardrollen sind gegen Löschen geschützt
-- Rolle `Administrator` behält immer Vollzugriff und kann nicht umbenannt werden
-- Navigation wird anhand der Rollenberechtigungen aufgebaut
-- neue Rollenberechtigung `Zusatz-Programme anzeigen` ergänzt
-- Systemeinstellungs-Untermenüs in den Allgemeinen Einstellungen nach Allgemein, Personal & Arbeitszeit, Integrationen, Sicherheit und Wartung gruppiert
-- Schaltflächen `Alle aktivieren` und `Alle deaktivieren` für optionale Systemeinstellungs-Untermenüs ergänzt
-- wichtige Bereiche wie Allgemeine Einstellungen, Rollen & Rechte, Updates, Datenbankzugang und Systemdiagnose bleiben immer erreichbar
-- Zusatz-Programme mit Name, Beschreibung, HTTP/HTTPS, IP-Adresse oder Hostname, Port und optionalem Pfad konfigurierbar
-- Zusatz-Programme können aktiviert, deaktiviert, bearbeitet, geöffnet und gelöscht werden
-- freigeschaltete Zusatz-Programme erscheinen in einer eigenen WebGUI-Übersicht und in der Hauptnavigation
-- Zugangsdaten fremder Programme werden nicht in der Stempeluhr gespeichert
-- rückwärtskompatible Standardrechte für bestehende Rollen ohne gespeicherte Rechte
-- keine neue Datenbanktabelle und keine destruktive Migration erforderlich
-- keine produktiven Mitarbeiter- oder Buchungsdaten verändert
+- Rollenverwaltung und gruppierte Systemeinstellungen ergänzt
+- Zusatz-Programme konfigurierbar und rollenabhängig sichtbar
+- keine destruktive Migration erforderlich
 
 ## 5.6.13
 
-- konfigurierbaren Schutz gegen wiederholte Fehlanmeldungen ergänzt
-- Anzahl der Fehlversuche und gemeinsame Sperrdauer konfigurierbar
-- optionale IP-Sperre ergänzt
-- bestehende Testsperren werden beim Speichern neuer Richtlinien aufgehoben
-- konfigurierbare Passwortrichtlinien für neue und geänderte Passwörter ergänzt
-- einmalige Ausnahme und dauerhafte Warnung für das initiale Admin-Standardpasswort
-- fehlgeschlagene und blockierte Anmeldungen werden ohne Passwortdaten protokolliert
-- keine produktiven Mitarbeiter- oder Buchungsdaten verändert
+- Schutz gegen wiederholte Fehlanmeldungen und Passwortrichtlinien ergänzt
 
 ## 5.6.12
 
-- Datenbankpasswort aus der allgemeinen Konfiguration in eine geschützte Secret-Datei ausgelagert
-- bestehende Installationen werden ohne Änderung der PostgreSQL-Rolle migriert
-- neue Seite für Datenbankzugang und sicheren Passwortwechsel ergänzt
-- SCRAM-SHA-256, Verbindungstest, Sicherung und Rollback ergänzt
-- enger Root-Helfer statt allgemeiner sudo-Rechte
-- keine Datenbankmodelle oder produktiven Daten geändert
+- Datenbankpasswort in geschützte Secret-Datei ausgelagert
 
 ## 5.6.11
 
-- bestehende Updateverwaltung um stabile GitHub Releases erweitert
-- manueller DEB-Upload unverändert erhalten
-- Paket und SHA256 werden gemeinsam geprüft
-- GitHub-Paket wird an denselben bestehenden Update-Runner übergeben
+- Updateverwaltung um stabile GitHub Releases erweitert
 
 ## 5.6.10
 
 - automatisches GitHub-Release-System für Debian-Pakete ergänzt
-- Release wird durch einen passenden Versions-Tag ausgelöst
-- DEB, SHA256, Buildbericht und Changelog werden veröffentlicht
 
 ## 5.6.00
 
 - Einrichtungsassistent als achtstufigen Wizard neu aufgebaut
-- Fortschrittsanzeige, Navigation und Wiederaufnahme ergänzt
-- Unternehmensdaten, Zeitzone, Datenbank, E-Mail, API, HTTPS und Backup zusammengeführt
-- bestehende Daten und Konfigurationen werden nicht überschrieben
 
 ## 5.5.09
 
-- Offboarding unter `Systemeinstellungen → Personal & Arbeitszeit` eingeordnet
+- Offboarding unter Systemeinstellungen eingeordnet
 
 ## 5.5.08
 
-- Systemdiagnose unter `Systemeinstellungen → Wartung` integriert
+- Systemdiagnose unter Wartung integriert
 
 ## 5.5.07
 
-- Systemdiagnose, PostgreSQL-Prüfung und Diagnosebericht ergänzt
+- Systemdiagnose und PostgreSQL-Prüfung ergänzt
 
 ## 5.5.06
 
 - PostgreSQL-Verbindungsaufbau und Passwortbehandlung gehärtet
-- bestehende Datenbank und Konfiguration bleiben erhalten
 
 ## 5.5.05
 
 - Debian-Buildprozess und Buildbericht erweitert
-- verbindlicher Änderungsverlauf auf `changelog.md` vereinheitlicht
 
 ## 5.5.04
 
 - Onboarding aus dem Hauptmenü entfernt
-- Einladungsbutton in der Mitarbeiterverwaltung verfügbar
 
 ## 5.5.0
 
