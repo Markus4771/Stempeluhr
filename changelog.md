@@ -1,3 +1,13 @@
+## 5.6.21
+
+- Kommen- und Gehen-Uhrzeiten werden direkt in `Mein Report` geladen
+- Stempelzeiten werden serverseitig nach Berechtigung, Mitarbeiter und Zeitraum gefiltert
+- iframe-/JavaScript-Zwischenlösung entfernt
+- Menüeinträge `Überstunden` und `Plausibilität` für Teamleiter, Personal und Administratoren sichtbar
+- fehlender GitHub-Lesetoken wird in der Updateverwaltung über ein Eingabefenster abgefragt
+- Token kann dort auch ersetzt werden
+- Speicherung unter `/etc/stempeluhr/secrets/github_token` mit restriktiven Dateirechten
+
 ## 5.6.20
 
 - Plausibilitätsmeldungen können von Administrator, Personal und zuständigen Teamleitern zurückgesetzt werden
@@ -7,7 +17,6 @@
 - Mitarbeiterfreigabe per E-Mail ist vor der Änderung verpflichtend
 - genehmigte zukünftige Änderungen werden automatisch zum geplanten Zeitpunkt angewendet
 - Änderungsverlauf mit Altwert, Zielwert, Begründung und Status ergänzt
-- Einbindung der Kommen-/Gehen-Zeiten in `Mein Report` robuster gemacht
 
 ## 5.6.19
 
@@ -17,16 +26,13 @@
 - Mitarbeiter bleiben strikt auf den eigenen Report beschränkt
 - Teamleiter sehen ausschließlich ihre zugeordneten Mitarbeiter
 - GitHub-Updater unterstützt private Repositorys über `/etc/stempeluhr/secrets/github_token` oder `STEMPELUHR_GITHUB_TOKEN`
-- HTTP-404-Meldung bei privatem Repository oder fehlendem Release präzisiert
 
 ## 5.6.18
 
 - aktive Filter der Plausibilitätsprüfung bleiben nach Statusänderungen erhalten
 - aktueller Status und Kommentar werden im Bearbeitungsformular angezeigt
-- Stempelzeiten werden in `Mein Report` für den gewählten Zeitraum aufgeführt
 - Mitarbeiter werden serverseitig immer auf den eigenen Report beschränkt
 - Teamleiter sehen nur die ihnen zugeordneten Mitarbeiter
-- Personal und Administratoren behalten den vorgesehenen erweiterten Zugriff
 - öffentliche Datenschutzerklärung unter `/datenschutz` ergänzt
 - Link zur Datenschutzerklärung bei der Kontoeinrichtung ergänzt
 
@@ -34,39 +40,22 @@
 
 - Menüpunkt `Zeiterfassung` aus der normalen Hauptnavigation entfernt
 - Kiosk-Seite `/raspberry` bleibt direkt erreichbar
-- Raspberry-Kiosk kann die Zeiterfassung weiterhin automatisch öffnen
-- keine Änderung an Buchungslogik, RFID-Funktion oder produktiven Daten
 
 ## 5.6.16
 
 - Hauptnavigation im Bereich `Abwesenheiten` zusammengefasst
-- doppelten Menüpunkt `Meine Abwesenheiten` aus der Hauptnavigation entfernt
-- Abwesenheitsübersicht um rollenabhängige Kacheln ergänzt
-- Administrator-Kachel für `Abwesenheitsarten` ergänzt
-- Einstellung `Genehmigung nötig` wird beim Anlegen neuer Abwesenheiten ausgewertet
+- doppelten Menüpunkt `Meine Abwesenheiten` entfernt
 - genehmigungsfreie Arten wie `Krank` werden direkt mit Status `genehmigt` gespeichert
-- genehmigungsfreie Anträge erscheinen nicht in der offenen Genehmigungsliste
-- Formularzuordnung bei der Bearbeitung von Abwesenheitsarten korrigiert
 - `install.sh` für Installation, Update, Paketbau, Backup, Restore, Status, Logs und Diagnose ergänzt
-- keine destruktive Datenbankmigration und keine Änderung bestehender produktiver Daten
 
 ## 5.6.15
 
 - Hauptmenüpunkt `Hilfe & Dokumentation` ergänzt
-- Administratorhandbuch, Benutzerhandbuch, Installations- und Einrichterhandbuch sowie API-Handbuch integriert
-- Handbuchquellen unter `docs/manuals/` versioniert
-- HTML-Leseansicht und browserbasierte Druckansicht ergänzt
-- PDF-Erzeugung und Download direkt aus der Anwendung mit ReportLab ergänzt
-- gemeinsame Volltextsuche über alle Handbücher ergänzt
-- Hilfebereich nur für angemeldete Benutzer erreichbar
-- Dokumentationsquellen werden zusammen mit dem Debian-Paket ausgeliefert
-- keine produktiven Mitarbeiter-, Buchungs- oder Datenbankdaten verändert
+- Handbücher und Hilfebereich integriert
 
 ## 5.6.14
 
-- Rollenverwaltung und gruppierte Systemeinstellungen ergänzt
-- Zusatz-Programme konfigurierbar und rollenabhängig sichtbar
-- keine destruktive Migration erforderlich
+- Rollenverwaltung und Zusatz-Programme ergänzt
 
 ## 5.6.13
 
