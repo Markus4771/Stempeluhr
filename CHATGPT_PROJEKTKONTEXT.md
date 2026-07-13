@@ -6,11 +6,11 @@
 
 - Repository: `Markus4771/Stempeluhr`
 - Standardbranch: `main`
-- Aktuelle Entwicklungs- und Testversion: **5.6.21**
+- Aktuelle Entwicklungs- und Testversion: **5.6.22**
 - Zielplattform: Debian 13 und Raspberry Pi OS
 - Backend: Python, FastAPI, Uvicorn, SQLAlchemy
 - Standarddatenbank: PostgreSQL
-- Installation und Update: Debian-Paket über `install.sh`
+- Installation und Update: Debian-Paket über `install.sh` oder Web-Updater
 
 ## Verbindliche Regeln
 
@@ -24,6 +24,7 @@ Bei jeder neuen Version synchron aktualisieren: `version.txt`, `app/version.py`,
 - Konfiguration: `/etc/stempeluhr/stempeluhr.env`
 - Datenbank-Secret: `/etc/stempeluhr/secrets/database.conf`
 - GitHub-Token: `/etc/stempeluhr/secrets/github_token`
+- GitHub-main-Runner: `/usr/local/sbin/stempeluhr-github-main-update`
 - variable Daten: `/var/lib/stempeluhr`
 - Backups: `/var/backups/stempeluhr`
 - Dienst: `stempeluhr.service`
@@ -36,44 +37,48 @@ Bei jeder neuen Version synchron aktualisieren: `version.txt`, `app/version.py`,
 - Updateverwaltung: `/system/settings/updates`
 - öffentliche Datenschutzerklärung: `/datenschutz`
 
-## Version 5.6.21
+## Version 5.6.22
 
 Umgesetzt:
 
-- Kommen- und Gehen-Uhrzeiten werden direkt im Template von `Mein Report` angezeigt
-- die Datenbankabfrage filtert nach zulässigen Mitarbeitern sowie exakt nach Von-/Bis-Datum
-- normale Mitarbeiter sehen ausschließlich eigene Buchungen
-- Teamleiter sehen ausschließlich zugeordnete Mitarbeiter
-- Menüeinträge für Überstunden und Plausibilität sind für Teamleiter, Personal und Administratoren sichtbar
-- Updateverwaltung fragt bei fehlendem GitHub-Token per Eingabefenster nach
-- Token kann in der Updateverwaltung ersetzt werden
-- Speicherung unter `/etc/stempeluhr/secrets/github_token` mit restriktiven Dateirechten
-- Report-E-Mail und automatischer Monatsversand bleiben erhalten
+- Updateverwaltung prüft weiterhin bevorzugt veröffentlichte GitHub-Releases
+- wenn kein Release vorhanden ist, kann ein Administrator den Branch `main` als Updatequelle verwenden
+- privater GitHub-Quellcode wird mit dem lokal gespeicherten Lesetoken geladen
+- Quellcode wird in einem temporären Verzeichnis entpackt
+- `scripts/build_release.sh` baut daraus lokal das Debian-Paket
+- das Paket wird an den bestehenden Web-Update-Runner übergeben
+- Backup, Paketinstallation, Dienstneustart und Healthcheck erfolgen über den bestehenden Updateablauf
+- main-Update ist nur für Administratoren freigeschaltet
+- sudoers erlaubt ausschließlich den dedizierten main-Update-Runner
+- Token-Popup verwendet ein Passwortfeld und speichert den Token nicht im Repository
 
-## Enthalten aus Version 5.6.20
+## Bereits enthalten
 
+- Kommen-/Gehen-Uhrzeiten direkt in der Tagesübersicht von `Mein Report`
+- normale Mitarbeiter sehen ausschließlich eigene Zeiten
+- Teamleiter sehen nur zugeordnete Mitarbeiter
 - Plausibilitätsmeldungen zurücksetzen
-- Überstundenänderungen mit Zielwert und Wirksamkeitszeitpunkt
-- verpflichtende Mitarbeitergenehmigung per E-Mail
+- Überstundenänderungen mit Mitarbeitergenehmigung per E-Mail
 
-## Offene Prüfungen vor Freigabe 5.6.21
+## Offene Prüfungen vor Freigabe 5.6.22
 
 - Python-Syntax und Imports prüfen
+- Shell-Syntax des main-Update-Runners prüfen
 - Debian-Paket bauen und SHA256 validieren
 - Upgrade auf Testsystem installieren
-- Kommen-/Gehen-Zeiten im persönlichen Report prüfen
-- Mitarbeiter- und Teamleiterrechte prüfen
-- Plausibilitäts-Reset prüfen
-- Überstundenantrag, Genehmigung, Ablehnung und geplante Ausführung prüfen
-- Token-Popup und geschützte Speicherung prüfen
-- GitHub-Release-Abfrage mit privatem Repository prüfen
+- Token-Popup und Dateirechte prüfen
+- main-Download aus privatem Repository prüfen
+- Paketbau im temporären Verzeichnis prüfen
+- Übergabe an bestehenden Update-Runner prüfen
+- Backup, Installation, Dienstneustart und Healthcheck prüfen
+- Kommen-/Gehen-Zeiten und Rollenrechte prüfen
 - `/health` und `/version` prüfen
 
 ## Build
 
 ```bash
 bash scripts/build_release.sh
-sha256sum -c releases/stempeluhr_5.6.21_all.deb.sha256
+sha256sum -c releases/stempeluhr_5.6.22_all.deb.sha256
 ```
 
 ## Startanweisung für neue Chats
