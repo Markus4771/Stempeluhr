@@ -1,3 +1,14 @@
+## 5.6.22
+
+- GitHub-Updater kann bei fehlendem veröffentlichtem Release auf den aktuellen Branch `main` zurückgreifen
+- privater Quellcode wird mit dem lokal gespeicherten Lesetoken geladen
+- Quellcode wird temporär entpackt und lokal als Debian-Paket gebaut
+- gebautes Paket wird an den bestehenden Update-Assistenten übergeben
+- Backup, Installation, Dienstneustart und Healthcheck bleiben Bestandteil des bestehenden Updateablaufs
+- main-Update ist ausschließlich für Administratoren verfügbar
+- privilegierter Runner `/usr/local/sbin/stempeluhr-github-main-update` mit begrenzter sudoers-Regel ergänzt
+- Token-Popup verwendet ein Passwortfeld
+
 ## 5.6.21
 
 - Kommen- und Gehen-Uhrzeiten werden direkt in `Mein Report` geladen
