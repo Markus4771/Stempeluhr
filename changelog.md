@@ -1,3 +1,13 @@
+## 5.6.19
+
+- Stempelzeiten in `Mein Report` werden serverseitig nach gewähltem Mitarbeiter und Zeitraum geladen
+- Begrenzung auf die letzten 300 allgemeinen Buchungen entfernt
+- Buchungsarten werden als `Kommen` und `Gehen` dargestellt
+- Mitarbeiter bleiben strikt auf den eigenen Report beschränkt
+- Teamleiter sehen ausschließlich ihre zugeordneten Mitarbeiter
+- GitHub-Updater unterstützt private Repositorys über `/etc/stempeluhr/secrets/github_token` oder `STEMPELUHR_GITHUB_TOKEN`
+- HTTP-404-Meldung bei privatem Repository oder fehlendem Release präzisiert
+
 ## 5.6.18
 
 - aktive Filter der Plausibilitätsprüfung bleiben nach Statusänderungen erhalten
@@ -34,63 +44,3 @@
 - Hauptmenüpunkt `Hilfe & Dokumentation` ergänzt
 - Administratorhandbuch, Benutzerhandbuch, Installations- und Einrichterhandbuch sowie API-Handbuch integriert
 - Handbuchquellen unter `docs/manuals/` versioniert
-- HTML-Leseansicht und browserbasierte Druckansicht ergänzt
-- PDF-Erzeugung und Download direkt aus der Anwendung mit ReportLab ergänzt
-- gemeinsame Volltextsuche über alle Handbücher ergänzt
-- Hilfebereich nur für angemeldete Benutzer erreichbar
-- Dokumentationsquellen werden zusammen mit dem Debian-Paket ausgeliefert
-- keine produktiven Mitarbeiter-, Buchungs- oder Datenbankdaten verändert
-
-## 5.6.14
-
-- Rollenverwaltung und gruppierte Systemeinstellungen ergänzt
-- Zusatz-Programme konfigurierbar und rollenabhängig sichtbar
-- keine destruktive Migration erforderlich
-
-## 5.6.13
-
-- Schutz gegen wiederholte Fehlanmeldungen und Passwortrichtlinien ergänzt
-
-## 5.6.12
-
-- Datenbankpasswort in geschützte Secret-Datei ausgelagert
-
-## 5.6.11
-
-- Updateverwaltung um stabile GitHub Releases erweitert
-
-## 5.6.10
-
-- automatisches GitHub-Release-System für Debian-Pakete ergänzt
-
-## 5.6.00
-
-- Einrichtungsassistent als achtstufigen Wizard neu aufgebaut
-
-## 5.5.09
-
-- Offboarding unter Systemeinstellungen eingeordnet
-
-## 5.5.08
-
-- Systemdiagnose unter Wartung integriert
-
-## 5.5.07
-
-- Systemdiagnose und PostgreSQL-Prüfung ergänzt
-
-## 5.5.06
-
-- PostgreSQL-Verbindungsaufbau und Passwortbehandlung gehärtet
-
-## 5.5.05
-
-- Debian-Buildprozess und Buildbericht erweitert
-
-## 5.5.04
-
-- Onboarding aus dem Hauptmenü entfernt
-
-## 5.5.0
-
-- Onboarding, Datenschutzbestätigung und Benutzer-REST-API erweitert
