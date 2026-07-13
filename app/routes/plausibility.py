@@ -1,6 +1,18 @@
 from .common import *
+from urllib.parse import urlencode
 
 router = APIRouter()
+
+
+def _plausibility_return_url(employee_id: int = 0, status: str = "offen", date_from: str = "", date_to: str = "") -> str:
+    query = urlencode({
+        "employee_id": int(employee_id or 0),
+        "status": status or "offen",
+        "date_from": date_from or "",
+        "date_to": date_to or "",
+    })
+    return f"/plausibility?{query}"
+
 
 @router.get("/plausibility", response_class=HTMLResponse)
 def plausibility_view(
@@ -68,8 +80,6 @@ def plausibility_teamlead_summary(request: Request, db: Session = Depends(get_db
     return templates.TemplateResponse("message.html", {"request": request, "user": user, "title": "Teamleiter-Mail", "message": f"Teamleiter-Zusammenfassung gesendet: {count} E-Mail(s).", "return_to": "/plausibility"})
 
 
-
-
 @router.post("/plausibility/daily-mail-test", response_class=HTMLResponse)
 def plausibility_daily_mail_test(request: Request, day: str = Form(""), db: Session = Depends(get_db)):
     user, redirect = require_admin_response(request, db)
@@ -93,14 +103,26 @@ def plausibility_mail_history(request: Request, db: Session = Depends(get_db)):
     rows = rows.order_by(MailDispatchLog.created_at.desc()).limit(200).all()
     return templates.TemplateResponse("plausibility_mail_history.html", {"request": request, "user": user, "rows": rows})
 
+
 @router.post("/plausibility/{issue_id}/status", response_class=HTMLResponse)
-def plausibility_status(issue_id: int, request: Request, new_status: str = Form(...), comment: str = Form(""), db: Session = Depends(get_db)):
+def plausibility_status(
+    issue_id: int,
+    request: Request,
+    new_status: str = Form(...),
+    comment: str = Form(""),
+    filter_employee_id: int = Form(0),
+    filter_status: str = Form("offen"),
+    filter_date_from: str = Form(""),
+    filter_date_to: str = Form(""),
+    db: Session = Depends(get_db),
+):
     user = current_user(request, db)
+    return_to = _plausibility_return_url(filter_employee_id, filter_status, filter_date_from, filter_date_to)
     if not user:
         return RedirectResponse("/login", status_code=303)
     issue = db.query(PlausibilityIssue).filter(PlausibilityIssue.id == issue_id).first()
     if not issue or issue.employee_id not in report_visible_employee_ids(db, user):
-        return templates.TemplateResponse("message.html", {"request": request, "user": user, "title": "Keine Berechtigung", "message": "Diese Auffälligkeit kann nicht bearbeitet werden.", "return_to": "/plausibility"})
+        return templates.TemplateResponse("message.html", {"request": request, "user": user, "title": "Keine Berechtigung", "message": "Diese Auffälligkeit kann nicht bearbeitet werden.", "return_to": return_to})
     if new_status not in ["offen", "geprueft", "erledigt", "ignoriert"]:
         new_status = "geprueft"
     issue.status = new_status
@@ -109,9 +131,12 @@ def plausibility_status(issue_id: int, request: Request, new_status: str = Form(
     if new_status in ["erledigt", "ignoriert"]:
         issue.resolved_at = datetime.now()
         issue.resolved_by = user.employee_number
+    else:
+        issue.resolved_at = None
+        issue.resolved_by = None
     db.commit()
     log_action(db, user.employee_number, "plausibility_status_changed", "plausibility", str(issue.id), f"{new_status}: {comment}")
-    return RedirectResponse("/plausibility", status_code=303)
+    return RedirectResponse(return_to, status_code=303)
 
 
 @router.get("/system/settings/plausibility", response_class=HTMLResponse)
@@ -177,4 +202,3 @@ def system_plausibility_settings_save(
     db.commit()
     log_action(db, user.employee_number, "plausibility_settings_updated", "settings", "plausibility", "gespeichert")
     return templates.TemplateResponse("system_settings_plausibility.html", {"request": request, "user": user, "settings": service_settings_dict(db), "saved": True})
-
