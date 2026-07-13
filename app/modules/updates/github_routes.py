@@ -1,7 +1,8 @@
-"""GitHub-Release-Endpunkte für die vorhandene Updateverwaltung."""
+"""GitHub-Release- und main-Branch-Endpunkte für die Updateverwaltung."""
 from __future__ import annotations
 
 import os
+import subprocess
 import tempfile
 from pathlib import Path
 
@@ -12,6 +13,7 @@ from app.modules.updates.github_release import TOKEN_FILE, download_release_asse
 from app.modules.updates.routes import _append_log, _compare_versions, _current_version, _write_status, upload_update
 
 router = APIRouter()
+MAIN_UPDATE_HELPER = Path("/usr/local/sbin/stempeluhr-github-main-update")
 
 
 def _is_admin_request(request: Request) -> bool:
@@ -43,7 +45,7 @@ async def github_token_save(request: Request, token: str = Form(...)):
         temp_file.replace(TOKEN_FILE)
         os.chmod(TOKEN_FILE, 0o600)
     except PermissionError:
-        raise HTTPException(status_code=500, detail="Der Dienst darf /etc/stempeluhr/secrets nicht beschreiben. Bitte Version 5.6.21 installieren oder die Verzeichnisrechte prüfen.")
+        raise HTTPException(status_code=500, detail="Der Dienst darf die Token-Datei nicht schreiben. Bitte Paket und Verzeichnisrechte prüfen.")
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Token konnte nicht gespeichert werden: {exc}")
     _append_log("GitHub-Lesetoken wurde über die Updateverwaltung hinterlegt.")
@@ -63,13 +65,47 @@ async def github_update_check(request: Request):
             "current_version": current,
             "token_configured": configured,
             "token_required": not configured,
+            "main_fallback_available": configured and MAIN_UPDATE_HELPER.exists(),
             "error": release.get("error", "Unbekannter Fehler"),
         }, status_code=502)
     release["current_version"] = current
     release["token_configured"] = configured
     release["token_required"] = False
+    release["main_fallback_available"] = configured and MAIN_UPDATE_HELPER.exists()
     release["update_available"] = bool(release.get("assets_complete") and _compare_versions(str(release.get("version") or ""), current))
     return JSONResponse(release)
+
+
+@router.post("/system/settings/updates/github/install-main")
+async def github_main_update_install(request: Request):
+    if not _is_admin_request(request):
+        raise HTTPException(status_code=403, detail="Nur Administratoren dürfen den main-Branch installieren.")
+    if not _token_configured():
+        raise HTTPException(status_code=400, detail="Bitte zuerst einen GitHub-Lesetoken hinterlegen.")
+    if not MAIN_UPDATE_HELPER.exists():
+        raise HTTPException(status_code=500, detail=f"main-Update-Helfer fehlt: {MAIN_UPDATE_HELPER}")
+    try:
+        check = subprocess.run(
+            ["sudo", "-n", "-l", str(MAIN_UPDATE_HELPER)],
+            text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=10,
+        )
+        if check.returncode != 0:
+            raise RuntimeError((check.stderr or check.stdout or "sudoers-Freigabe fehlt").strip())
+        _write_status("starting", "GitHub-main Update wurde gestartet", "stempeluhr", "", progress=2, step="Start")
+        _append_log("Administrator hat das Update aus GitHub-main gestartet.")
+        subprocess.Popen(
+            ["sudo", "-n", str(MAIN_UPDATE_HELPER)],
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            start_new_session=True,
+        )
+        return JSONResponse({"ok": True, "started": True})
+    except Exception as exc:
+        message = f"GitHub-main Update konnte nicht gestartet werden: {exc}"
+        _append_log(message)
+        _write_status("failed", message, progress=0, step="Start")
+        raise HTTPException(status_code=500, detail=message)
 
 
 @router.post("/system/settings/updates/github/install")
