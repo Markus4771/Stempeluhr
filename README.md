@@ -31,7 +31,45 @@ Webbasierte Zeiterfassung für Debian-Server und Raspberry-Pi-Terminals mit Post
 - konfigurierbare Zusatz-Programme über HTTP/HTTPS, IP oder Hostname und Port
 - rollenabhängige Navigation
 
-## Debian-Paket lokal bauen
+## Automatische Installation und Wartung
+
+Das Skript `install.sh` übernimmt Repository-Aktualisierung, Paketbau, Datensicherung, Installation und Systemprüfung.
+
+Auf einem bestehenden Produktivsystem:
+
+```bash
+cd ~/Stempeluhr
+git pull origin main
+chmod +x install.sh
+sudo ./install.sh update
+```
+
+Bei einer Erstinstallation:
+
+```bash
+sudo ./install.sh install
+```
+
+Wichtige Befehle:
+
+```text
+sudo ./install.sh install              Erstinstallation
+sudo ./install.sh update               Backup, Aktualisierung, Paketbau und Installation
+sudo ./install.sh build                nur Debian-Paket bauen
+sudo ./install.sh backup               PostgreSQL und Konfiguration sichern
+sudo ./install.sh restore DATEI        Backup wiederherstellen
+sudo ./install.sh status               Dienst, Version und Health anzeigen
+sudo ./install.sh logs                 letzte Dienstprotokolle anzeigen
+sudo ./install.sh version              installierte und vorhandene Versionen anzeigen
+sudo ./install.sh doctor               vollständige Systemdiagnose
+sudo ./install.sh restart              Dienst neu starten
+sudo ./install.sh uninstall            Paket entfernen, Daten behalten
+sudo ./install.sh uninstall --purge    Backup erstellen und vollständig entfernen
+```
+
+Standardmäßig werden Backups unter `/var/backups/stempeluhr` gespeichert.
+
+## Debian-Paket manuell bauen
 
 ```bash
 bash scripts/build_release.sh
