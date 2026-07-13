@@ -1,48 +1,38 @@
 {% extends "base.html" %}
 {% block content %}
 <h1>Systemeinstellungen · Updates</h1>
-{% if request.query_params.get('started') == '1' or update_running %}<meta http-equiv="refresh" content="5"><div class="alert alert-success success-box">DEB-Update wurde gestartet. Diese Seite aktualisiert sich automatisch alle 5 Sekunden.</div>{% endif %}
+{% if request.query_params.get('started') == '1' or update_running %}<meta http-equiv="refresh" content="5"><div class="alert alert-success success-box">Update wurde gestartet. Diese Seite aktualisiert sich automatisch.</div>{% endif %}
 <div class="grid">
-<div class="card"><h2>Aktuelle Version</h2><p class="big"><strong>{{ current_version }}</strong></p><p class="muted">Installierte Version aus der zentralen Versionsquelle.</p></div>
-<div class="card"><h2>Update-Status</h2>{% set progress = update_status.progress or 0 %}{% if update_running %}<p><span class="status-warn">Update läuft</span></p>{% elif update_status.state == 'failed' %}<p><span class="status-error">Fehler</span></p>{% elif update_status.state == 'success' %}<p><span class="status-ok">Erfolgreich</span></p>{% else %}<p><span class="status-ok">Bereit</span></p>{% endif %}<p><strong>{{ update_status.message or 'Bereit' }}</strong></p>{% if update_status.step %}<p class="muted">Schritt: <strong>{{ update_status.step }}</strong></p>{% endif %}<div style="background:#e5e7eb;border-radius:10px;overflow:hidden;height:18px;margin:10px 0;"><div style="height:18px;width:{{ progress }}%;background:#2563eb;"></div></div><p class="muted">Fortschritt: {{ progress }} %</p>{% if update_status.package or update_status.version %}<p class="muted">Paket: <code>{{ update_status.package }}</code> · Version: <code>{{ update_status.version }}</code></p>{% endif %}{% if update_status.time %}<p class="muted">Letzte Änderung: {{ update_status.time }}</p>{% endif %}<p class="muted">Upload-Verzeichnis: <code>{{ upload_dir }}</code></p></div>
+<div class="card"><h2>Aktuelle Version</h2><p class="big"><strong>{{ current_version }}</strong></p></div>
+<div class="card"><h2>Update-Status</h2>{% set progress = update_status.progress or 0 %}<p><strong>{{ update_status.message or 'Bereit' }}</strong></p><p class="muted">{{ update_status.step or '' }} · {{ progress }} %</p><div style="background:#e5e7eb;border-radius:10px;overflow:hidden;height:18px"><div style="height:18px;width:{{ progress }}%;background:#2563eb"></div></div></div>
 </div>
 <div class="card">
 <h2>GitHub-Update</h2>
-<p>Prüft das neueste stabile Release von <code>Markus4771/Stempeluhr</code>. Bei einem privaten Repository wird einmalig ein GitHub-Token mit Leserechten abgefragt und geschützt unter <code>/etc/stempeluhr/secrets/github_token</code> gespeichert.</p>
+<p>Zuerst wird ein veröffentlichtes Release geprüft. Ist kein Release vorhanden, kann der aktuelle Stand des Branches <code>main</code> geladen, lokal als Debian-Paket gebaut und über den bestehenden Update-Assistenten installiert werden.</p>
 <button type="button" class="btn" onclick="checkGitHubUpdate()">Auf GitHub nach Updates suchen</button>
-<button type="button" class="btn" onclick="askAndSaveGitHubToken()">GitHub-Token hinterlegen/ersetzen</button>
-<div id="github-update-result" style="margin-top:1rem;">Noch nicht geprüft.</div>
-<form id="github-update-form" method="post" action="/system/settings/updates/github/install" style="display:none;margin-top:1rem;"><button type="submit" class="btn btn-primary">Von GitHub herunterladen und installieren</button></form>
+<button type="button" class="btn" onclick="openTokenDialog()">GitHub-Token hinterlegen/ersetzen</button>
+<div id="github-update-result" style="margin-top:1rem">Noch nicht geprüft.</div>
+<form id="github-update-form" method="post" action="/system/settings/updates/github/install" style="display:none;margin-top:1rem"><button type="submit" class="btn btn-primary">Veröffentlichtes Release installieren</button></form>
+<button id="github-main-button" type="button" class="btn btn-primary" style="display:none;margin-top:1rem" onclick="installGitHubMain()">Aktuellen main-Stand bauen und installieren</button>
 </div>
-<div class="card"><h2>Update-Assistent</h2><ol><li>GitHub-Release laden oder DEB-Paket manuell auswählen</li><li>Paketname, Version, Architektur, Speicher und SHA256 prüfen</li><li>Backup erstellen</li><li>Update installieren</li><li>Dienst neu starten</li><li>Healthcheck ausführen</li><li>Erfolg oder klare Fehlermeldung anzeigen</li></ol></div>
-<div class="card"><h2>DEB-Paket manuell hochladen und installieren</h2><form method="post" action="/system/settings/updates/upload" enctype="multipart/form-data"><label>Stempeluhr-DEB auswählen</label><input type="file" name="update_file" accept=".deb" required><button type="submit" class="btn btn-primary">DEB-Update installieren</button></form><p class="muted">Zulässig sind nur Pakete mit Paketname <code>stempeluhr</code>, Architektur <code>all</code> und einer neueren Version.</p></div>
-<div class="card"><h2>Update-Diagnose</h2><p class="muted">Prüft Runner, sudoers, Uploadpfad und systemd.</p><button type="button" class="btn" onclick="loadUpdateDiagnostics()">Diagnose aktualisieren</button><div id="update-diagnostics" style="margin-top:1rem;">Diagnose noch nicht geladen.</div></div>
-<div class="card"><h2>Zuletzt bereitgestellte DEB-Dateien</h2>{% if uploaded_debs %}<table><thead><tr><th>Datei</th><th>Paket</th><th>Version</th><th>Größe</th><th>Zeit</th></tr></thead><tbody>{% for f in uploaded_debs %}<tr><td><code>{{ f.name }}</code></td><td><code>{{ f.package }}</code></td><td><code>{{ f.version }}</code></td><td>{{ f.size }} Bytes</td><td>{{ f.mtime }}</td></tr>{% endfor %}</tbody></table>{% else %}<p class="muted">Noch keine DEB-Dateien bereitgestellt.</p>{% endif %}</div>
+<dialog id="github-token-dialog">
+<form method="dialog" id="github-token-form" style="min-width:340px">
+<h3>GitHub-Lesetoken</h3>
+<p class="muted">Der Token wird nur lokal unter <code>/etc/stempeluhr/secrets/github_token</code> gespeichert.</p>
+<label>Token</label><input id="github-token-input" type="password" autocomplete="off" required style="width:100%">
+<div style="display:flex;gap:8px;margin-top:16px"><button value="cancel" class="btn">Abbrechen</button><button type="button" class="btn btn-primary" onclick="saveGitHubToken()">Speichern</button></div>
+</form>
+</dialog>
+<div class="card"><h2>DEB-Paket manuell hochladen</h2><form method="post" action="/system/settings/updates/upload" enctype="multipart/form-data"><input type="file" name="update_file" accept=".deb" required><button type="submit" class="btn btn-primary">DEB-Update installieren</button></form></div>
+<div class="card"><h2>Update-Diagnose</h2><button type="button" class="btn" onclick="loadUpdateDiagnostics()">Diagnose aktualisieren</button><div id="update-diagnostics">Diagnose noch nicht geladen.</div></div>
 <div class="card"><h2>Update-Protokoll</h2><pre class="log-box" id="update-log">{{ log_tail }}</pre></div>
 <script>
-function escapeHtml(value){return String(value||'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));}
-async function askAndSaveGitHubToken(){
- const token=window.prompt('GitHub Fine-grained Token mit Leserechten für Markus4771/Stempeluhr eingeben. Der Token wird nicht angezeigt und nur lokal gespeichert:');
- if(!token)return false;
- const body=new FormData(); body.append('token',token.trim());
- const res=await fetch('/system/settings/updates/github/token',{method:'POST',body});
- const data=await res.json().catch(()=>({}));
- if(!res.ok||!data.ok){alert(data.detail||data.error||'Token konnte nicht gespeichert werden.');return false;}
- alert('GitHub-Token wurde geschützt gespeichert.'); return true;
-}
-async function checkGitHubUpdate(){
- const box=document.getElementById('github-update-result'); const form=document.getElementById('github-update-form'); box.textContent='GitHub wird geprüft ...'; form.style.display='none';
- try{
-  let res=await fetch('/system/settings/updates/github/check'); let data=await res.json();
-  if((!res.ok||!data.ok)&&data.token_required){const saved=await askAndSaveGitHubToken();if(saved){res=await fetch('/system/settings/updates/github/check');data=await res.json();}}
-  if(!res.ok||!data.ok)throw new Error(data.error||data.detail||'GitHub-Prüfung fehlgeschlagen');
-  let html=`<p><strong>Neueste Version: ${escapeHtml(data.version)}</strong></p><p>Installiert: ${escapeHtml(data.current_version)}</p>`;
-  if(data.authenticated||data.token_configured)html+='<p class="status-ok">Privater GitHub-Zugriff ist eingerichtet.</p>';
-  if(!data.assets_complete)html+='<p class="status-error">Das Release enthält kein vollständiges DEB/SHA256-Paar.</p>';else if(data.update_available){html+='<p class="status-ok">Ein Update ist verfügbar.</p>';form.style.display='block';}else html+='<p class="status-ok">Die installierte Version ist aktuell.</p>';
-  if(data.body)html+=`<details><summary>Release Notes</summary><pre class="log-box">${escapeHtml(data.body)}</pre></details>`; box.innerHTML=html;
- }catch(e){box.innerHTML=`<p class="status-error">${escapeHtml(e.message||e)}</p>`;}
-}
-async function loadUpdateDiagnostics(){const box=document.getElementById('update-diagnostics');box.textContent='Lade Diagnose ...';try{const res=await fetch('/system/settings/updates/diagnostics');const data=await res.json();let html='<table><thead><tr><th>Prüfung</th><th>Status</th><th>Details</th></tr></thead><tbody>';for(const c of data.checks)html+=`<tr><td>${escapeHtml(c.name)}</td><td>${c.ok?'✅ OK':'❌ Fehler'}</td><td><code>${escapeHtml(c.detail)}</code></td></tr>`;html+='</tbody></table>';box.innerHTML=html;}catch(e){box.textContent='Diagnose konnte nicht geladen werden: '+e;}}
+function escapeHtml(v){return String(v||'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));}
+function openTokenDialog(){document.getElementById('github-token-input').value='';document.getElementById('github-token-dialog').showModal();}
+async function saveGitHubToken(){const input=document.getElementById('github-token-input');const token=input.value.trim();if(!token)return;const body=new FormData();body.append('token',token);const res=await fetch('/system/settings/updates/github/token',{method:'POST',body});const data=await res.json().catch(()=>({}));if(!res.ok||!data.ok){alert(data.detail||data.error||'Token konnte nicht gespeichert werden.');return;}document.getElementById('github-token-dialog').close();input.value='';alert('GitHub-Token wurde geschützt gespeichert.');}
+async function checkGitHubUpdate(){const box=document.getElementById('github-update-result'),releaseForm=document.getElementById('github-update-form'),mainButton=document.getElementById('github-main-button');box.textContent='GitHub wird geprüft ...';releaseForm.style.display='none';mainButton.style.display='none';let res=await fetch('/system/settings/updates/github/check');let data=await res.json().catch(()=>({}));if((!res.ok||!data.ok)&&data.token_required){openTokenDialog();box.innerHTML='<p class="status-warn">Bitte Token speichern und danach erneut prüfen.</p>';return;}if(!res.ok||!data.ok){box.innerHTML=`<p class="status-error">${escapeHtml(data.error||data.detail||'GitHub-Prüfung fehlgeschlagen')}</p>`;if(data.main_fallback_available){mainButton.style.display='inline-block';box.innerHTML+='<p>Kein Release verfügbar. Der aktuelle main-Stand kann stattdessen gebaut werden.</p>';}return;}let html=`<p><strong>Neueste Release-Version: ${escapeHtml(data.version)}</strong></p><p>Installiert: ${escapeHtml(data.current_version)}</p>`;if(data.update_available){releaseForm.style.display='block';html+='<p class="status-ok">Ein veröffentlichtes Update ist verfügbar.</p>';}else html+='<p>Kein neueres veröffentlichtes Release vorhanden.</p>';if(data.main_fallback_available)mainButton.style.display='inline-block';box.innerHTML=html;}
+async function installGitHubMain(){if(!confirm('Aktuellen main-Stand herunterladen, Paket bauen und installieren? Vorher wird der bestehende Update-Assistent ein Backup erstellen.'))return;const res=await fetch('/system/settings/updates/github/install-main',{method:'POST'});const data=await res.json().catch(()=>({}));if(!res.ok||!data.ok){alert(data.detail||data.error||'main-Update konnte nicht gestartet werden.');return;}location.href='/system/settings/updates?started=1';}
+async function loadUpdateDiagnostics(){const box=document.getElementById('update-diagnostics');box.textContent='Lade Diagnose ...';try{const res=await fetch('/system/settings/updates/diagnostics');const data=await res.json();let html='<table><tr><th>Prüfung</th><th>Status</th><th>Details</th></tr>';for(const c of data.checks)html+=`<tr><td>${escapeHtml(c.name)}</td><td>${c.ok?'OK':'Fehler'}</td><td><code>${escapeHtml(c.detail)}</code></td></tr>`;box.innerHTML=html+'</table>';}catch(e){box.textContent='Diagnosefehler: '+e;}}
 loadUpdateDiagnostics();
 </script>
 {% endblock %}
