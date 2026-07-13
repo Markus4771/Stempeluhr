@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<style>
+body{font-family:Arial,sans-serif;margin:0;color:#222;background:transparent}table{width:100%;border-collapse:collapse}th,td{border:1px solid #d5d5d5;padding:7px;text-align:left}th{background:#f2f2f2}.empty{text-align:center;color:#666;padding:18px}.come{font-weight:700}.leave{font-weight:700}
+</style>
+</head>
+<body>
+<table>
+<thead><tr><th>Datum</th><th>Uhrzeit</th><th>Mitarbeiter</th><th>Buchung</th><th>Methode</th><th>Terminal</th></tr></thead>
+<tbody>
+{% for e in entries %}
+{% set typ = (e.entry_type or '')|lower %}
+<tr>
+<td>{{ e.timestamp.strftime('%d.%m.%Y') }}</td>
+<td>{{ e.timestamp.strftime('%H:%M:%S') }}</td>
+<td>{{ e.employee.first_name }} {{ e.employee.last_name }}</td>
+<td class="{% if typ in ['kommen','come','in'] %}come{% elif typ in ['gehen','leave','out'] %}leave{% endif %}">
+{% if typ in ['kommen','come','in'] %}Kommen{% elif typ in ['gehen','leave','out'] %}Gehen{% else %}{{ e.entry_type }}{% endif %}
+</td>
+<td>{{ e.method or '' }}</td>
+<td>{{ e.terminal or '' }}</td>
+</tr>
+{% else %}
+<tr><td class="empty" colspan="6">Keine Kommen-/Gehen-Buchungen im gewählten Zeitraum vorhanden.</td></tr>
+{% endfor %}
+</tbody>
+</table>
+</body>
+</html>
