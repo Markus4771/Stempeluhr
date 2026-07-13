@@ -6,13 +6,13 @@
 
 - Repository: `Markus4771/Stempeluhr`
 - Standardbranch: `main`
-- Aktuelle Entwicklungs- und Testversion: **5.6.15**
-- Letzte vor Beginn von 5.6.15 bestätigte Version: **5.6.13**
-- Versionen 5.6.14 und 5.6.15 müssen noch vollständig auf der Proxmox-Test-VM abgenommen werden
+- Aktuelle Entwicklungs- und Testversion: **5.6.16**
+- Letzte vor Beginn von 5.6.16 bestätigte Version: **5.6.13**
+- Versionen 5.6.14 bis 5.6.16 müssen noch vollständig auf der Proxmox-Test-VM abgenommen werden
 - Zielplattform: Debian 13 und Raspberry Pi OS
 - Backend: Python, FastAPI, Uvicorn, SQLAlchemy
 - Standarddatenbank: PostgreSQL
-- Installation und Update: Debian-Paket
+- Installation und Update: Debian-Paket über `install.sh`
 
 ## Verbindliche Regeln
 
@@ -26,93 +26,70 @@ Bei jeder neuen Version synchron aktualisieren: `version.txt`, `app/version.py`,
 - Konfiguration: `/etc/stempeluhr/stempeluhr.env`
 - Datenbank-Secret: `/etc/stempeluhr/secrets/database.conf`
 - variable Daten: `/var/lib/stempeluhr`
+- Backups: `/var/backups/stempeluhr`
 - Dienst: `stempeluhr.service`
 - Healthcheck: `/health`
 - Versionsauskunft: `/version`
+- Abwesenheiten: `/vacation`
+- Abwesenheitsarten: `/system/settings/absence-types`
 - Rollen & Rechte: `/system/settings/roles`
 - Zusatz-Programme: `/additional-programs`
-- Konfiguration Zusatz-Programme: `/system/settings/general/additional-programs`
 - Hilfe und Dokumentation: `/help`
 
-## Version 5.6.15 – Dokumentation und Hilfesystem
+## Version 5.6.16 – Abwesenheiten und Installation
 
 Umgesetzt:
 
-- neuer Hauptmenüpunkt **Hilfe & Dokumentation**
+- Hauptnavigation auf einen Eintrag **Abwesenheiten** reduziert
+- separaten Hauptmenüpunkt **Meine Abwesenheiten** entfernt
+- Abwesenheitsübersicht mit Kacheln für Antrag, eigene Abwesenheiten, Genehmigungen, Kalender und Resturlaub
+- Administrator-Kachel für Abwesenheitsarten
+- gespeicherte Einstellung `requires_approval` wird beim Erstellen eines Antrags ausgewertet
+- genehmigungsfreie Arten wie `Krank` erhalten sofort den Status `genehmigt`
+- genehmigungsfreie Arten erscheinen nicht in offenen Genehmigungen
+- Formularstruktur der Abwesenheitsarten korrigiert
+- `install.sh` für Installation, Update, Build, Backup, Restore, Status, Logs, Version und Diagnose
+- keine destruktive Datenbankmigration
+
+## Stand aus Version 5.6.15
+
+- integrierter Hilfebereich mit Administrator-, Benutzer-, Installations- und API-Handbuch
+- Volltextsuche, HTML-, Druck- und PDF-Ansichten
 - Handbuchquellen unter `docs/manuals/`
-- Administratorhandbuch
-- Benutzerhandbuch
-- Installations- und Einrichterhandbuch
-- API-Handbuch
-- gemeinsame Volltextsuche über alle Handbücher
-- HTML-Leseansicht und browserbasierte Druckansicht
-- PDF-Erzeugung direkt in der Anwendung mit ReportLab
-- PDF-Routen `/help/{slug}/pdf`
 - Hilfebereich nur für angemeldete Benutzer
-- feste Kapitelnavigation mit Sprunglinks
-- lokale Suche innerhalb eines geöffneten Handbuchs
-- helle, kontrastreiche Codeblöcke mit automatischem Umbruch
-- Kopierfunktion für Befehle, URLs und API-Beispiele
-- responsive Darstellung für kleinere Bildschirme
-- Druckansicht ohne Navigation und Bedienelemente
-- keine Datenbankmigration und keine Änderung produktiver Daten
-
-Zentrale Dateien:
-
-- `app/routes/help_docs.py`
-- `app/templates/help_index.html`
-- `app/templates/help_manual.html`
-- `app/static/help.css`
-- `docs/manuals/administrator.md`
-- `docs/manuals/benutzer.md`
-- `docs/manuals/installation.md`
-- `docs/manuals/api.md`
-
-## Stand aus Version 5.6.14
-
-- Rollen und Berechtigungen werden im vorhandenen Feld `roles.permissions` als JSON gespeichert
-- Administrator behält immer Vollzugriff
-- Standardrollen sind geschützt
-- gruppierte Systemeinstellungs-Untermenüs mit Alle-aktivieren/Alle-deaktivieren
-- Zusatz-Programme über HTTP/HTTPS, IP oder Hostname, Port und optionalen Pfad
-- Zusatz-Programme sind bearbeitbar, aktivierbar und rollenabhängig sichtbar
-- tatsächliche Router-Registrierung erfolgt über `app/routes/web.py`
 
 ## Bekannter offener Punkt
 
-Der GitHub-Actions-Workflow **„Debian-Paket bauen und veröffentlichen“** ist zuletzt fehlgeschlagen. Der konkrete rote Fehler aus dem Joblog wurde noch nicht ausgewertet und muss vor einer automatischen Veröffentlichung behoben werden. Ein lokal gebautes Paket darf nur nach erfolgreichem Build und Test als fertig bezeichnet werden.
+Der GitHub-Actions-Workflow **„Debian-Paket bauen und veröffentlichen“** war zuletzt fehlgeschlagen. Der konkrete Fehler muss vor einer automatischen Veröffentlichung anhand des Joblogs geprüft werden. Ein lokal gebautes Paket darf nur nach erfolgreichem Build und Test als fertig bezeichnet werden.
 
-## Offene Prüfungen vor Freigabe 5.6.15
+## Offene Prüfungen vor Freigabe 5.6.16
 
 - Python-Syntax und Imports prüfen
 - Debian-Paket bauen und SHA256 validieren
 - Upgrade auf der Proxmox-Test-VM installieren
-- `/help` und alle vier Handbücher öffnen
-- feste Kapitelnavigation und Sprunglinks testen
-- helle Codeblöcke und Kopierfunktion testen
-- Suche nach `Backup`, `RFID`, `Passwort` und `API` testen
-- alle vier PDF-Dateien erzeugen und öffnen
-- Druckansicht testen
-- prüfen, dass nicht angemeldete Aufrufe auf `/login` umleiten
-- Zusatz-Programme und Rollen aus 5.6.14 erneut testen
+- Abwesenheitsart `Krank` ohne Genehmigung anlegen und Status prüfen
+- genehmigungspflichtige Abwesenheitsart mit offenem Antrag prüfen
+- Hauptnavigation auf nur einen Eintrag `Abwesenheiten` prüfen
+- Rollenabhängigkeit der Kacheln prüfen
+- Backup und Update mit `sudo bash install.sh update` prüfen
+- `/help`, PDF-Erzeugung, Rollen und Zusatz-Programme erneut testen
 - `/health`, `/version`, Mitarbeiter und Buchungen prüfen
-- GitHub-Actions-Fehler anhand des Joblogs beheben
 - erst danach Tag und GitHub Release veröffentlichen
 
 ## Build
 
 ```bash
 bash scripts/build_release.sh
-sha256sum -c releases/stempeluhr_5.6.15_all.deb.sha256
+sha256sum -c releases/stempeluhr_5.6.16_all.deb.sha256
 ```
 
 Erwartete Artefakte:
 
 ```text
-releases/stempeluhr_5.6.15_all.deb
-releases/stempeluhr_5.6.15_all.deb.sha256
-releases/stempeluhr_5.6.15_build.log
-releases/stempeluhr_5.6.15_BUILD_REPORT.md
+releases/stempeluhr_5.6.16_all.deb
+releases/stempeluhr_5.6.16_all.deb.sha256
+releases/stempeluhr_5.6.16_build.log
+releases/stempeluhr_5.6.16_BUILD_REPORT.md
 ```
 
 ## Startanweisung für neue Chats
