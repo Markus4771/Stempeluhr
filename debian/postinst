@@ -21,7 +21,8 @@ id "$APP_USER" >/dev/null 2>&1 || adduser --system --ingroup "$APP_GROUP" --home
 
 install -d -m 0755 -o "$APP_USER" -g "$APP_GROUP" "$APP_DIR"
 install -d -m 0750 -o "$APP_USER" -g "$APP_GROUP" "$DATA_DIR" "$TMP_DIR" "$LOG_DIR"
-install -d -m 0750 -o root -g "$APP_GROUP" "$CONFIG_DIR" "$SECRETS_DIR"
+install -d -m 0750 -o root -g "$APP_GROUP" "$CONFIG_DIR"
+install -d -m 0770 -o root -g "$APP_GROUP" "$SECRETS_DIR"
 
 if [[ ! -f "$ENV_FILE" ]]; then
   NEW_CONFIG=1
@@ -54,6 +55,10 @@ chmod 0640 "$ENV_FILE"
 if [[ -f "$DB_SECRET_FILE" ]]; then
   chown root:"$APP_GROUP" "$DB_SECRET_FILE"
   chmod 0640 "$DB_SECRET_FILE"
+fi
+if [[ -f "$SECRETS_DIR/github_token" ]]; then
+  chown "$APP_USER":"$APP_GROUP" "$SECRETS_DIR/github_token"
+  chmod 0600 "$SECRETS_DIR/github_token"
 fi
 
 set -a
