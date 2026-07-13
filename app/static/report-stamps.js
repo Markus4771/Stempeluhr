@@ -1,44 +1,33 @@
 document.addEventListener('DOMContentLoaded', function () {
-  if (window.location.pathname !== '/reports') return;
+  if (!window.location.pathname.replace(/\/$/, '').endsWith('/reports')) return;
 
-  const headings = Array.from(document.querySelectorAll('h2'));
-  const heading = headings.find((item) => item.textContent.trim() === 'Stempelzeiten im gewählten Zeitraum');
-  if (!heading) return;
-
-  const section = heading.closest('section');
+  const section = Array.from(document.querySelectorAll('section')).find((item) => {
+    const heading = item.querySelector('h2');
+    return heading && heading.textContent.trim().toLowerCase().includes('stempelzeiten');
+  });
   if (!section) return;
 
-  const params = new URLSearchParams(window.location.search);
   const employeeSelect = document.querySelector('select[name="employee_id"]');
   const fromInput = document.querySelector('input[name="date_from"]');
   const toInput = document.querySelector('input[name="date_to"]');
-
-  const employeeId = params.get('employee_id') || (employeeSelect ? employeeSelect.value : '0');
-  const dateFrom = params.get('date_from') || (fromInput ? fromInput.value : '');
-  const dateTo = params.get('date_to') || (toInput ? toInput.value : '');
-
+  const params = new URLSearchParams(window.location.search);
   const frameParams = new URLSearchParams({
-    employee_id: employeeId || '0',
-    date_from: dateFrom || '',
-    date_to: dateTo || ''
+    employee_id: params.get('employee_id') || (employeeSelect ? employeeSelect.value : '0'),
+    date_from: params.get('date_from') || (fromInput ? fromInput.value : ''),
+    date_to: params.get('date_to') || (toInput ? toInput.value : '')
   });
 
-  section.innerHTML = '';
-  const newHeading = document.createElement('h2');
-  newHeading.textContent = 'Stempelzeiten im gewählten Zeitraum';
-  section.appendChild(newHeading);
-
-  const help = document.createElement('p');
-  help.className = 'help-text';
-  help.textContent = 'Kommen- und Gehen-Buchungen werden serverseitig nach Berechtigung, Mitarbeiter und Zeitraum gefiltert.';
-  section.appendChild(help);
+  section.innerHTML = '<h2>Stempelzeiten im gewählten Zeitraum</h2>' +
+    '<p class="help-text">Kommen- und Gehen-Buchungen werden serverseitig nach Berechtigung, Mitarbeiter und Zeitraum gefiltert.</p>';
 
   const frame = document.createElement('iframe');
   frame.src = '/reports/stamps?' + frameParams.toString();
   frame.title = 'Kommen- und Gehen-Buchungen';
   frame.style.width = '100%';
-  frame.style.minHeight = '360px';
+  frame.style.minHeight = '420px';
   frame.style.border = '0';
-  frame.style.background = 'transparent';
+  frame.addEventListener('error', function () {
+    section.insertAdjacentHTML('beforeend', '<div class="error-box">Stempelzeiten konnten nicht geladen werden.</div>');
+  });
   section.appendChild(frame);
 });
