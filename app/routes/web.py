@@ -3,8 +3,11 @@ from fastapi import APIRouter
 from . import dashboard, employees, reports, corrections, privacy_audit, backup, vacation, plausibility
 from app.modules.developer import routes as developer
 from app.modules.updates import github_routes
+from app.services.absence_approval import register_absence_approval_events
 from . import email_settings, departments, api_settings, terminals, time_settings, https_settings
 from . import security_general, security_login, security_policies, roles, offboarding, dsgvo, absence_types, kiosk_settings, monitoring, setup_wizard, raspberry_monitor, onboarding, diagnostics, database_security, additional_programs, help_docs
+
+register_absence_approval_events()
 
 router = APIRouter()
 
