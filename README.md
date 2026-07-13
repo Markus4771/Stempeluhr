@@ -1,15 +1,22 @@
-# Stempeluhr Professional 5.6.16
+# Stempeluhr Professional 5.6.17
 
 Webbasierte Zeiterfassung für Debian-Server und Raspberry-Pi-Terminals mit PostgreSQL, FastAPI, Rollen und Rechten, Reporting, Sicherheitsrichtlinien, Zusatz-Programmen und integriertem Hilfesystem.
 
 ## Aktueller Stand
 
-- Version: **5.6.16**
+- Version: **5.6.17**
 - Standarddatenbank: PostgreSQL
 - Zielplattform: Debian 13 / Raspberry Pi OS
 - Standardbranch: `main`
 
-## Änderungen in 5.6.16
+## Änderungen in 5.6.17
+
+- Menüpunkt **Zeiterfassung** aus der normalen Hauptnavigation entfernt
+- Kiosk-Seite `/raspberry` bleibt unverändert erreichbar
+- Raspberry-Kiosk kann die Zeiterfassung weiterhin direkt und automatisch öffnen
+- keine Änderung an Buchungslogik, RFID-Funktion oder produktiven Daten
+
+## Bereits enthalten aus 5.6.16
 
 - Hauptnavigation im Bereich **Abwesenheiten** zusammengefasst
 - doppelten Menüpunkt **Meine Abwesenheiten** aus der Hauptnavigation entfernt
@@ -19,26 +26,9 @@ Webbasierte Zeiterfassung für Debian-Server und Raspberry-Pi-Terminals mit Post
 - genehmigungsfreie Arten wie **Krank** werden direkt mit Status `genehmigt` gespeichert
 - genehmigungsfreie Anträge erscheinen nicht mehr in der offenen Genehmigungsliste
 - fehlerhafte Formularzuordnung bei der Bearbeitung von Abwesenheitsarten korrigiert
-- neues `install.sh` für Installation, Update, Backup, Status, Logs und Diagnose ergänzt
-
-## Bereits enthalten aus 5.6.15
-
-- neuer Hauptmenüpunkt **Hilfe & Dokumentation**
-- integriertes Administratorhandbuch
-- integriertes Benutzerhandbuch
-- integriertes Installations- und Einrichterhandbuch
-- integriertes API-Handbuch
-- gemeinsame Volltextsuche über alle Handbücher
-- HTML-Leseansicht und Druckansicht
-- PDF-Erzeugung und Download direkt aus der Weboberfläche
-- Markdown-Quellen unter `docs/manuals/`
-- PDF-Erzeugung mit der bereits vorhandenen ReportLab-Abhängigkeit
-- Hilferouten nur für angemeldete Benutzer zugänglich
-- keine produktiven Mitarbeiter-, Buchungs- oder Datenbankdaten verändert
+- `install.sh` für Installation, Update, Backup, Status, Logs und Diagnose ergänzt
 
 ## Automatische Installation und Wartung
-
-Das Skript `install.sh` übernimmt Repository-Aktualisierung, Paketbau, Datensicherung, Installation und Systemprüfung.
 
 Auf einem bestehenden Produktivsystem:
 
@@ -83,12 +73,12 @@ bash scripts/build_release.sh
 Erwartete Ergebnisse:
 
 ```text
-releases/stempeluhr_5.6.16_all.deb
-releases/stempeluhr_5.6.16_all.deb.sha256
-releases/stempeluhr_5.6.16_build.log
-releases/stempeluhr_5.6.16_BUILD_REPORT.md
+releases/stempeluhr_5.6.17_all.deb
+releases/stempeluhr_5.6.17_all.deb.sha256
+releases/stempeluhr_5.6.17_build.log
+releases/stempeluhr_5.6.17_BUILD_REPORT.md
 ```
 
 ## Test und Installation
 
-Version 5.6.16 zuerst auf der Debian-13-Test-VM installieren. Zu testen sind Abwesenheitsarten mit und ohne Genehmigung, die zusammengefasste Abwesenheitsnavigation, `/help`, alle vier Handbücher, Suche, Druckansicht, PDF-Downloads, Rollen, Zusatz-Programme sowie `/health` und `/version`.
+Version 5.6.17 zuerst auf der Debian-13-Test-VM installieren. Zu testen sind die normale Hauptnavigation ohne Zeiterfassung, der direkte Kiosk-Aufruf `/raspberry`, Abwesenheitsarten mit und ohne Genehmigung, `/health` und `/version`.
