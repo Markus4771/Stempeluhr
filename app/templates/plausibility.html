@@ -59,6 +59,15 @@
             <input name="comment" value="{{ i.comment or '' }}" placeholder="Kommentar">
             <button class="button small" type="submit">Speichern</button>
           </form>
+          {% if user.role and user.role.name in ['Administrator','Personal','Teamleiter'] %}
+          <form method="post" action="/plausibility/{{ i.id }}/reset" class="inline-form" onsubmit="return confirm('Diese Plausibilitätsmeldung wirklich zurücksetzen?');">
+            <input type="hidden" name="filter_employee_id" value="{{ filters.employee_id }}">
+            <input type="hidden" name="filter_status" value="{{ filters.status }}">
+            <input type="hidden" name="filter_date_from" value="{{ filters.date_from }}">
+            <input type="hidden" name="filter_date_to" value="{{ filters.date_to }}">
+            <button class="button small secondary" type="submit">Zurücksetzen</button>
+          </form>
+          {% endif %}
         </td>
       </tr>
     {% else %}
