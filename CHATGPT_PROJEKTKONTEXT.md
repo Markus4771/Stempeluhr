@@ -6,7 +6,7 @@
 
 - Repository: `Markus4771/Stempeluhr`
 - Standardbranch: `main`
-- Aktuelle Entwicklungs- und Testversion: **5.6.19**
+- Aktuelle Entwicklungs- und Testversion: **5.6.20**
 - Zielplattform: Debian 13 und Raspberry Pi OS
 - Backend: Python, FastAPI, Uvicorn, SQLAlchemy
 - Standarddatenbank: PostgreSQL
@@ -31,29 +31,37 @@ Bei jeder neuen Version synchron aktualisieren: `version.txt`, `app/version.py`,
 - Versionsauskunft: `/version`
 - Kiosk-Zeiterfassung: `/raspberry`
 - Persönlicher Report: `/reports`
-- Report-Stempelzeiten: `/reports/stamp-entries`
+- Report-Stempelzeiten: `/reports/stamps`
 - Plausibilitätsprüfung: `/plausibility`
+- Überstundenverwaltung: `/overtime-adjustments`
 - öffentliche Datenschutzerklärung: `/datenschutz`
 
-## Version 5.6.19
+## Version 5.6.20
 
 Umgesetzt:
 
-- Stempelzeiten werden serverseitig exakt nach Mitarbeiter und Zeitraum geladen
-- allgemeine Begrenzung auf die letzten 300 Buchungen entfernt
-- Kommen-/Gehen-Bezeichnungen im Report vereinheitlicht
+- Plausibilitätsmeldungen können durch Teamleiter, Personal und Administratoren auf `offen` zurückgesetzt werden
+- beim Zurücksetzen werden Kommentar, Erledigungsdatum und Bearbeiter entfernt
+- Überstundenänderungen können auf einen frei wählbaren Zielwert gesetzt werden
+- Überstundenänderungen können sofort oder zu einem geplanten Zeitpunkt wirksam werden
+- Mitarbeiterfreigabe per E-Mail mit Genehmigen- und Ablehnen-Link
+- Änderung wird erst nach Mitarbeitergenehmigung ausgeführt
+- zukünftige genehmigte Änderungen werden automatisch verarbeitet
+- Kommen-/Gehen-Zeiten werden über die serverseitig gefilterte Route `/reports/stamps` in `Mein Report` eingebunden
 - Mitarbeiter bleiben auf die eigenen Zeiten beschränkt
 - Teamleiter sehen ausschließlich zugeordnete Mitarbeiter
-- privater GitHub-Release-Zugriff über Secret-Datei oder Umgebungsvariable
-- präzisere Meldung bei HTTP 404 oder fehlendem Release
+- privater GitHub-Release-Zugriff weiterhin über Secret-Datei oder Umgebungsvariable
 
-## Offene Prüfungen vor Freigabe 5.6.19
+## Offene Prüfungen vor Freigabe 5.6.20
 
 - Python-Syntax und Imports prüfen
+- Datenbankmigration für Überstundenänderungen prüfen
 - Debian-Paket bauen und SHA256 validieren
 - Upgrade auf Testsystem installieren
+- Plausibilitätsmeldung zurücksetzen und Filtererhalt prüfen
+- Überstundenänderung sofort, geplant, genehmigt und abgelehnt testen
+- E-Mail-Genehmigungslinks testen
 - persönlichen Report mit Kommen-/Gehen-Buchungen prüfen
-- Zeitraumfilter mit älteren Buchungen prüfen
 - Mitarbeiter- und Teamleiterrechte prüfen
 - GitHub-Release-Abfrage mit privatem Repository und Token prüfen
 - `/health` und `/version` prüfen
@@ -62,7 +70,7 @@ Umgesetzt:
 
 ```bash
 bash scripts/build_release.sh
-sha256sum -c releases/stempeluhr_5.6.19_all.deb.sha256
+sha256sum -c releases/stempeluhr_5.6.20_all.deb.sha256
 ```
 
 ## Startanweisung für neue Chats
