@@ -6,7 +6,7 @@
 
 - Repository: `Markus4771/Stempeluhr`
 - Standardbranch: `main`
-- Aktuelle Entwicklungs- und Testversion: **5.6.20**
+- Aktuelle Entwicklungs- und Testversion: **5.6.21**
 - Zielplattform: Debian 13 und Raspberry Pi OS
 - Backend: Python, FastAPI, Uvicorn, SQLAlchemy
 - Standarddatenbank: PostgreSQL
@@ -23,7 +23,7 @@ Bei jeder neuen Version synchron aktualisieren: `version.txt`, `app/version.py`,
 - Anwendung: `/opt/stempeluhr`
 - Konfiguration: `/etc/stempeluhr/stempeluhr.env`
 - Datenbank-Secret: `/etc/stempeluhr/secrets/database.conf`
-- GitHub-Token für privaten Release-Zugriff: `/etc/stempeluhr/secrets/github_token`
+- GitHub-Token: `/etc/stempeluhr/secrets/github_token`
 - variable Daten: `/var/lib/stempeluhr`
 - Backups: `/var/backups/stempeluhr`
 - Dienst: `stempeluhr.service`
@@ -31,46 +31,49 @@ Bei jeder neuen Version synchron aktualisieren: `version.txt`, `app/version.py`,
 - Versionsauskunft: `/version`
 - Kiosk-Zeiterfassung: `/raspberry`
 - Persönlicher Report: `/reports`
-- Report-Stempelzeiten: `/reports/stamps`
 - Plausibilitätsprüfung: `/plausibility`
 - Überstundenverwaltung: `/overtime-adjustments`
+- Updateverwaltung: `/system/settings/updates`
 - öffentliche Datenschutzerklärung: `/datenschutz`
 
-## Version 5.6.20
+## Version 5.6.21
 
 Umgesetzt:
 
-- Plausibilitätsmeldungen können durch Teamleiter, Personal und Administratoren auf `offen` zurückgesetzt werden
-- beim Zurücksetzen werden Kommentar, Erledigungsdatum und Bearbeiter entfernt
-- Überstundenänderungen können auf einen frei wählbaren Zielwert gesetzt werden
-- Überstundenänderungen können sofort oder zu einem geplanten Zeitpunkt wirksam werden
-- Mitarbeiterfreigabe per E-Mail mit Genehmigen- und Ablehnen-Link
-- Änderung wird erst nach Mitarbeitergenehmigung ausgeführt
-- zukünftige genehmigte Änderungen werden automatisch verarbeitet
-- Kommen-/Gehen-Zeiten werden über die serverseitig gefilterte Route `/reports/stamps` in `Mein Report` eingebunden
-- Mitarbeiter bleiben auf die eigenen Zeiten beschränkt
+- Kommen- und Gehen-Uhrzeiten werden direkt im Template von `Mein Report` angezeigt
+- die Datenbankabfrage filtert nach zulässigen Mitarbeitern sowie exakt nach Von-/Bis-Datum
+- normale Mitarbeiter sehen ausschließlich eigene Buchungen
 - Teamleiter sehen ausschließlich zugeordnete Mitarbeiter
-- privater GitHub-Release-Zugriff weiterhin über Secret-Datei oder Umgebungsvariable
+- Menüeinträge für Überstunden und Plausibilität sind für Teamleiter, Personal und Administratoren sichtbar
+- Updateverwaltung fragt bei fehlendem GitHub-Token per Eingabefenster nach
+- Token kann in der Updateverwaltung ersetzt werden
+- Speicherung unter `/etc/stempeluhr/secrets/github_token` mit restriktiven Dateirechten
+- Report-E-Mail und automatischer Monatsversand bleiben erhalten
 
-## Offene Prüfungen vor Freigabe 5.6.20
+## Enthalten aus Version 5.6.20
+
+- Plausibilitätsmeldungen zurücksetzen
+- Überstundenänderungen mit Zielwert und Wirksamkeitszeitpunkt
+- verpflichtende Mitarbeitergenehmigung per E-Mail
+
+## Offene Prüfungen vor Freigabe 5.6.21
 
 - Python-Syntax und Imports prüfen
-- Datenbankmigration für Überstundenänderungen prüfen
 - Debian-Paket bauen und SHA256 validieren
 - Upgrade auf Testsystem installieren
-- Plausibilitätsmeldung zurücksetzen und Filtererhalt prüfen
-- Überstundenänderung sofort, geplant, genehmigt und abgelehnt testen
-- E-Mail-Genehmigungslinks testen
-- persönlichen Report mit Kommen-/Gehen-Buchungen prüfen
+- Kommen-/Gehen-Zeiten im persönlichen Report prüfen
 - Mitarbeiter- und Teamleiterrechte prüfen
-- GitHub-Release-Abfrage mit privatem Repository und Token prüfen
+- Plausibilitäts-Reset prüfen
+- Überstundenantrag, Genehmigung, Ablehnung und geplante Ausführung prüfen
+- Token-Popup und geschützte Speicherung prüfen
+- GitHub-Release-Abfrage mit privatem Repository prüfen
 - `/health` und `/version` prüfen
 
 ## Build
 
 ```bash
 bash scripts/build_release.sh
-sha256sum -c releases/stempeluhr_5.6.20_all.deb.sha256
+sha256sum -c releases/stempeluhr_5.6.21_all.deb.sha256
 ```
 
 ## Startanweisung für neue Chats
