@@ -1,3 +1,14 @@
+## 5.6.20
+
+- Plausibilitätsmeldungen können von Administrator, Personal und zuständigen Teamleitern zurückgesetzt werden
+- Zurücksetzen stellt den Status auf `offen` und entfernt Kommentar, Erledigungszeit und Bearbeiter
+- Überstundenverwaltung mit Zielwert, sofortigem oder geplantem Wirksamkeitszeitpunkt ergänzt
+- Zielwert kann `0`, positiv oder negativ sein
+- Mitarbeiterfreigabe per E-Mail ist vor der Änderung verpflichtend
+- genehmigte zukünftige Änderungen werden automatisch zum geplanten Zeitpunkt angewendet
+- Änderungsverlauf mit Altwert, Zielwert, Begründung und Status ergänzt
+- Einbindung der Kommen-/Gehen-Zeiten in `Mein Report` robuster gemacht
+
 ## 5.6.19
 
 - Stempelzeiten in `Mein Report` werden serverseitig nach gewähltem Mitarbeiter und Zeitraum geladen
