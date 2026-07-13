@@ -1,3 +1,16 @@
+## 5.6.16
+
+- Hauptnavigation im Bereich `Abwesenheiten` zusammengefasst
+- doppelten Menüpunkt `Meine Abwesenheiten` aus der Hauptnavigation entfernt
+- Abwesenheitsübersicht um rollenabhängige Kacheln ergänzt
+- Administrator-Kachel für `Abwesenheitsarten` ergänzt
+- Einstellung `Genehmigung nötig` wird beim Anlegen neuer Abwesenheiten ausgewertet
+- genehmigungsfreie Arten wie `Krank` werden direkt mit Status `genehmigt` gespeichert
+- genehmigungsfreie Anträge erscheinen nicht in der offenen Genehmigungsliste
+- Formularzuordnung bei der Bearbeitung von Abwesenheitsarten korrigiert
+- `install.sh` für Installation, Update, Paketbau, Backup, Restore, Status, Logs und Diagnose ergänzt
+- keine destruktive Datenbankmigration und keine Änderung bestehender produktiver Daten
+
 ## 5.6.15
 
 - Hauptmenüpunkt `Hilfe & Dokumentation` ergänzt
