@@ -12,17 +12,31 @@ from typing import Any
 REPOSITORY = os.environ.get("STEMPELUHR_GITHUB_REPOSITORY", "Markus4771/Stempeluhr")
 API_URL = f"https://api.github.com/repos/{REPOSITORY}/releases/latest"
 USER_AGENT = "Stempeluhr-Professional-Updater"
+TOKEN_FILE = Path(os.environ.get("STEMPELUHR_GITHUB_TOKEN_FILE", "/etc/stempeluhr/secrets/github_token"))
+
+
+def _github_token() -> str:
+    token = (os.environ.get("STEMPELUHR_GITHUB_TOKEN") or "").strip()
+    if token:
+        return token
+    try:
+        if TOKEN_FILE.is_file():
+            return TOKEN_FILE.read_text(encoding="utf-8").strip()
+    except Exception:
+        pass
+    return ""
 
 
 def _request(url: str, timeout: int = 20) -> bytes:
-    request = urllib.request.Request(
-        url,
-        headers={
-            "Accept": "application/vnd.github+json",
-            "User-Agent": USER_AGENT,
-            "X-GitHub-Api-Version": "2022-11-28",
-        },
-    )
+    headers = {
+        "Accept": "application/vnd.github+json",
+        "User-Agent": USER_AGENT,
+        "X-GitHub-Api-Version": "2022-11-28",
+    }
+    token = _github_token()
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+    request = urllib.request.Request(url, headers=headers)
     with urllib.request.urlopen(request, timeout=timeout) as response:
         return response.read()
 
@@ -31,6 +45,18 @@ def latest_release() -> dict[str, Any]:
     try:
         payload = json.loads(_request(API_URL).decode("utf-8"))
     except urllib.error.HTTPError as exc:
+        if exc.code == 404:
+            token_hint = (
+                " Das Repository ist möglicherweise privat; dann muss ein GitHub-Token mit Leserechten "
+                "in /etc/stempeluhr/secrets/github_token hinterlegt werden."
+            )
+            return {
+                "ok": False,
+                "error": (
+                    "GitHub antwortet mit HTTP 404. Es wurde kein veröffentlichtes Release gefunden oder "
+                    f"der Zugriff auf {REPOSITORY} ist nicht berechtigt.{token_hint}"
+                ),
+            }
         return {"ok": False, "error": f"GitHub antwortet mit HTTP {exc.code}."}
     except Exception as exc:
         return {"ok": False, "error": f"GitHub-Release konnte nicht gelesen werden: {exc}"}
@@ -61,6 +87,7 @@ def latest_release() -> dict[str, Any]:
         "deb": deb,
         "checksum": checksum,
         "assets_complete": bool(deb and checksum),
+        "authenticated": bool(_github_token()),
     }
 
 
