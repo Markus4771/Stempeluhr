@@ -6,7 +6,7 @@
 
 - Repository: `Markus4771/Stempeluhr`
 - Standardbranch: `main`
-- Aktuelle Entwicklungs- und Testversion: **5.6.18**
+- Aktuelle Entwicklungs- und Testversion: **5.6.19**
 - Zielplattform: Debian 13 und Raspberry Pi OS
 - Backend: Python, FastAPI, Uvicorn, SQLAlchemy
 - Standarddatenbank: PostgreSQL
@@ -23,6 +23,7 @@ Bei jeder neuen Version synchron aktualisieren: `version.txt`, `app/version.py`,
 - Anwendung: `/opt/stempeluhr`
 - Konfiguration: `/etc/stempeluhr/stempeluhr.env`
 - Datenbank-Secret: `/etc/stempeluhr/secrets/database.conf`
+- GitHub-Token für privaten Release-Zugriff: `/etc/stempeluhr/secrets/github_token`
 - variable Daten: `/var/lib/stempeluhr`
 - Backups: `/var/backups/stempeluhr`
 - Dienst: `stempeluhr.service`
@@ -30,38 +31,38 @@ Bei jeder neuen Version synchron aktualisieren: `version.txt`, `app/version.py`,
 - Versionsauskunft: `/version`
 - Kiosk-Zeiterfassung: `/raspberry`
 - Persönlicher Report: `/reports`
+- Report-Stempelzeiten: `/reports/stamp-entries`
 - Plausibilitätsprüfung: `/plausibility`
 - öffentliche Datenschutzerklärung: `/datenschutz`
 
-## Version 5.6.18
+## Version 5.6.19
 
 Umgesetzt:
 
-- Plausibilitätsfilter bleiben nach dem Speichern erhalten
-- Status und Kommentar werden im Bearbeitungsformular wieder angezeigt
-- Stempelzeiten werden im gewählten Reportzeitraum aufgeführt
-- normale Mitarbeiter werden serverseitig immer auf die eigene Mitarbeiter-ID eingeschränkt
-- Teamleiter sehen nur die ihnen zugeordneten Mitarbeiter
-- Personal und Administratoren behalten den vorgesehenen erweiterten Zugriff
-- öffentliche Datenschutzerklärung und Link bei der Kontoeinrichtung
+- Stempelzeiten werden serverseitig exakt nach Mitarbeiter und Zeitraum geladen
+- allgemeine Begrenzung auf die letzten 300 Buchungen entfernt
+- Kommen-/Gehen-Bezeichnungen im Report vereinheitlicht
+- Mitarbeiter bleiben auf die eigenen Zeiten beschränkt
+- Teamleiter sehen ausschließlich zugeordnete Mitarbeiter
+- privater GitHub-Release-Zugriff über Secret-Datei oder Umgebungsvariable
+- präzisere Meldung bei HTTP 404 oder fehlendem Release
 
-## Offene Prüfungen vor Freigabe 5.6.18
+## Offene Prüfungen vor Freigabe 5.6.19
 
 - Python-Syntax und Imports prüfen
 - Debian-Paket bauen und SHA256 validieren
 - Upgrade auf Testsystem installieren
-- Plausibilitätsfilter nach Statusänderung prüfen
-- Mitarbeiterreport ausschließlich mit eigenen Daten prüfen
-- Teamleiterreport mit zugeordneten Mitarbeitern prüfen
-- Stempelzeiten im Report prüfen
-- Kontoeinrichtung und `/datenschutz` prüfen
+- persönlichen Report mit Kommen-/Gehen-Buchungen prüfen
+- Zeitraumfilter mit älteren Buchungen prüfen
+- Mitarbeiter- und Teamleiterrechte prüfen
+- GitHub-Release-Abfrage mit privatem Repository und Token prüfen
 - `/health` und `/version` prüfen
 
 ## Build
 
 ```bash
 bash scripts/build_release.sh
-sha256sum -c releases/stempeluhr_5.6.18_all.deb.sha256
+sha256sum -c releases/stempeluhr_5.6.19_all.deb.sha256
 ```
 
 ## Startanweisung für neue Chats
