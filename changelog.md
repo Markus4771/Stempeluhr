@@ -1,3 +1,14 @@
+## 5.6.18
+
+- aktive Filter der Plausibilitätsprüfung bleiben nach Statusänderungen erhalten
+- aktueller Status und Kommentar werden im Bearbeitungsformular angezeigt
+- Stempelzeiten werden in `Mein Report` für den gewählten Zeitraum aufgeführt
+- Mitarbeiter werden serverseitig immer auf den eigenen Report beschränkt
+- Teamleiter sehen nur die ihnen zugeordneten Mitarbeiter
+- Personal und Administratoren behalten den vorgesehenen erweiterten Zugriff
+- öffentliche Datenschutzerklärung unter `/datenschutz` ergänzt
+- Link zur Datenschutzerklärung bei der Kontoeinrichtung ergänzt
+
 ## 5.6.17
 
 - Menüpunkt `Zeiterfassung` aus der normalen Hauptnavigation entfernt
