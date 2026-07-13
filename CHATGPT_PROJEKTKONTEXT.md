@@ -6,7 +6,7 @@
 
 - Repository: `Markus4771/Stempeluhr`
 - Standardbranch: `main`
-- Aktuelle Entwicklungs- und Testversion: **5.6.17**
+- Aktuelle Entwicklungs- und Testversion: **5.6.18**
 - Zielplattform: Debian 13 und Raspberry Pi OS
 - Backend: Python, FastAPI, Uvicorn, SQLAlchemy
 - Standarddatenbank: PostgreSQL
@@ -29,54 +29,39 @@ Bei jeder neuen Version synchron aktualisieren: `version.txt`, `app/version.py`,
 - Healthcheck: `/health`
 - Versionsauskunft: `/version`
 - Kiosk-Zeiterfassung: `/raspberry`
-- Abwesenheiten: `/vacation`
-- Abwesenheitsarten: `/system/settings/absence-types`
-- Rollen & Rechte: `/system/settings/roles`
-- Zusatz-Programme: `/additional-programs`
-- Hilfe und Dokumentation: `/help`
+- Persönlicher Report: `/reports`
+- Plausibilitätsprüfung: `/plausibility`
+- öffentliche Datenschutzerklärung: `/datenschutz`
 
-## Version 5.6.17 – Kiosk-Navigation
+## Version 5.6.18
 
 Umgesetzt:
 
-- Menüpunkt **Zeiterfassung** aus der normalen Hauptnavigation entfernt
-- Route `/raspberry` bleibt unverändert verfügbar
-- Raspberry-Kiosk kann die Zeiterfassung weiterhin direkt und automatisch öffnen
-- keine Änderung an RFID, Buchungslogik oder produktiven Daten
+- Plausibilitätsfilter bleiben nach dem Speichern erhalten
+- Status und Kommentar werden im Bearbeitungsformular wieder angezeigt
+- Stempelzeiten werden im gewählten Reportzeitraum aufgeführt
+- normale Mitarbeiter werden serverseitig immer auf die eigene Mitarbeiter-ID eingeschränkt
+- Teamleiter sehen nur die ihnen zugeordneten Mitarbeiter
+- Personal und Administratoren behalten den vorgesehenen erweiterten Zugriff
+- öffentliche Datenschutzerklärung und Link bei der Kontoeinrichtung
 
-## Stand aus Version 5.6.16
-
-- Hauptnavigation auf einen Eintrag **Abwesenheiten** reduziert
-- separaten Hauptmenüpunkt **Meine Abwesenheiten** entfernt
-- Abwesenheitsübersicht mit rollenabhängigen Kacheln
-- genehmigungsfreie Arten wie `Krank` erhalten sofort den Status `genehmigt`
-- `install.sh` für Installation, Update, Build, Backup, Restore, Status, Logs, Version und Diagnose
-
-## Offene Prüfungen vor Freigabe 5.6.17
+## Offene Prüfungen vor Freigabe 5.6.18
 
 - Python-Syntax und Imports prüfen
 - Debian-Paket bauen und SHA256 validieren
-- Upgrade auf der Proxmox-Test-VM installieren
-- normale Hauptnavigation ohne `Zeiterfassung` prüfen
-- direkten Aufruf `/raspberry` und Kiosk-Autostart prüfen
-- Abwesenheitsnavigation und Genehmigungslogik erneut testen
+- Upgrade auf Testsystem installieren
+- Plausibilitätsfilter nach Statusänderung prüfen
+- Mitarbeiterreport ausschließlich mit eigenen Daten prüfen
+- Teamleiterreport mit zugeordneten Mitarbeitern prüfen
+- Stempelzeiten im Report prüfen
+- Kontoeinrichtung und `/datenschutz` prüfen
 - `/health` und `/version` prüfen
-- erst danach Tag und GitHub Release veröffentlichen
 
 ## Build
 
 ```bash
 bash scripts/build_release.sh
-sha256sum -c releases/stempeluhr_5.6.17_all.deb.sha256
-```
-
-Erwartete Artefakte:
-
-```text
-releases/stempeluhr_5.6.17_all.deb
-releases/stempeluhr_5.6.17_all.deb.sha256
-releases/stempeluhr_5.6.17_build.log
-releases/stempeluhr_5.6.17_BUILD_REPORT.md
+sha256sum -c releases/stempeluhr_5.6.18_all.deb.sha256
 ```
 
 ## Startanweisung für neue Chats
