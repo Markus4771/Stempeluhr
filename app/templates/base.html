@@ -13,6 +13,7 @@
 {% set permissions = session_data.get("permissions", []) %}
 {% set employee_number = session_data.get("employee_number", "") %}
 {% set full_access = '*' in permissions or role == 'Administrator' or employee_number == 'admin' %}
+{% set manager_access = full_access or role in ['Personal', 'Teamleiter'] %}
 {% set standard_program_access = role in ['Administrator', 'Personal', 'Teamleiter', 'Mitarbeiter'] or employee_number == 'admin' %}
 <nav class="nav app-nav" aria-label="Hauptnavigation">
     <div class="nav-left">
@@ -22,8 +23,8 @@
         {% if full_access or 'nav.corrections' in permissions or session_data.get("can_self_correct") or (user is defined and user and user.can_self_correct) %}<a href="/corrections">Korrektur</a>{% endif %}
         {% if session_data.get("employee_name") and (full_access or 'nav.reports' in permissions) %}<a href="/reports">Mein Report</a>{% endif %}
         {% if full_access or 'reports.all' in permissions %}<a href="/worktime-account">Arbeitszeitkonto</a>{% endif %}
-        {% if role in ['Administrator','Personal','Teamleiter'] or full_access %}<a href="/overtime-adjustments">Überstunden</a>{% endif %}
-        {% if full_access or 'nav.plausibility' in permissions %}<a href="/plausibility">Plausibilität</a>{% endif %}
+        {% if manager_access %}<a href="/overtime-adjustments">Überstunden</a>{% endif %}
+        {% if manager_access or 'nav.plausibility' in permissions %}<a href="/plausibility">Plausibilität</a>{% endif %}
         {% if standard_program_access or 'nav.additional_programs' in permissions %}<a href="/additional-programs">Zusatz-Programme</a>{% endif %}
         {% if full_access or 'nav.settings' in permissions %}<a href="/system/settings">Systemeinstellungen</a>{% endif %}
         {% if full_access %}<a href="/system/privacy">Datenschutz</a>{% endif %}
@@ -51,6 +52,5 @@
     {% block content %}{% endblock %}
 </main>
 <footer class="app-version">Version {{ app_version }}</footer>
-<script src="/static/report-stamps.js" defer></script>
 </body>
 </html>
