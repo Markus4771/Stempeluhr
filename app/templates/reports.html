@@ -79,7 +79,6 @@ inaktiv. Es werden nur manuell gebuchte Pausen abgezogen.
 </table>
 </section>
 
-
 {% if mail_status == 'sent' %}<div class="alert success">Report wurde per E-Mail versendet.</div>{% endif %}
 {% if mail_status == 'failed' %}<div class="alert error">Report konnte nicht per E-Mail versendet werden. Bitte SMTP-Einstellungen und Mitarbeiter-E-Mail prüfen.</div>{% endif %}
 
@@ -150,10 +149,15 @@ inaktiv. Es werden nur manuell gebuchte Pausen abgezogen.
 </section>
 
 <section class="card">
-<h2>Letzte Buchungen</h2>
+<h2>Stempelzeiten im gewählten Zeitraum</h2>
+<p class="help-text">Aufgeführt werden die Buchungen des ausgewählten Mitarbeiters innerhalb des oben gewählten Zeitraums.</p>
 <table>
 <tr><th>Zeit</th><th>Mitarbeiter</th><th>Typ</th><th>Methode</th><th>Terminal</th></tr>
+{% set stamp_rows = namespace(count=0) %}
 {% for e in entries %}
+{% set stamp_date = e.timestamp.strftime('%Y-%m-%d') %}
+{% if stamp_date >= filters.date_from and stamp_date <= filters.date_to and (not filters.employee_id or e.employee_id == filters.employee_id) %}
+{% set stamp_rows.count = stamp_rows.count + 1 %}
 <tr>
 <td>{{ e.timestamp.strftime("%d.%m.%Y %H:%M:%S") }}</td>
 <td>{{ e.employee.first_name }} {{ e.employee.last_name }}</td>
@@ -161,7 +165,9 @@ inaktiv. Es werden nur manuell gebuchte Pausen abgezogen.
 <td>{{ e.method }}</td>
 <td>{{ e.terminal or "" }}</td>
 </tr>
+{% endif %}
 {% endfor %}
+{% if stamp_rows.count == 0 %}<tr><td colspan="5">Keine Stempelzeiten im gewählten Zeitraum vorhanden.</td></tr>{% endif %}
 </table>
 </section>
 {% endblock %}
