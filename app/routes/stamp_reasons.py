@@ -32,11 +32,17 @@ class StampReason(Base):
 ALLOWED_ENTRY_TYPES = {"kommen", "gehen", "pause_start", "pause_ende"}
 
 
+def stamp_reasons_enabled(db: Session) -> bool:
+    return str(service_get_setting(db, "stamp_reasons_enabled", "0") or "0").lower() in {"1", "true", "on", "ja", "yes"}
+
+
 def _slug(value: str) -> str:
     return re.sub(r"[^a-z0-9]+", "-", (value or "").strip().lower()).strip("-") or "stempelgrund"
 
 
 def active_stamp_reasons(db: Session):
+    if not stamp_reasons_enabled(db):
+        return []
     return db.query(StampReason).filter(StampReason.active == True).order_by(StampReason.sort_order, StampReason.name).all()
 
 
@@ -54,7 +60,7 @@ def _visible_departments(db: Session, user):
 
 @router.get("/api/stamp-reasons")
 def stamp_reasons_api(db: Session = Depends(get_db)):
-    return {"reasons": [{"id": row.id, "name": row.name, "entry_type": row.entry_type} for row in active_stamp_reasons(db)]}
+    return {"enabled": stamp_reasons_enabled(db), "reasons": [{"id": row.id, "name": row.name, "entry_type": row.entry_type} for row in active_stamp_reasons(db)]}
 
 
 @router.get("/system/settings/stamp-reasons", response_class=HTMLResponse)
@@ -63,7 +69,7 @@ def stamp_reasons_page(request: Request, db: Session = Depends(get_db)):
     if redirect:
         return redirect
     rows = db.query(StampReason).order_by(StampReason.sort_order, StampReason.name).all()
-    return templates.TemplateResponse("system_stamp_reasons.html", {"request": request, "user": user, "rows": rows, "saved": request.query_params.get("saved") == "1"})
+    return templates.TemplateResponse("system_stamp_reasons.html", {"request": request, "user": user, "rows": rows, "enabled": stamp_reasons_enabled(db), "saved": request.query_params.get("saved") == "1"})
 
 
 @router.post("/system/settings/stamp-reasons/add")
@@ -112,7 +118,9 @@ def raspberry_reason_scan(request: Request, rfid_code: str = Form(""), reason_id
     employee = db.query(Employee).filter(Employee.rfid_code == rfid_code, Employee.active == True).first()
     if not employee or is_fixed_admin_employee(employee):
         return templates.TemplateResponse("rfid_unknown.html", {"request": request, "rfid_code": rfid_code, "message": "RFID unbekannt! Bitte Administrator informieren.", "return_to": "/raspberry"})
-    reason = db.query(StampReason).filter(StampReason.id == reason_id, StampReason.active == True).first() if reason_id else None
+    reason = None
+    if stamp_reasons_enabled(db) and reason_id:
+        reason = db.query(StampReason).filter(StampReason.id == reason_id, StampReason.active == True).first()
     entry_type = reason.entry_type if reason else determine_auto_entry_type(db, employee.id)
     note = f"Stempelgrund: {reason.name} ({reason.code})" if reason else "Automatische Kommen-/Gehen-Buchung ohne ausgewählten Stempelgrund"
     method = "rfid_reason" if reason else "rfid_auto"
