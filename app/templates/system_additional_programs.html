@@ -4,7 +4,7 @@
 <section class="card settings-card">
   {% if message %}<div class="success-box">{{ message }}</div>{% endif %}
   {% if error %}<div class="error-box">{{ error }}</div>{% endif %}
-  <p class="help-text">Hier hinterlegte Webprogramme werden über ihre IP-Adresse oder ihren Hostnamen und Port erreichbar. Zugangsdaten werden nicht in der Stempeluhr gespeichert.</p>
+  <p class="help-text">Hier hinterlegte Webprogramme werden über ihre IP-Adresse oder ihren Hostnamen und Port erreichbar. Zugangsdaten werden nicht in der Stempeluhr gespeichert. Der Hauptmenüpunkt wird einer Rolle nur angezeigt, wenn mindestens ein aktives Programm für diese Rolle freigegeben ist.</p>
   <form action="/system/settings/general/additional-programs/add" method="post" class="settings-form">
     <div class="settings-grid">
       <div class="form-field"><label>Name</label><input name="name" required maxlength="100" placeholder="z. B. Odoo"></div>
@@ -13,7 +13,16 @@
       <div class="form-field"><label>IP-Adresse oder Hostname</label><input name="host" required placeholder="10.0.0.20 oder odoo.intern"></div>
       <div class="form-field"><label>Port</label><input name="port" type="number" min="1" max="65535" required value="80"></div>
       <div class="form-field"><label>Optionaler Pfad</label><input name="path" placeholder="z. B. web/login"></div>
-      <div class="form-field checkbox-field"><label><input type="checkbox" name="enabled" value="1" checked> In der Übersicht anzeigen</label></div>
+      <div class="form-field checkbox-field"><label><input type="checkbox" name="enabled" value="1" checked> Programm aktivieren</label></div>
+    </div>
+    <div class="settings-section">
+      <h3>Sichtbar für Rollen</h3>
+      <div class="settings-grid module-toggle-grid">
+        {% for role in roles %}
+        <div class="form-field checkbox-field compact-checkbox"><label><input type="checkbox" name="allowed_roles" value="{{ role.name }}" checked> {{ role.name }}</label></div>
+        {% endfor %}
+      </div>
+      <p class="help-text">Ohne ausgewählte Rolle erscheint das Programm für keinen normalen Benutzer. Der feste Systemadministrator kann die Verwaltung weiterhin öffnen.</p>
     </div>
     <div class="form-actions"><button type="submit">Zusatz-Programm hinzufügen</button><a class="button secondary" href="/system/settings/general">Zurück</a><a class="button secondary" href="/additional-programs">Übersicht öffnen</a></div>
   </form>
@@ -30,7 +39,15 @@
         <div class="form-field"><label>IP-Adresse oder Hostname</label><input name="host" required value="{{ program.host }}"></div>
         <div class="form-field"><label>Port</label><input name="port" type="number" min="1" max="65535" required value="{{ program.port }}"></div>
         <div class="form-field"><label>Optionaler Pfad</label><input name="path" value="{{ program.path or '' }}"></div>
-        <div class="form-field checkbox-field"><label><input type="checkbox" name="enabled" value="1" {% if program.enabled %}checked{% endif %}> In der Übersicht anzeigen</label></div>
+        <div class="form-field checkbox-field"><label><input type="checkbox" name="enabled" value="1" {% if program.enabled %}checked{% endif %}> Programm aktivieren</label></div>
+      </div>
+      <div class="settings-section">
+        <h3>Sichtbar für Rollen</h3>
+        <div class="settings-grid module-toggle-grid">
+          {% for role in roles %}
+          <div class="form-field checkbox-field compact-checkbox"><label><input type="checkbox" name="allowed_roles" value="{{ role.name }}" {% if role.name in program.allowed_roles %}checked{% endif %}> {{ role.name }}</label></div>
+          {% endfor %}
+        </div>
       </div>
       <p class="help-text">Aktuelle Adresse: <code>{{ program.url }}</code></p>
       <div class="form-actions">
