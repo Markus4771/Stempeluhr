@@ -1,15 +1,16 @@
 from __future__ import annotations
 
+import json
 import re
 from datetime import datetime, timedelta
 
 from fastapi import APIRouter, Depends, Form, Request
-from fastapi.responses import HTMLResponse, PlainTextResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse, RedirectResponse
 from sqlalchemy import Boolean, Column, DateTime, Integer, String
 from sqlalchemy.orm import Session
 
 from app.database import Base, get_db
-from app.models import Department, Employee, VacationRequest
+from app.models import Department, Employee, Setting, VacationRequest
 from .common import *
 from .common import _save_pending_rfid_from_terminal
 from .vacation import _check_absence_calendar_access, absence_reason_for_request, absence_type_label_map
@@ -29,7 +30,8 @@ class StampReason(Base):
     updated_at = Column(DateTime, nullable=False, default=datetime.now)
 
 
-ALLOWED_ENTRY_TYPES = {"kommen", "gehen", "pause_start", "pause_ende"}
+ALLOWED_ENTRY_TYPES = {"kommen", "gehen", "pause_start", "pause_ende", "status", "status_clear"}
+STATUS_SETTING_PREFIX = "employee_presence_status_"
 
 
 def stamp_reasons_enabled(db: Session) -> bool:
@@ -46,6 +48,43 @@ def active_stamp_reasons(db: Session):
     return db.query(StampReason).filter(StampReason.active == True).order_by(StampReason.sort_order, StampReason.name).all()
 
 
+def _status_key(employee_id: int) -> str:
+    return f"{STATUS_SETTING_PREFIX}{int(employee_id)}"
+
+
+def _set_employee_status(db: Session, employee: Employee, reason: StampReason | None) -> None:
+    key = _status_key(employee.id)
+    row = db.query(Setting).filter(Setting.key == key).first()
+    if reason is None:
+        if row:
+            db.delete(row)
+        db.commit()
+        return
+    payload = json.dumps({
+        "employee_id": employee.id,
+        "reason_id": reason.id,
+        "code": reason.code,
+        "status": reason.name,
+        "set_at": datetime.now().isoformat(timespec="seconds"),
+    }, ensure_ascii=False)
+    if row:
+        row.value = payload
+    else:
+        db.add(Setting(key=key, value=payload))
+    db.commit()
+
+
+def _get_employee_status(db: Session, employee_id: int) -> dict | None:
+    row = db.query(Setting).filter(Setting.key == _status_key(employee_id)).first()
+    if not row:
+        return None
+    try:
+        value = json.loads(row.value or "{}")
+        return value if isinstance(value, dict) else None
+    except Exception:
+        return None
+
+
 def _visible_departments(db: Session, user):
     if not user:
         return []
@@ -60,7 +99,21 @@ def _visible_departments(db: Session, user):
 
 @router.get("/api/stamp-reasons")
 def stamp_reasons_api(db: Session = Depends(get_db)):
-    return {"enabled": stamp_reasons_enabled(db), "reasons": [{"id": row.id, "name": row.name, "entry_type": row.entry_type} for row in active_stamp_reasons(db)]}
+    return {
+        "enabled": stamp_reasons_enabled(db),
+        "reasons": [{"id": row.id, "name": row.name, "entry_type": row.entry_type} for row in active_stamp_reasons(db)],
+    }
+
+
+@router.get("/api/employee-status/{employee_id}")
+def employee_status_api(employee_id: int, request: Request, db: Session = Depends(get_db)):
+    user = current_user(request, db)
+    if not user:
+        return JSONResponse({"detail": "Nicht angemeldet"}, status_code=401)
+    visible_ids = report_visible_employee_ids(db, user)
+    if employee_id not in visible_ids and employee_id != user.id:
+        return JSONResponse({"detail": "Nicht berechtigt"}, status_code=403)
+    return {"employee_id": employee_id, "status": _get_employee_status(db, employee_id)}
 
 
 @router.get("/system/settings/stamp-reasons", response_class=HTMLResponse)
@@ -69,7 +122,11 @@ def stamp_reasons_page(request: Request, db: Session = Depends(get_db)):
     if redirect:
         return redirect
     rows = db.query(StampReason).order_by(StampReason.sort_order, StampReason.name).all()
-    return templates.TemplateResponse("system_stamp_reasons.html", {"request": request, "user": user, "rows": rows, "enabled": stamp_reasons_enabled(db), "saved": request.query_params.get("saved") == "1"})
+    return templates.TemplateResponse("system_stamp_reasons.html", {
+        "request": request, "user": user, "rows": rows,
+        "enabled": stamp_reasons_enabled(db),
+        "saved": request.query_params.get("saved") == "1",
+    })
 
 
 @router.post("/system/settings/stamp-reasons/toggle")
@@ -130,9 +187,26 @@ def raspberry_reason_scan(request: Request, rfid_code: str = Form(""), reason_id
     employee = db.query(Employee).filter(Employee.rfid_code == rfid_code, Employee.active == True).first()
     if not employee or is_fixed_admin_employee(employee):
         return templates.TemplateResponse("rfid_unknown.html", {"request": request, "rfid_code": rfid_code, "message": "RFID unbekannt! Bitte Administrator informieren.", "return_to": "/raspberry"})
+
     reason = None
     if stamp_reasons_enabled(db) and reason_id:
         reason = db.query(StampReason).filter(StampReason.id == reason_id, StampReason.active == True).first()
+
+    if reason and reason.entry_type in {"status", "status_clear"}:
+        if reason.entry_type == "status_clear":
+            _set_employee_status(db, employee, None)
+            message = f"Status für {employee.first_name} {employee.last_name} wurde zurückgesetzt."
+            action = "employee_status_cleared"
+        else:
+            _set_employee_status(db, employee, reason)
+            message = f"Status „{reason.name}“ für {employee.first_name} {employee.last_name} gesetzt."
+            action = "employee_status_set"
+        log_action(db, employee.employee_number, action, "employee", str(employee.id), reason.name)
+        return templates.TemplateResponse("message.html", {
+            "request": request, "title": "Status geändert", "message": message,
+            "return_to": "/raspberry", "status_display_seconds": status_display_seconds(db),
+        })
+
     entry_type = reason.entry_type if reason else determine_auto_entry_type(db, employee.id)
     note = f"Stempelgrund: {reason.name} ({reason.code})" if reason else "Automatische Kommen-/Gehen-Buchung ohne ausgewählten Stempelgrund"
     method = "rfid_reason" if reason else "rfid_auto"
