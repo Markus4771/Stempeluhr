@@ -72,6 +72,18 @@ def stamp_reasons_page(request: Request, db: Session = Depends(get_db)):
     return templates.TemplateResponse("system_stamp_reasons.html", {"request": request, "user": user, "rows": rows, "enabled": stamp_reasons_enabled(db), "saved": request.query_params.get("saved") == "1"})
 
 
+@router.post("/system/settings/stamp-reasons/toggle")
+def stamp_reasons_toggle(request: Request, enabled: str = Form("0"), db: Session = Depends(get_db)):
+    user, redirect = require_system_admin_response(request, db)
+    if redirect:
+        return redirect
+    value = "1" if str(enabled).lower() in {"1", "true", "on", "ja", "yes"} else "0"
+    service_set_setting(db, "stamp_reasons_enabled", value)
+    db.commit()
+    log_action(db, user.employee_number, "stamp_reasons_toggled", "settings", "stamp_reasons_enabled", value)
+    return RedirectResponse("/system/settings/stamp-reasons?saved=1", status_code=303)
+
+
 @router.post("/system/settings/stamp-reasons/add")
 def stamp_reason_add(request: Request, name: str = Form(...), code: str = Form(""), entry_type: str = Form(...), sort_order: int = Form(100), active: str = Form("off"), db: Session = Depends(get_db)):
     user, redirect = require_system_admin_response(request, db)
