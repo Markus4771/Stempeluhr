@@ -6,7 +6,7 @@
 
 - Repository: `Markus4771/Stempeluhr`
 - Standardbranch: `main`
-- Aktuelle Entwicklungs- und Testversion: **5.6.23**
+- Aktuelle Entwicklungs- und Testversion: **5.6.24**
 - Zielplattform: Debian 13 und Raspberry Pi OS
 - Backend: Python, FastAPI, Uvicorn, SQLAlchemy
 - Standarddatenbank: PostgreSQL
@@ -22,63 +22,51 @@ Bei jeder neuen Version synchron aktualisieren: `version.txt`, `app/version.py`,
 
 - Anwendung: `/opt/stempeluhr`
 - Konfiguration: `/etc/stempeluhr/stempeluhr.env`
-- Datenbank-Secret: `/etc/stempeluhr/secrets/database.conf`
 - GitHub-Token: `/etc/stempeluhr/secrets/github_token`
-- GitHub-main-Runner: `/usr/local/sbin/stempeluhr-github-main-update`
-- variable Daten: `/var/lib/stempeluhr`
-- Backups: `/var/backups/stempeluhr`
 - Dienst: `stempeluhr.service`
 - Healthcheck: `/health`
 - Versionsauskunft: `/version`
 - Kiosk-Zeiterfassung: `/raspberry`
 - Auswertung & Reporting: `/reports`
-- Plausibilitätsprüfung: `/plausibility`
-- Überstundenverwaltung: `/overtime-adjustments`
 - Zusatz-Programme: `/additional-programs`
 - Zusatz-Programm-Verwaltung: `/system/settings/general/additional-programs`
-- Updateverwaltung: `/system/settings/updates`
-- öffentliche Datenschutzerklärung: `/datenschutz`
+- Stempelgründe: `/system/settings/stamp-reasons`
 
-## Version 5.6.23
+## Version 5.6.24
 
 Umgesetzt:
 
-- Zusatz-Programme besitzen pro Eintrag eine Liste freigegebener Rollen
-- Administratoren verwalten die Rollenfreigaben in der Zusatz-Programm-Konfiguration
-- die Übersicht liefert nur aktive und für die angemeldete Rolle freigegebene Programme
-- der Hauptmenüpunkt `Zusatz-Programme` wird dynamisch nur bei mindestens einem sichtbaren Programm eingeblendet
-- bestehende Programme ohne gespeicherte Rollenliste bleiben für die bisherigen Standardrollen kompatibel sichtbar
-- direkte Zugriffe auf die Übersicht liefern für nicht berechtigte Benutzer keine fremden Programme
-- Rollenfreigaben und Änderungen werden im Audit-Protokoll dokumentiert
-- Webreport, CSV, PDF und E-Mail-Anhang verwenden dieselbe serverseitige Filterung
-- zukünftige und unvollständige Tage werden aus Zeilen, Stempelzeiten, Summen und Teamstatistik ausgeschlossen
+- Hauptmenüpunkt `Zusatz-Programme` bleibt ausgeblendet, wenn keine Programme hinterlegt sind
+- Programme werden zusätzlich nach Aktivstatus und Rollenfreigabe gefiltert
+- Stempelgründe unterstützen `status` für reine Personenstatus ohne Arbeitszeitbuchung
+- Stempelgründe unterstützen `status_clear` zum Zurücksetzen des Personenstatus
+- Personenstatus werden als getrennte Systemeinstellung je Mitarbeiter gespeichert
+- Statusänderungen werden im Audit-Protokoll dokumentiert
+- ohne Auswahl bleibt die automatische Kommen-/Gehen-Buchung unverändert
 
 ## Bereits enthalten
 
-- Kommen-/Gehen-Uhrzeiten direkt in der Tagesübersicht von `Auswertung & Reporting`
-- normale Mitarbeiter sehen ausschließlich eigene Zeiten
-- Teamleiter sehen nur zugeordnete Mitarbeiter
+- Kommen-/Gehen-Uhrzeiten in `Auswertung & Reporting`
+- Rollenabhängige Zusatz-Programme
 - Plausibilitätsmeldungen zurücksetzen
 - Überstundenänderungen mit Mitarbeitergenehmigung per E-Mail
-- administrierbare Stempelgründe am Raspberry-Kiosk
 - Abwesenheitskalender je Abteilung
 
-## Offene Prüfungen vor Freigabe 5.6.23
+## Offene Prüfungen vor Freigabe 5.6.24
 
-- Python-Syntax und FastAPI-Formularverarbeitung prüfen
-- Rollenlisten bei neuen und bestehenden Zusatz-Programmen testen
-- Hauptmenü mit Administrator, Personal, Teamleiter und Mitarbeiter testen
-- Verhalten ohne freigegebenes Programm prüfen
-- direkten Aufruf `/additional-programs` mit verschiedenen Rollen prüfen
-- Debian-Paket bauen und SHA256 validieren
-- Upgrade auf Testsystem installieren
+- Python-Syntax und Dienststart prüfen
+- Menü ohne Zusatz-Programme testen
+- Statusgründe `Außer Haus` und `Bitte nicht stören` testen
+- Statusrücksetzung testen
+- prüfen, dass Statusgründe keine TimeEntry-Buchung erzeugen
+- Debian-Paket bauen und installieren
 - `/health` und `/version` prüfen
 
 ## Build
 
 ```bash
 bash scripts/build_release.sh
-sha256sum -c releases/stempeluhr_5.6.23_all.deb.sha256
+sha256sum -c releases/stempeluhr_5.6.24_all.deb.sha256
 ```
 
 ## Startanweisung für neue Chats
