@@ -1,16 +1,17 @@
 from __future__ import annotations
 
 import re
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from fastapi import APIRouter, Depends, Form, Request
-from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, PlainTextResponse, RedirectResponse
 from sqlalchemy import Boolean, Column, DateTime, Integer, String
 from sqlalchemy.orm import Session
 
 from app.database import Base, get_db
-from app.models import Department, Employee, TimeEntry, VacationRequest
+from app.models import Department, Employee, VacationRequest
 from .common import *
+from .common import _save_pending_rfid_from_terminal
 from .vacation import _check_absence_calendar_access, absence_reason_for_request, absence_type_label_map
 
 router = APIRouter()
@@ -18,7 +19,6 @@ router = APIRouter()
 
 class StampReason(Base):
     __tablename__ = "stamp_reasons"
-
     id = Column(Integer, primary_key=True)
     name = Column(String(100), nullable=False)
     code = Column(String(50), unique=True, nullable=False)
@@ -33,25 +33,19 @@ ALLOWED_ENTRY_TYPES = {"kommen", "gehen", "pause_start", "pause_ende"}
 
 
 def _slug(value: str) -> str:
-    value = re.sub(r"[^a-z0-9]+", "-", (value or "").strip().lower()).strip("-")
-    return value or "stempelgrund"
+    return re.sub(r"[^a-z0-9]+", "-", (value or "").strip().lower()).strip("-") or "stempelgrund"
 
 
 def active_stamp_reasons(db: Session):
     return db.query(StampReason).filter(StampReason.active == True).order_by(StampReason.sort_order, StampReason.name).all()
 
 
-def _manager_allowed(user) -> bool:
-    return bool(user and (is_hr_or_admin(user) or role_name(user) == "Teamleiter"))
-
-
 def _visible_departments(db: Session, user):
     if not user:
         return []
-    role = role_name(user)
     if is_hr_or_admin(user):
         return db.query(Department).filter(Department.active == True).order_by(Department.name).all()
-    if role == "Teamleiter":
+    if role_name(user) == "Teamleiter":
         return db.query(Department).filter(Department.active == True, Department.manager_employee_id == user.id).order_by(Department.name).all()
     if user.department_id:
         return db.query(Department).filter(Department.id == user.department_id, Department.active == True).all()
@@ -73,15 +67,7 @@ def stamp_reasons_page(request: Request, db: Session = Depends(get_db)):
 
 
 @router.post("/system/settings/stamp-reasons/add")
-def stamp_reason_add(
-    request: Request,
-    name: str = Form(...),
-    code: str = Form(""),
-    entry_type: str = Form(...),
-    sort_order: int = Form(100),
-    active: str = Form("off"),
-    db: Session = Depends(get_db),
-):
+def stamp_reason_add(request: Request, name: str = Form(...), code: str = Form(""), entry_type: str = Form(...), sort_order: int = Form(100), active: str = Form("off"), db: Session = Depends(get_db)):
     user, redirect = require_system_admin_response(request, db)
     if redirect:
         return redirect
@@ -89,8 +75,7 @@ def stamp_reason_add(
     clean_code = _slug(code or clean_name)
     if not clean_name or entry_type not in ALLOWED_ENTRY_TYPES:
         return RedirectResponse("/system/settings/stamp-reasons", status_code=303)
-    existing = db.query(StampReason).filter(StampReason.code == clean_code).first()
-    if existing:
+    if db.query(StampReason).filter(StampReason.code == clean_code).first():
         clean_code = f"{clean_code}-{int(datetime.now().timestamp())}"
     row = StampReason(name=clean_name, code=clean_code, entry_type=entry_type, sort_order=int(sort_order or 100), active=active == "on")
     db.add(row)
@@ -100,15 +85,7 @@ def stamp_reason_add(
 
 
 @router.post("/system/settings/stamp-reasons/{reason_id}/save")
-def stamp_reason_save(
-    reason_id: int,
-    request: Request,
-    name: str = Form(...),
-    entry_type: str = Form(...),
-    sort_order: int = Form(100),
-    active: str = Form("off"),
-    db: Session = Depends(get_db),
-):
+def stamp_reason_save(reason_id: int, request: Request, name: str = Form(...), entry_type: str = Form(...), sort_order: int = Form(100), active: str = Form("off"), db: Session = Depends(get_db)):
     user, redirect = require_system_admin_response(request, db)
     if redirect:
         return redirect
@@ -125,44 +102,25 @@ def stamp_reason_save(
 
 
 @router.post("/raspberry/reason-scan", response_class=HTMLResponse)
-def raspberry_reason_scan(
-    request: Request,
-    rfid_code: str = Form(""),
-    reason_id: int = Form(0),
-    db: Session = Depends(get_db),
-):
+def raspberry_reason_scan(request: Request, rfid_code: str = Form(""), reason_id: int = Form(0), db: Session = Depends(get_db)):
     rfid_code = (rfid_code or "").strip().replace("\r", "").replace("\n", "")
     if not rfid_code:
         return templates.TemplateResponse("message.html", {"request": request, "title": "Fehler", "message": "Kein RFID-Code erkannt.", "return_to": "/raspberry"})
-
     learn_response = _save_pending_rfid_from_terminal(request, db, rfid_code)
     if learn_response:
         return learn_response
-
     employee = db.query(Employee).filter(Employee.rfid_code == rfid_code, Employee.active == True).first()
     if not employee or is_fixed_admin_employee(employee):
         return templates.TemplateResponse("rfid_unknown.html", {"request": request, "rfid_code": rfid_code, "message": "RFID unbekannt! Bitte Administrator informieren.", "return_to": "/raspberry"})
-
-    reason = None
-    if reason_id:
-        reason = db.query(StampReason).filter(StampReason.id == reason_id, StampReason.active == True).first()
-    if reason:
-        entry_type = reason.entry_type
-        note = f"Stempelgrund: {reason.name} ({reason.code})"
-        method = "rfid_reason"
-        title = reason.name
-    else:
-        entry_type = determine_auto_entry_type(db, employee.id)
-        note = "Automatische Kommen-/Gehen-Buchung ohne ausgewählten Stempelgrund"
-        method = "rfid_auto"
-        title = "Automatisch gebucht"
-
+    reason = db.query(StampReason).filter(StampReason.id == reason_id, StampReason.active == True).first() if reason_id else None
+    entry_type = reason.entry_type if reason else determine_auto_entry_type(db, employee.id)
+    note = f"Stempelgrund: {reason.name} ({reason.code})" if reason else "Automatische Kommen-/Gehen-Buchung ohne ausgewählten Stempelgrund"
+    method = "rfid_reason" if reason else "rfid_auto"
     entry, duplicate_last = create_time_entry(db, employee, entry_type, method, "raspberry", note, duplicate_seconds=8)
     if duplicate_last:
         return templates.TemplateResponse("duplicate_booking.html", {"request": request, "employee": employee, "last": duplicate_last, "seconds": 8, "return_to": "/raspberry"})
-
     label = reason.name if reason else entry_type
-    return templates.TemplateResponse("message.html", {"request": request, "title": title, "message": f"{label} für {employee.first_name} {employee.last_name} gebucht.", "return_to": "/raspberry", "status_display_seconds": status_display_seconds(db)})
+    return templates.TemplateResponse("message.html", {"request": request, "title": reason.name if reason else "Automatisch gebucht", "message": f"{label} für {employee.first_name} {employee.last_name} gebucht.", "return_to": "/raspberry", "status_display_seconds": status_display_seconds(db)})
 
 
 @router.get("/vacation/department-calendars", response_class=HTMLResponse)
@@ -170,10 +128,8 @@ def department_calendars(request: Request, db: Session = Depends(get_db)):
     user = current_user(request, db)
     if not user:
         return RedirectResponse("/login", status_code=303)
-    departments = _visible_departments(db, user)
     settings = service_settings_dict(db)
-    token = settings.get("caldav_vacation_feed_token", "")
-    return templates.TemplateResponse("vacation_department_calendars.html", {"request": request, "user": user, "departments": departments, "token": token})
+    return templates.TemplateResponse("vacation_department_calendars.html", {"request": request, "user": user, "departments": _visible_departments(db, user), "token": settings.get("caldav_vacation_feed_token", "")})
 
 
 def _ics_escape(value: str) -> str:
@@ -189,26 +145,12 @@ def department_calendar_ics(department_id: int, request: Request, token: str = "
     department = db.query(Department).filter(Department.id == department_id, Department.active == True).first()
     if not department:
         return PlainTextResponse("Kalender nicht gefunden", status_code=404)
-    rows = db.query(VacationRequest).join(Employee, VacationRequest.employee_id == Employee.id).filter(
-        VacationRequest.status == "genehmigt",
-        Employee.department_id == department.id,
-    ).order_by(VacationRequest.start_date).all()
+    rows = db.query(VacationRequest).join(Employee, VacationRequest.employee_id == Employee.id).filter(VacationRequest.status == "genehmigt", Employee.department_id == department.id).order_by(VacationRequest.start_date).all()
     labels = absence_type_label_map(db)
     lines = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Stempeluhr//Abteilungskalender//DE", f"X-WR-CALNAME:{_ics_escape('Abwesenheit ' + department.name)}"]
     for row in rows:
-        start = row.start_date.strftime("%Y%m%d")
-        end = (row.end_date + timedelta(days=1)).strftime("%Y%m%d")
         employee_name = f"{row.employee.first_name} {row.employee.last_name}".strip()
         reason = absence_reason_for_request(row, labels)
-        lines.extend([
-            "BEGIN:VEVENT",
-            f"UID:absence-{row.id}-department-{department.id}@stempeluhr",
-            f"DTSTART;VALUE=DATE:{start}",
-            f"DTEND;VALUE=DATE:{end}",
-            f"SUMMARY:{_ics_escape(employee_name + ' – ' + reason)}",
-            f"DESCRIPTION:{_ics_escape(reason + ' | ' + employee_name)}",
-            "STATUS:CONFIRMED",
-            "END:VEVENT",
-        ])
+        lines.extend(["BEGIN:VEVENT", f"UID:absence-{row.id}-department-{department.id}@stempeluhr", f"DTSTART;VALUE=DATE:{row.start_date.strftime('%Y%m%d')}", f"DTEND;VALUE=DATE:{(row.end_date + timedelta(days=1)).strftime('%Y%m%d')}", f"SUMMARY:{_ics_escape(employee_name + ' – ' + reason)}", f"DESCRIPTION:{_ics_escape(reason + ' | ' + employee_name)}", "STATUS:CONFIRMED", "END:VEVENT"])
     lines.append("END:VCALENDAR")
     return PlainTextResponse("\r\n".join(lines) + "\r\n", media_type="text/calendar; charset=utf-8")
