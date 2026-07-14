@@ -1,7 +1,20 @@
 {% extends "base.html" %}
 {% block content %}
 <h1>Systemeinstellungen · Stempelgründe</h1>
-{% if saved %}<div class="alert success">Stempelgründe wurden gespeichert.</div>{% endif %}
+{% if saved %}<div class="alert success">Einstellungen wurden gespeichert.</div>{% endif %}
+
+<section class="card">
+  <h2>Funktion aktivieren oder deaktivieren</h2>
+  <form method="post" action="/system/settings/stamp-reasons/toggle" class="settings-form">
+    <label class="checkbox-field">
+      <input type="checkbox" name="enabled" value="1" {% if enabled %}checked{% endif %}>
+      Stempelgründe am Raspberry-Kiosk anzeigen
+    </label>
+    <p class="help-text">Ist die Funktion deaktiviert, wird beim RFID-Scan weiterhin automatisch Kommen oder Gehen gebucht. Vorhandene Stempelgründe bleiben gespeichert.</p>
+    <button type="submit">Einstellung speichern</button>
+  </form>
+</section>
+
 <section class="card">
   <h2>Neuen Stempelgrund anlegen</h2>
   <form method="post" action="/system/settings/stamp-reasons/add" class="form-grid">
@@ -35,4 +48,5 @@
     </tbody>
   </table></div>
 </section>
+<div class="form-actions"><a class="button secondary" href="/system/settings">Zurück zu den Systemeinstellungen</a></div>
 {% endblock %}
