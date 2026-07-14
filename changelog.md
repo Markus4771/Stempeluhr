@@ -1,3 +1,13 @@
+## 5.6.23
+
+- Zusatz-Programme erhalten pro Eintrag konfigurierbare Rollenfreigaben
+- aktive Programme werden nur den freigegebenen Rollen angezeigt
+- Hauptmenüpunkt `Zusatz-Programme` erscheint nur, wenn für die angemeldete Rolle mindestens ein aktives Programm vorhanden ist
+- bestehende Einträge ohne Rollenliste bleiben kompatibel für Administrator, Personal, Teamleiter und Mitarbeiter sichtbar
+- Rollenänderungen werden im Audit-Protokoll dokumentiert
+- Report-Webansicht, CSV, PDF und E-Mail-Anhang filtern zukünftige und unvollständige Tage einheitlich
+- Summen und Teamstatistik werden ausschließlich aus vollständigen, nicht zukünftigen Tagen berechnet
+
 ## 5.6.22
 
 - GitHub-Updater kann bei fehlendem veröffentlichtem Release auf den aktuellen Branch `main` zurückgreifen
@@ -58,60 +68,3 @@
 - doppelten Menüpunkt `Meine Abwesenheiten` entfernt
 - genehmigungsfreie Arten wie `Krank` werden direkt mit Status `genehmigt` gespeichert
 - `install.sh` für Installation, Update, Paketbau, Backup, Restore, Status, Logs und Diagnose ergänzt
-
-## 5.6.15
-
-- Hauptmenüpunkt `Hilfe & Dokumentation` ergänzt
-- Handbücher und Hilfebereich integriert
-
-## 5.6.14
-
-- Rollenverwaltung und Zusatz-Programme ergänzt
-
-## 5.6.13
-
-- Schutz gegen wiederholte Fehlanmeldungen und Passwortrichtlinien ergänzt
-
-## 5.6.12
-
-- Datenbankpasswort in geschützte Secret-Datei ausgelagert
-
-## 5.6.11
-
-- Updateverwaltung um stabile GitHub Releases erweitert
-
-## 5.6.10
-
-- automatisches GitHub-Release-System für Debian-Pakete ergänzt
-
-## 5.6.00
-
-- Einrichtungsassistent als achtstufigen Wizard neu aufgebaut
-
-## 5.5.09
-
-- Offboarding unter Systemeinstellungen eingeordnet
-
-## 5.5.08
-
-- Systemdiagnose unter Wartung integriert
-
-## 5.5.07
-
-- Systemdiagnose und PostgreSQL-Prüfung ergänzt
-
-## 5.5.06
-
-- PostgreSQL-Verbindungsaufbau und Passwortbehandlung gehärtet
-
-## 5.5.05
-
-- Debian-Buildprozess und Buildbericht erweitert
-
-## 5.5.04
-
-- Onboarding aus dem Hauptmenü entfernt
-
-## 5.5.0
-
-- Onboarding, Datenschutzbestätigung und Benutzer-REST-API erweitert
