@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Dashboard</h1>
+<section class="card">
+  <h2>Stempeluhr</h2>
+  <p>Bitte anmelden, um persönliche und betriebliche Informationen aufzurufen.</p>
+  <div class="form-actions"><a class="button" href="/login">Anmelden</a></div>
+</section>
+<section class="card">
+  <h2>Schnellbuchung</h2>
+  <p class="help-text">Die Zeiterfassung am Raspberry-Terminal ist über den Kiosk-Modus erreichbar.</p>
+  <div class="form-actions"><a class="button" href="/raspberry">Kiosk öffnen</a></div>
+</section>
+{% endblock %}
