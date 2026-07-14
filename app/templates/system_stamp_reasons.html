@@ -2,51 +2,8 @@
 {% block content %}
 <h1>Systemeinstellungen · Stempelgründe</h1>
 {% if saved %}<div class="alert success">Einstellungen wurden gespeichert.</div>{% endif %}
-
-<section class="card">
-  <h2>Funktion aktivieren oder deaktivieren</h2>
-  <form method="post" action="/system/settings/stamp-reasons/toggle" class="settings-form">
-    <label class="checkbox-field">
-      <input type="checkbox" name="enabled" value="1" {% if enabled %}checked{% endif %}>
-      Stempelgründe am Raspberry-Kiosk anzeigen
-    </label>
-    <p class="help-text">Ist die Funktion deaktiviert, wird beim RFID-Scan weiterhin automatisch Kommen oder Gehen gebucht. Vorhandene Stempelgründe bleiben gespeichert.</p>
-    <button type="submit">Einstellung speichern</button>
-  </form>
-</section>
-
-<section class="card">
-  <h2>Neuen Stempelgrund anlegen</h2>
-  <form method="post" action="/system/settings/stamp-reasons/add" class="form-grid">
-    <label>Bezeichnung</label><input name="name" required placeholder="z. B. Dienstgang Beginn">
-    <label>Interner Code</label><input name="code" placeholder="wird automatisch erzeugt">
-    <label>Buchungswirkung</label>
-    <select name="entry_type" required>
-      <option value="kommen">Kommen</option><option value="gehen">Gehen</option><option value="pause_start">Pause Beginn</option><option value="pause_ende">Pause Ende</option>
-    </select>
-    <label>Sortierung</label><input type="number" name="sort_order" value="100">
-    <label>Aktiv</label><input type="checkbox" name="active" checked>
-    <button type="submit">Anlegen</button>
-  </form>
-</section>
-<section class="card table-card">
-  <h2>Vorhandene Stempelgründe</h2>
-  {% for row in rows %}<form id="reason-form-{{ row.id }}" method="post" action="/system/settings/stamp-reasons/{{ row.id }}/save"></form>{% endfor %}
-  <div class="table-wrap"><table>
-    <thead><tr><th>Name</th><th>Code</th><th>Wirkung</th><th>Sortierung</th><th>Aktiv</th><th>Aktion</th></tr></thead>
-    <tbody>
-    {% for row in rows %}
-      <tr>
-        <td><input form="reason-form-{{ row.id }}" name="name" value="{{ row.name }}" required></td>
-        <td><code>{{ row.code }}</code></td>
-        <td><select form="reason-form-{{ row.id }}" name="entry_type">{% for value,label in [('kommen','Kommen'),('gehen','Gehen'),('pause_start','Pause Beginn'),('pause_ende','Pause Ende')] %}<option value="{{ value }}" {% if row.entry_type == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></td>
-        <td><input form="reason-form-{{ row.id }}" type="number" name="sort_order" value="{{ row.sort_order }}" style="width:6rem"></td>
-        <td><input form="reason-form-{{ row.id }}" type="checkbox" name="active" {% if row.active %}checked{% endif %}></td>
-        <td><button form="reason-form-{{ row.id }}" type="submit" class="button small">Speichern</button></td>
-      </tr>
-    {% else %}<tr><td colspan="6">Noch keine Stempelgründe angelegt. Ohne Auswahl wird automatisch Kommen oder Gehen gebucht.</td></tr>{% endfor %}
-    </tbody>
-  </table></div>
-</section>
+<section class="card"><h2>Funktion aktivieren oder deaktivieren</h2><form method="post" action="/system/settings/stamp-reasons/toggle" class="settings-form"><label class="checkbox-field"><input type="checkbox" name="enabled" value="1" {% if enabled %}checked{% endif %}> Stempelgründe am Raspberry-Kiosk anzeigen</label><p class="help-text">Ist die Funktion deaktiviert, wird beim RFID-Scan weiterhin automatisch Kommen oder Gehen gebucht. Vorhandene Stempelgründe und Personenstatus bleiben gespeichert.</p><button type="submit">Einstellung speichern</button></form></section>
+<section class="card"><h2>Neuen Stempelgrund anlegen</h2><form method="post" action="/system/settings/stamp-reasons/add" class="form-grid"><label>Bezeichnung</label><input name="name" required placeholder="z. B. Außer Haus"><label>Interner Code</label><input name="code" placeholder="wird automatisch erzeugt"><label>Wirkung</label><select name="entry_type" required><option value="kommen">Kommen buchen</option><option value="gehen">Gehen buchen</option><option value="pause_start">Pause beginnen</option><option value="pause_ende">Pause beenden</option><option value="status">Nur Personenstatus setzen</option><option value="status_clear">Personenstatus zurücksetzen</option></select><p class="help-text">Ein reiner Personenstatus verändert keine Arbeitszeitbuchung. Beispiele: Außer Haus, Bitte nicht stören, Besprechung oder Homeoffice.</p><label>Sortierung</label><input type="number" name="sort_order" value="100"><label>Aktiv</label><input type="checkbox" name="active" checked><button type="submit">Anlegen</button></form></section>
+<section class="card table-card"><h2>Vorhandene Stempelgründe</h2>{% for row in rows %}<form id="reason-form-{{ row.id }}" method="post" action="/system/settings/stamp-reasons/{{ row.id }}/save"></form>{% endfor %}<div class="table-wrap"><table><thead><tr><th>Name</th><th>Code</th><th>Wirkung</th><th>Sortierung</th><th>Aktiv</th><th>Aktion</th></tr></thead><tbody>{% set effects=[('kommen','Kommen buchen'),('gehen','Gehen buchen'),('pause_start','Pause beginnen'),('pause_ende','Pause beenden'),('status','Nur Personenstatus setzen'),('status_clear','Personenstatus zurücksetzen')] %}{% for row in rows %}<tr><td><input form="reason-form-{{ row.id }}" name="name" value="{{ row.name }}" required></td><td><code>{{ row.code }}</code></td><td><select form="reason-form-{{ row.id }}" name="entry_type">{% for value,label in effects %}<option value="{{ value }}" {% if row.entry_type == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></td><td><input form="reason-form-{{ row.id }}" type="number" name="sort_order" value="{{ row.sort_order }}" style="width:6rem"></td><td><input form="reason-form-{{ row.id }}" type="checkbox" name="active" {% if row.active %}checked{% endif %}></td><td><button form="reason-form-{{ row.id }}" type="submit" class="button small">Speichern</button></td></tr>{% else %}<tr><td colspan="6">Noch keine Stempelgründe angelegt. Ohne Auswahl wird automatisch Kommen oder Gehen gebucht.</td></tr>{% endfor %}</tbody></table></div></section>
 <div class="form-actions"><a class="button secondary" href="/system/settings">Zurück zu den Systemeinstellungen</a></div>
 {% endblock %}
