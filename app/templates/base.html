@@ -21,7 +21,7 @@
         {% if full_access or 'nav.absence' in permissions %}<a href="/vacation">Abwesenheiten</a>{% endif %}
         {% if full_access or 'nav.employees' in permissions %}<a href="/admin">Mitarbeiterverwaltung</a>{% endif %}
         {% if full_access or 'nav.corrections' in permissions or session_data.get("can_self_correct") or (user is defined and user and user.can_self_correct) %}<a href="/corrections">Korrektur</a>{% endif %}
-        {% if session_data.get("employee_name") and (full_access or 'nav.reports' in permissions) %}<a href="/reports">Mein Report</a>{% endif %}
+        {% if session_data.get("employee_name") and (full_access or 'nav.reports' in permissions) %}<a href="/reports">Auswertung &amp; Reporting</a>{% endif %}
         {% if full_access or 'reports.all' in permissions %}<a href="/worktime-account">Arbeitszeitkonto</a>{% endif %}
         {% if manager_access %}<a href="/overtime-adjustments">Überstunden</a>{% endif %}
         {% if manager_access or 'nav.plausibility' in permissions %}<a href="/plausibility">Plausibilität</a>{% endif %}
