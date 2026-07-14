@@ -9,10 +9,7 @@
     <label>Interner Code</label><input name="code" placeholder="wird automatisch erzeugt">
     <label>Buchungswirkung</label>
     <select name="entry_type" required>
-      <option value="kommen">Kommen</option>
-      <option value="gehen">Gehen</option>
-      <option value="pause_start">Pause Beginn</option>
-      <option value="pause_ende">Pause Ende</option>
+      <option value="kommen">Kommen</option><option value="gehen">Gehen</option><option value="pause_start">Pause Beginn</option><option value="pause_ende">Pause Ende</option>
     </select>
     <label>Sortierung</label><input type="number" name="sort_order" value="100">
     <label>Aktiv</label><input type="checkbox" name="active" checked>
@@ -21,27 +18,20 @@
 </section>
 <section class="card table-card">
   <h2>Vorhandene Stempelgründe</h2>
+  {% for row in rows %}<form id="reason-form-{{ row.id }}" method="post" action="/system/settings/stamp-reasons/{{ row.id }}/save"></form>{% endfor %}
   <div class="table-wrap"><table>
     <thead><tr><th>Name</th><th>Code</th><th>Wirkung</th><th>Sortierung</th><th>Aktiv</th><th>Aktion</th></tr></thead>
     <tbody>
     {% for row in rows %}
       <tr>
-        <form method="post" action="/system/settings/stamp-reasons/{{ row.id }}/save">
-        <td><input name="name" value="{{ row.name }}" required></td>
+        <td><input form="reason-form-{{ row.id }}" name="name" value="{{ row.name }}" required></td>
         <td><code>{{ row.code }}</code></td>
-        <td><select name="entry_type">
-          {% for value,label in [('kommen','Kommen'),('gehen','Gehen'),('pause_start','Pause Beginn'),('pause_ende','Pause Ende')] %}
-          <option value="{{ value }}" {% if row.entry_type == value %}selected{% endif %}>{{ label }}</option>
-          {% endfor %}
-        </select></td>
-        <td><input type="number" name="sort_order" value="{{ row.sort_order }}" style="width:6rem"></td>
-        <td><input type="checkbox" name="active" {% if row.active %}checked{% endif %}></td>
-        <td><button type="submit" class="button small">Speichern</button></td>
-        </form>
+        <td><select form="reason-form-{{ row.id }}" name="entry_type">{% for value,label in [('kommen','Kommen'),('gehen','Gehen'),('pause_start','Pause Beginn'),('pause_ende','Pause Ende')] %}<option value="{{ value }}" {% if row.entry_type == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></td>
+        <td><input form="reason-form-{{ row.id }}" type="number" name="sort_order" value="{{ row.sort_order }}" style="width:6rem"></td>
+        <td><input form="reason-form-{{ row.id }}" type="checkbox" name="active" {% if row.active %}checked{% endif %}></td>
+        <td><button form="reason-form-{{ row.id }}" type="submit" class="button small">Speichern</button></td>
       </tr>
-    {% else %}
-      <tr><td colspan="6">Noch keine Stempelgründe angelegt. Ohne Auswahl wird weiterhin automatisch Kommen oder Gehen gebucht.</td></tr>
-    {% endfor %}
+    {% else %}<tr><td colspan="6">Noch keine Stempelgründe angelegt. Ohne Auswahl wird automatisch Kommen oder Gehen gebucht.</td></tr>{% endfor %}
     </tbody>
   </table></div>
 </section>
