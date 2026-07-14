@@ -1,3 +1,9 @@
+## 5.6.25
+
+- Hauptmenüpunkt `Zusatz-Programme` wird bei leerer oder nicht sichtbarer Programmliste vollständig aus dem DOM entfernt
+- Fehler der Sichtbarkeitsprüfung blenden den Menüpunkt sicher aus
+- Rollen- und Aktivitätsfilter bleiben unverändert aktiv
+
 ## 5.6.24
 
 - Hauptmenüpunkt `Zusatz-Programme` wird ohne hinterlegte Programme ausgeblendet
