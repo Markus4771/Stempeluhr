@@ -57,6 +57,34 @@ def _resolve_report_range(period: str, date_from: str = "", date_to: str = ""):
     return period, start_day, end_day
 
 
+def _reportable_rows(rows: list) -> list:
+    """Nur vollständig abgeschlossene Tage bis einschließlich heute auswerten."""
+    today = date.today()
+    return [
+        row for row in (rows or [])
+        if getattr(row, "date", today) <= today and not bool(getattr(row, "incomplete", False))
+    ]
+
+
+def _totals_from_rows(rows: list) -> dict:
+    fields = (
+        "target_hours", "gross_hours", "manual_break_hours", "auto_break_hours",
+        "break_hours", "net_hours", "overtime_hours",
+    )
+    return {
+        field: round(sum(float(getattr(row, field, 0.0) or 0.0) for row in rows), 2)
+        for field in fields
+    }
+
+
+def _filtered_result(result: dict) -> dict:
+    filtered = dict(result or {})
+    rows = _reportable_rows(filtered.get("rows", []))
+    filtered["rows"] = rows
+    filtered["totals"] = _totals_from_rows(rows)
+    return filtered
+
+
 def _resolve_report_context(request: Request, db: Session, employee_id: int, period: str, date_from: str, date_to: str):
     user = current_user(request, db)
     if not user:
@@ -68,7 +96,7 @@ def _resolve_report_context(request: Request, db: Session, employee_id: int, per
     if not is_hr_or_admin(user) and role_name(user) != "Teamleiter":
         employee_id = user.id
     period, start_day, end_day = _resolve_report_range(period, date_from, date_to)
-    result = calculate_period(db, start_day, end_day, employee_id or None, visible_ids)
+    result = _filtered_result(calculate_period(db, start_day, end_day, employee_id or None, visible_ids))
     return user, visible_ids, visible_employees, employee_id, period, start_day, end_day, result
 
 
@@ -83,6 +111,11 @@ def _stamp_entries(db: Session, selected_ids: list[int], start_day: date, end_da
         TimeEntry.timestamp < end_dt,
         not_deleted_filter(),
     ).order_by(TimeEntry.timestamp.asc(), TimeEntry.id.asc()).all()
+
+
+def _entries_for_rows(entries: list, rows: list) -> list:
+    allowed = {(row.employee_id, row.date) for row in rows}
+    return [entry for entry in (entries or []) if (entry.employee_id, entry.timestamp.date()) in allowed]
 
 
 def _absence_summary(db: Session, start_day: date, end_day: date, employee_ids: list[int]) -> list[dict]:
@@ -110,13 +143,14 @@ def _absence_summary(db: Session, start_day: date, end_day: date, employee_ids: 
 def _team_statistics(worktime_rows: list) -> list[dict]:
     stats = {}
     for row in worktime_rows:
-        item = stats.setdefault(row.employee_id, {"employee_name": row.employee_name, "target_hours": 0.0, "net_hours": 0.0, "break_hours": 0.0, "overtime_hours": 0.0, "incomplete_days": 0})
+        item = stats.setdefault(row.employee_id, {
+            "employee_name": row.employee_name, "target_hours": 0.0, "net_hours": 0.0,
+            "break_hours": 0.0, "overtime_hours": 0.0, "incomplete_days": 0,
+        })
         item["target_hours"] += float(row.target_hours or 0.0)
         item["net_hours"] += float(row.net_hours or 0.0)
         item["break_hours"] += float(row.break_hours or 0.0)
         item["overtime_hours"] += float(row.overtime_hours or 0.0)
-        if getattr(row, "incomplete", False):
-            item["incomplete_days"] += 1
     result = []
     for item in stats.values():
         for key in ("target_hours", "net_hours", "break_hours", "overtime_hours"):
@@ -129,9 +163,22 @@ def _team_statistics(worktime_rows: list) -> list[dict]:
 def _report_csv_bytes(result: dict, entries: list | None = None) -> bytes:
     output = io.StringIO()
     writer = csv.writer(output, delimiter=";")
-    writer.writerow(["Datum", "Mitarbeiter", "Soll", "Brutto", "Pause gesamt", "Netto", "Tag +/-", "Status"])
+    writer.writerow(["Datum", "Mitarbeiter", "Soll (Std.)", "Brutto (Std.)", "Pause gesamt (Std.)", "Netto (Std.)", "Tag +/- (Std.)"])
     for row in result.get("rows", []):
-        writer.writerow([row.date.strftime("%d.%m.%Y"), row.employee_name, f"{row.target_hours:.2f}".replace(".", ","), f"{row.gross_hours:.2f}".replace(".", ","), f"{row.break_hours:.2f}".replace(".", ","), f"{row.net_hours:.2f}".replace(".", ","), f"{row.overtime_hours:.2f}".replace(".", ","), "unvollständig" if row.incomplete else "OK"])
+        writer.writerow([
+            row.date.strftime("%d.%m.%Y"), row.employee_name,
+            f"{row.target_hours:.2f}".replace(".", ","), f"{row.gross_hours:.2f}".replace(".", ","),
+            f"{row.break_hours:.2f}".replace(".", ","), f"{row.net_hours:.2f}".replace(".", ","),
+            f"{row.overtime_hours:.2f}".replace(".", ","),
+        ])
+    totals = result.get("totals", {})
+    writer.writerow([
+        "Summe", "", f"{float(totals.get('target_hours', 0)):.2f}".replace(".", ","),
+        f"{float(totals.get('gross_hours', 0)):.2f}".replace(".", ","),
+        f"{float(totals.get('break_hours', 0)):.2f}".replace(".", ","),
+        f"{float(totals.get('net_hours', 0)):.2f}".replace(".", ","),
+        f"{float(totals.get('overtime_hours', 0)):.2f}".replace(".", ","),
+    ])
     writer.writerow([])
     writer.writerow(["Stempelzeiten"])
     writer.writerow(["Datum", "Uhrzeit", "Mitarbeiter", "Buchung", "Methode", "Terminal"])
@@ -153,9 +200,9 @@ def _log_month_report(db: Session, employee_id: int, year: int, month: int, stat
 
 def build_employee_month_report(db: Session, employee: Employee, year: int, month: int, avg_months: int = 6):
     start_day, end_day = _month_range(year, month)
-    result = calculate_period(db, start_day, end_day, employee.id, [employee.id])
+    result = _filtered_result(calculate_period(db, start_day, end_day, employee.id, [employee.id]))
     totals = result.get("totals") or {}
-    entries = _stamp_entries(db, [employee.id], start_day, end_day)
+    entries = _entries_for_rows(_stamp_entries(db, [employee.id], start_day, end_day), result["rows"])
     name = f"{employee.first_name} {employee.last_name}".strip()
     subject = f"Arbeitszeitreport {month:02d}/{year} - {name}"
     body = (
@@ -164,6 +211,7 @@ def build_employee_month_report(db: Session, employee: Employee, year: int, mont
         f"Sollzeit: {float(totals.get('target_hours') or 0):.2f} Stunden\n"
         f"Istzeit/Netto: {float(totals.get('net_hours') or 0):.2f} Stunden\n"
         f"Saldo: {float(totals.get('overtime_hours') or 0):.2f} Stunden\n\n"
+        "Unvollständige und zukünftige Tage sind nicht enthalten.\n"
         "Arbeitszeitübersicht und Kommen-/Gehen-Buchungen befinden sich im CSV-Anhang.\n"
     )
     filename = f"arbeitszeitreport_{employee.employee_number}_{year}_{month:02d}.csv"
@@ -213,8 +261,9 @@ def reports(request: Request, employee_id: int = 0, period: str = "month", date_
         return RedirectResponse("/login", status_code=303)
     user, visible_ids, visible_employees, employee_id, period, start_day, end_day, result = ctx
     selected_ids = [employee_id] if employee_id else visible_ids
+    entries = _entries_for_rows(_stamp_entries(db, selected_ids, start_day, end_day), result["rows"])
     return templates.TemplateResponse("reports.html", {
-        "request": request, "user": user, "entries": _stamp_entries(db, selected_ids, start_day, end_day),
+        "request": request, "user": user, "entries": entries,
         "employees": visible_employees, "worktime_rows": result["rows"], "worktime_totals": result["totals"],
         "team_stats": _team_statistics(result["rows"]), "absence_summary": _absence_summary(db, start_day, end_day, selected_ids),
         "break_settings": result["break_settings"], "report_scope": role_name(user),
@@ -232,8 +281,9 @@ def reports_export_csv(request: Request, employee_id: int = 0, period: str = "mo
         return RedirectResponse("/login", status_code=303)
     user, visible_ids, visible_employees, employee_id, period, start_day, end_day, result = ctx
     selected_ids = [employee_id] if employee_id else visible_ids
+    entries = _entries_for_rows(_stamp_entries(db, selected_ids, start_day, end_day), result["rows"])
     filename = f"stempeluhr_report_{start_day.isoformat()}_{end_day.isoformat()}.csv"
-    return Response(content=_report_csv_bytes(result, _stamp_entries(db, selected_ids, start_day, end_day)), media_type="text/csv; charset=utf-8", headers={"Content-Disposition": f"attachment; filename={filename}"})
+    return Response(content=_report_csv_bytes(result, entries), media_type="text/csv; charset=utf-8", headers={"Content-Disposition": f"attachment; filename={filename}"})
 
 
 @router.get("/reports/print", response_class=HTMLResponse)
@@ -243,7 +293,14 @@ def reports_print(request: Request, employee_id: int = 0, period: str = "month",
         return RedirectResponse("/login", status_code=303)
     user, visible_ids, visible_employees, employee_id, period, start_day, end_day, result = ctx
     selected_ids = [employee_id] if employee_id else visible_ids
-    return templates.TemplateResponse("reports_print.html", {"request": request, "user": user, "entries": _stamp_entries(db, selected_ids, start_day, end_day), "worktime_rows": result["rows"], "worktime_totals": result["totals"], "team_stats": _team_statistics(result["rows"]), "absence_summary": _absence_summary(db, start_day, end_day, selected_ids), "filters": {"date_from": start_day.isoformat(), "date_to": end_day.isoformat(), "period": period}})
+    entries = _entries_for_rows(_stamp_entries(db, selected_ids, start_day, end_day), result["rows"])
+    return templates.TemplateResponse("reports_print.html", {
+        "request": request, "user": user, "entries": entries,
+        "worktime_rows": result["rows"], "worktime_totals": result["totals"],
+        "team_stats": _team_statistics(result["rows"]),
+        "absence_summary": _absence_summary(db, start_day, end_day, selected_ids),
+        "filters": {"date_from": start_day.isoformat(), "date_to": end_day.isoformat(), "period": period},
+    })
 
 
 @router.get("/worktime-account", response_class=HTMLResponse)
