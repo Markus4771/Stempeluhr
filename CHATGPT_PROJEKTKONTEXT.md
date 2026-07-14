@@ -6,7 +6,7 @@
 
 - Repository: `Markus4771/Stempeluhr`
 - Standardbranch: `main`
-- Aktuelle Entwicklungs- und Testversion: **5.6.24**
+- Aktuelle Entwicklungs- und Testversion: **5.6.25**
 - Zielplattform: Debian 13 und Raspberry Pi OS
 - Backend: Python, FastAPI, Uvicorn, SQLAlchemy
 - Standarddatenbank: PostgreSQL
@@ -32,32 +32,31 @@ Bei jeder neuen Version synchron aktualisieren: `version.txt`, `app/version.py`,
 - Zusatz-Programm-Verwaltung: `/system/settings/general/additional-programs`
 - Stempelgründe: `/system/settings/stamp-reasons`
 
-## Version 5.6.24
+## Version 5.6.25
 
 Umgesetzt:
 
-- Hauptmenüpunkt `Zusatz-Programme` bleibt ausgeblendet, wenn keine Programme hinterlegt sind
-- Programme werden zusätzlich nach Aktivstatus und Rollenfreigabe gefiltert
-- Stempelgründe unterstützen `status` für reine Personenstatus ohne Arbeitszeitbuchung
-- Stempelgründe unterstützen `status_clear` zum Zurücksetzen des Personenstatus
-- Personenstatus werden als getrennte Systemeinstellung je Mitarbeiter gespeichert
-- Statusänderungen werden im Audit-Protokoll dokumentiert
+- Hauptmenüpunkt `Zusatz-Programme` wird bei leerer oder für die Rolle nicht sichtbarer Programmliste vollständig aus dem DOM entfernt
+- die API-Sichtbarkeitsprüfung bleibt serverseitig nach Aktivstatus und Rollenfreigabe gefiltert
+- Fehler beim Abruf der Sichtbarkeit führen zum sicheren Entfernen des Menüpunktes
+- reine Personenstatus und Statusrücksetzung aus 5.6.24 bleiben enthalten
 - ohne Auswahl bleibt die automatische Kommen-/Gehen-Buchung unverändert
 
 ## Bereits enthalten
 
 - Kommen-/Gehen-Uhrzeiten in `Auswertung & Reporting`
-- Rollenabhängige Zusatz-Programme
+- rollenabhängige Zusatz-Programme
 - Plausibilitätsmeldungen zurücksetzen
 - Überstundenänderungen mit Mitarbeitergenehmigung per E-Mail
 - Abwesenheitskalender je Abteilung
+- reine Personenstatus als Stempelgrund ohne Arbeitszeitbuchung
 
-## Offene Prüfungen vor Freigabe 5.6.24
+## Offene Prüfungen vor Freigabe 5.6.25
 
 - Python-Syntax und Dienststart prüfen
-- Menü ohne Zusatz-Programme testen
+- Menü ohne Zusatz-Programme mit mehreren Rollen testen
+- prüfen, dass der Link auch bei API-Fehlern nicht sichtbar bleibt
 - Statusgründe `Außer Haus` und `Bitte nicht stören` testen
-- Statusrücksetzung testen
 - prüfen, dass Statusgründe keine TimeEntry-Buchung erzeugen
 - Debian-Paket bauen und installieren
 - `/health` und `/version` prüfen
@@ -66,7 +65,7 @@ Umgesetzt:
 
 ```bash
 bash scripts/build_release.sh
-sha256sum -c releases/stempeluhr_5.6.24_all.deb.sha256
+sha256sum -c releases/stempeluhr_5.6.25_all.deb.sha256
 ```
 
 ## Startanweisung für neue Chats
