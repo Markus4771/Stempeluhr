@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Abwesenheitskalender je Abteilung</h1>
+<section class="card">
+  <p>Jede Abteilung besitzt eine eigene Kalenderansicht und eine schreibgeschützte ICS-Adresse. Die Termine enthalten den Namen des Mitarbeiters und den Abwesenheitsgrund.</p>
+  <div class="settings-menu">
+  {% for department in departments %}
+    <div class="settings-tile">
+      <strong>{{ department.name }}</strong>
+      <span><a href="/vacation/calendar?department_id={{ department.id }}">Kalender öffnen</a></span>
+      {% if token %}<span><a href="/calendar/department/{{ department.id }}.ics?token={{ token }}">ICS abonnieren</a></span>{% else %}<span>ICS-Token ist noch nicht eingerichtet.</span>{% endif %}
+    </div>
+  {% else %}
+    <p>Für dein Benutzerkonto ist keine sichtbare Abteilung vorhanden.</p>
+  {% endfor %}
+  </div>
+</section>
+<p><a class="button secondary" href="/vacation">Zurück zu Abwesenheiten</a></p>
+{% endblock %}
