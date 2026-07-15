@@ -1,3 +1,10 @@
+## 5.6.26
+
+- frühere Raspberry-Kiosk-Oberfläche mit RFID-Feld und vier großen Buchungstasten wiederhergestellt
+- automatische Buchung nach Wartezeit bleibt erhalten
+- optionale Stempelgründe kompakt in das alte Kiosk-Layout integriert
+- RFID-Lernmodus und Kiosk-Links bleiben erhalten
+
 ## 5.6.25
 
 - Hauptmenüpunkt `Zusatz-Programme` wird bei leerer oder nicht sichtbarer Programmliste vollständig aus dem DOM entfernt
@@ -28,19 +35,3 @@
 
 - Plausibilitätsmeldungen können zurückgesetzt werden
 - Überstundenverwaltung mit Mitarbeiterfreigabe per E-Mail ergänzt
-
-## 5.6.19
-
-- Stempelzeiten werden serverseitig nach Mitarbeiter und Zeitraum geladen
-
-## 5.6.18
-
-- Datenschutzlink und Report-Berechtigungen ergänzt
-
-## 5.6.17
-
-- Menüpunkt `Zeiterfassung` aus der normalen Hauptnavigation entfernt
-
-## 5.6.16
-
-- Hauptnavigation im Bereich `Abwesenheiten` zusammengefasst
