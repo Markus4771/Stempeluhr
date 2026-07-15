@@ -6,7 +6,7 @@
 
 - Repository: `Markus4771/Stempeluhr`
 - Standardbranch: `main`
-- Aktuelle Entwicklungs- und Testversion: **5.6.25**
+- Aktuelle Entwicklungs- und Testversion: **5.6.26**
 - Zielplattform: Debian 13 und Raspberry Pi OS
 - Backend: Python, FastAPI, Uvicorn, SQLAlchemy
 - Standarddatenbank: PostgreSQL
@@ -32,32 +32,35 @@ Bei jeder neuen Version synchron aktualisieren: `version.txt`, `app/version.py`,
 - Zusatz-Programm-Verwaltung: `/system/settings/general/additional-programs`
 - Stempelgründe: `/system/settings/stamp-reasons`
 
-## Version 5.6.25
+## Version 5.6.26
 
 Umgesetzt:
 
-- Hauptmenüpunkt `Zusatz-Programme` wird bei leerer oder für die Rolle nicht sichtbarer Programmliste vollständig aus dem DOM entfernt
-- die API-Sichtbarkeitsprüfung bleibt serverseitig nach Aktivstatus und Rollenfreigabe gefiltert
-- Fehler beim Abruf der Sichtbarkeit führen zum sicheren Entfernen des Menüpunktes
-- reine Personenstatus und Statusrücksetzung aus 5.6.24 bleiben enthalten
-- ohne Auswahl bleibt die automatische Kommen-/Gehen-Buchung unverändert
+- frühere Raspberry-Kiosk-Oberfläche wiederhergestellt
+- RFID-Eingabefeld und große Tasten für Kommen, Gehen, Pause Start und Pause Ende wieder vorhanden
+- automatische Buchung nach konfigurierter Wartezeit bleibt erhalten
+- Admin-, Auswertungs- und Korrektur-Link bleiben im Kiosk sichtbar
+- optionale Stempelgründe sind kompakt in das alte Layout integriert
+- RFID-Lernmodus bleibt erhalten
+- reine Personenstatus und Statusrücksetzung bleiben funktionsfähig
 
 ## Bereits enthalten
 
 - Kommen-/Gehen-Uhrzeiten in `Auswertung & Reporting`
 - rollenabhängige Zusatz-Programme
+- vollständiges Ausblenden des Zusatz-Programme-Menüs ohne sichtbare Einträge
 - Plausibilitätsmeldungen zurücksetzen
 - Überstundenänderungen mit Mitarbeitergenehmigung per E-Mail
 - Abwesenheitskalender je Abteilung
-- reine Personenstatus als Stempelgrund ohne Arbeitszeitbuchung
 
-## Offene Prüfungen vor Freigabe 5.6.25
+## Offene Prüfungen vor Freigabe 5.6.26
 
-- Python-Syntax und Dienststart prüfen
-- Menü ohne Zusatz-Programme mit mehreren Rollen testen
-- prüfen, dass der Link auch bei API-Fehlern nicht sichtbar bleibt
-- Statusgründe `Außer Haus` und `Bitte nicht stören` testen
-- prüfen, dass Statusgründe keine TimeEntry-Buchung erzeugen
+- Python-/Template-Syntax und Dienststart prüfen
+- Kiosk auf 800×480 testen
+- manuelle Kommen-, Gehen- und Pausenbuchung testen
+- automatische Buchung nach Wartezeit testen
+- Stempelgründe und reine Personenstatus testen
+- RFID-Lernmodus testen
 - Debian-Paket bauen und installieren
 - `/health` und `/version` prüfen
 
@@ -65,7 +68,7 @@ Umgesetzt:
 
 ```bash
 bash scripts/build_release.sh
-sha256sum -c releases/stempeluhr_5.6.25_all.deb.sha256
+sha256sum -c releases/stempeluhr_5.6.26_all.deb.sha256
 ```
 
 ## Startanweisung für neue Chats
