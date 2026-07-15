@@ -1,3 +1,11 @@
+## 5.6.27
+
+- Dashboard zeigt Anwesenheit als Verhältnis aus anwesenden und aktiven Mitarbeitern
+- Buchungen des Tages werden nach Kommen, Gehen und Pause aufgeschlüsselt
+- Plausibilitätsmeldungen und Backup-Alter erhalten Warnstufen
+- Überstunden werden rollenbezogen dargestellt
+- Systemstatus prüft zusätzlich Speicherplatz, E-Mail-Konfiguration und GitHub-Token
+
 ## 5.6.26
 
 - frühere Raspberry-Kiosk-Oberfläche mit RFID-Feld und vier großen Buchungstasten wiederhergestellt
