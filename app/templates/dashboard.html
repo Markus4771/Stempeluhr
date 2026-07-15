@@ -2,16 +2,47 @@
 {% block content %}
 <h1>Dashboard</h1>
 
-<div class="dashboard-grid" id="dashboardMetrics">
-    <section class="card stat-card"><span class="stat-label">Heute anwesend</span><strong id="metricPresence">{{ stats.present_count }} / {{ stats.active_employees }}</strong><small>anwesend / aktiv</small></section>
-    <section class="card stat-card"><span class="stat-label">Heute nicht anwesend</span><strong id="metricAbsent">{{ stats.absent_today_count }}</strong><small>von {{ stats.active_employees }} aktiven Mitarbeitern</small></section>
-    <section class="card stat-card"><span class="stat-label">Buchungen heute</span><strong id="metricBookings">{{ stats.today_entries }}</strong><small id="metricBookingBreakdown">Aufschlüsselung wird geladen …</small></section>
-    <section class="card stat-card"><span class="stat-label">Offene Abwesenheitsanträge</span><strong>{{ stats.open_vacations }}</strong></section>
-    <section class="card stat-card"><span class="stat-label">Offene Korrekturen</span><strong>{{ stats.open_corrections }}</strong></section>
-    <section class="card stat-card" id="plausibilityCard"><span class="stat-label">Offene Plausibilitätsmeldungen</span><strong id="metricPlausibility">{{ stats.open_plausibility }}</strong><small>offen oder geprüft</small></section>
-    <section class="card stat-card"><span class="stat-label" id="overtimeLabel">Überstunden</span><strong id="metricOvertime">{{ stats.overtime_sum }} h</strong><small id="overtimeScope">sichtbarer Bereich</small></section>
-    <section class="card stat-card" id="backupCard"><span class="stat-label">Letztes Backup</span><strong class="small-stat" id="metricBackup">{{ stats.last_backup }}</strong><small id="backupAge">Alter wird geprüft …</small></section>
-    <section class="card stat-card" id="systemCard"><span class="stat-label">Systemstatus</span><strong id="metricSystem">{{ stats.system_status }}</strong><small>Datenbank, Backup und Speicher</small></section>
+<div class="dashboard-grid dashboard-grid-compact" id="dashboardMetrics">
+    <section class="card stat-card">
+        <span class="stat-label">Anwesend</span>
+        <strong id="metricPresence">{{ stats.present_count }}</strong>
+        <small id="metricPresenceDetail">von {{ stats.active_employees }} aktiven</small>
+    </section>
+    <section class="card stat-card">
+        <span class="stat-label">Buchungen heute</span>
+        <strong id="metricBookings">{{ stats.today_entries }}</strong>
+        <small id="metricBookingBreakdown">Details werden geladen …</small>
+    </section>
+    <section class="card stat-card">
+        <span class="stat-label">Abwesenheitsanträge</span>
+        <strong>{{ stats.open_vacations }}</strong>
+        <small>offen</small>
+    </section>
+    <section class="card stat-card">
+        <span class="stat-label">Korrekturen</span>
+        <strong>{{ stats.open_corrections }}</strong>
+        <small>offen</small>
+    </section>
+    <section class="card stat-card" id="plausibilityCard">
+        <span class="stat-label">Plausibilität</span>
+        <strong id="metricPlausibility">{{ stats.open_plausibility }}</strong>
+        <small id="plausibilityDetail">offene Meldungen</small>
+    </section>
+    <section class="card stat-card">
+        <span class="stat-label" id="overtimeLabel">Überstunden</span>
+        <strong id="metricOvertime">{{ stats.overtime_sum }} h</strong>
+        <small id="overtimeScope">sichtbarer Bereich</small>
+    </section>
+    <section class="card stat-card" id="backupCard">
+        <span class="stat-label">Letztes Backup</span>
+        <strong class="small-stat" id="metricBackup">{{ stats.last_backup }}</strong>
+        <small id="backupAge">Alter wird geprüft …</small>
+    </section>
+    <section class="card stat-card" id="systemCard">
+        <span class="stat-label">Systemstatus</span>
+        <strong id="metricSystem">{{ stats.system_status }}</strong>
+        <small id="systemDetail">Datenbank, Backup und Speicher</small>
+    </section>
 </div>
 
 <div class="grid">
@@ -61,7 +92,7 @@
 </section>
 
 <section class="card">
-    <h2>System-Schnellstatus</h2>
+    <h2>Systemdetails</h2>
     <table>
         <tr><th>Bereich</th><th>Status</th></tr>
         <tr><td>Datenbank</td><td id="systemDatabase">{{ stats.system_details.database }}</td></tr>
@@ -88,7 +119,9 @@
     function applyLevel(element, level) {
         if (!element) return;
         element.classList.remove('metric-ok', 'metric-warning', 'metric-danger');
-        element.classList.add('metric-' + (level || 'ok'));
+        if (level === 'ok' || level === 'warning' || level === 'danger') {
+            element.classList.add('metric-' + level);
+        }
     }
     function statusText(item) {
         return item && item.label ? item.label : 'Unbekannt';
@@ -96,59 +129,53 @@
     fetch('/api/dashboard/metrics', {cache: 'no-store', credentials: 'same-origin'})
         .then(response => response.ok ? response.json() : Promise.reject())
         .then(data => {
-            document.getElementById('metricPresence').textContent = data.presence.label;
-            document.getElementById('metricAbsent').textContent = data.presence.absent;
+            document.getElementById('metricPresence').textContent = data.presence.present;
+            document.getElementById('metricPresenceDetail').textContent = 'von ' + data.presence.active + ' aktiven';
             document.getElementById('metricBookings').textContent = data.bookings.total;
             document.getElementById('metricBookingBreakdown').textContent =
-                'Kommen ' + data.bookings.kommen + ' · Gehen ' + data.bookings.gehen +
-                ' · Pause ' + (data.bookings.pause_start + data.bookings.pause_ende);
+                'K ' + data.bookings.kommen + ' · G ' + data.bookings.gehen +
+                ' · P ' + (data.bookings.pause_start + data.bookings.pause_ende);
             document.getElementById('metricPlausibility').textContent = data.plausibility.open;
+            document.getElementById('plausibilityDetail').textContent = data.plausibility.open === 1 ? 'offene Meldung' : 'offene Meldungen';
             applyLevel(document.getElementById('plausibilityCard'), data.plausibility.level);
             document.getElementById('metricOvertime').textContent = data.overtime.hours.toFixed(2) + ' h';
             document.getElementById('overtimeLabel').textContent = data.overtime.scope + ' Überstunden';
-            document.getElementById('overtimeScope').textContent = data.overtime.scope === 'Eigene' ? 'persönlicher Stand' : 'Summe des sichtbaren Bereichs';
+            document.getElementById('overtimeScope').textContent = data.overtime.scope === 'Eigene' ? 'persönlicher Stand' : 'sichtbarer Bereich';
             document.getElementById('metricBackup').textContent = data.backup.label;
-            document.getElementById('backupAge').textContent = data.backup.age_hours === null ? 'kein verwertbares Backup' : data.backup.age_hours + ' Stunden alt';
+            document.getElementById('backupAge').textContent = data.backup.age_label;
             applyLevel(document.getElementById('backupCard'), data.backup.level);
             document.getElementById('metricSystem').textContent = data.system.label;
+            document.getElementById('systemDetail').textContent = data.system.detail;
             applyLevel(document.getElementById('systemCard'), data.system.level);
             document.getElementById('systemDatabase').textContent = statusText(data.system.database);
-            document.getElementById('systemBackup').textContent = statusText(data.system.backup);
+            document.getElementById('systemBackup').textContent = statusText(data.system.backup) + ' · ' + data.backup.age_label;
             document.getElementById('systemDisk').textContent = statusText(data.system.disk);
             document.getElementById('systemEmail').textContent = statusText(data.system.email);
             document.getElementById('systemGithub').textContent = statusText(data.system.github);
             document.getElementById('systemPlausibility').textContent = data.plausibility.open + ' offene Meldungen';
         })
         .catch(() => {
-            const card = document.getElementById('systemCard');
-            document.getElementById('metricSystem').textContent = 'Prüfung fehlgeschlagen';
-            applyLevel(card, 'warning');
+            document.getElementById('metricSystem').textContent = 'Status unbekannt';
+            document.getElementById('systemDetail').textContent = 'Prüfung fehlgeschlagen';
+            applyLevel(document.getElementById('systemCard'), 'warning');
         });
 })();
 </script>
 
 <script>
-(function() {
-    const AUTO_DELAY_SECONDS = {{ auto_delay_seconds|default(3) }};
-    const AUTO_DELAY_MS = AUTO_DELAY_SECONDS * 1000;
-    const employeeInput = document.getElementById("quickEmployeeNumber");
-    const passwordInput = document.getElementById("quickPassword");
-    const autoForm = document.getElementById("quickAutoForm");
-    const autoEmployee = document.getElementById("quickAutoEmployeeNumber");
-    const autoPassword = document.getElementById("quickAutoPassword");
-    const info = document.getElementById("quickAutoInfo");
-    const manualForm = document.getElementById("quickBookingForm");
-    if (!employeeInput || !passwordInput || !autoForm || !autoEmployee || !autoPassword || !info || !manualForm) return;
-    let autoTimer = null, countdownTimer = null, inputPauseTimer = null;
-    let remaining = AUTO_DELAY_SECONDS, submitting = false;
+(function(){
+    const AUTO_DELAY_SECONDS={{ auto_delay_seconds|default(3) }},AUTO_DELAY_MS=AUTO_DELAY_SECONDS*1000;
+    const employeeInput=document.getElementById('quickEmployeeNumber'),passwordInput=document.getElementById('quickPassword'),autoForm=document.getElementById('quickAutoForm'),autoEmployee=document.getElementById('quickAutoEmployeeNumber'),autoPassword=document.getElementById('quickAutoPassword'),info=document.getElementById('quickAutoInfo'),manualForm=document.getElementById('quickBookingForm');
+    if(!employeeInput||!passwordInput||!autoForm||!autoEmployee||!autoPassword||!info||!manualForm)return;
+    let autoTimer=null,countdownTimer=null,inputPauseTimer=null,remaining=AUTO_DELAY_SECONDS,submitting=false;
     function clearTimers(){if(autoTimer)clearTimeout(autoTimer);if(countdownTimer)clearInterval(countdownTimer);autoTimer=null;countdownTimer=null;}
     function valuesReady(){return employeeInput.value.trim().length>0&&passwordInput.value.trim().length>0;}
-    function submitAutoBooking(){if(submitting||!valuesReady())return;submitting=true;clearTimers();autoEmployee.value=employeeInput.value.trim();autoPassword.value=passwordInput.value;employeeInput.disabled=true;passwordInput.disabled=true;info.textContent="Automatische Schnellbuchung wird ausgeführt ...";autoForm.submit();}
-    function startAutoBooking(){if(submitting)return;if(!valuesReady()){clearTimers();info.textContent="Mitarbeiternummer und Passwort eingeben. Danach wird nach {{ auto_delay_seconds|default(3) }} Sekunden automatisch gebucht.";return;}clearTimers();remaining=AUTO_DELAY_SECONDS;info.textContent="Daten erkannt. Automatische Buchung in "+remaining+" Sekunden ...";countdownTimer=setInterval(function(){remaining-=1;if(remaining>0)info.textContent="Daten erkannt. Automatische Buchung in "+remaining+" Sekunden ...";},1000);autoTimer=setTimeout(submitAutoBooking,AUTO_DELAY_MS);}
+    function submitAutoBooking(){if(submitting||!valuesReady())return;submitting=true;clearTimers();autoEmployee.value=employeeInput.value.trim();autoPassword.value=passwordInput.value;employeeInput.disabled=true;passwordInput.disabled=true;info.textContent='Automatische Schnellbuchung wird ausgeführt ...';autoForm.submit();}
+    function startAutoBooking(){if(submitting)return;if(!valuesReady()){clearTimers();info.textContent='Mitarbeiternummer und Passwort eingeben. Danach wird nach {{ auto_delay_seconds|default(3) }} Sekunden automatisch gebucht.';return;}clearTimers();remaining=AUTO_DELAY_SECONDS;info.textContent='Daten erkannt. Automatische Buchung in '+remaining+' Sekunden ...';countdownTimer=setInterval(function(){remaining-=1;if(remaining>0)info.textContent='Daten erkannt. Automatische Buchung in '+remaining+' Sekunden ...';},1000);autoTimer=setTimeout(submitAutoBooking,AUTO_DELAY_MS);}
     function scheduleAutoBooking(){if(submitting)return;if(inputPauseTimer)clearTimeout(inputPauseTimer);inputPauseTimer=setTimeout(startAutoBooking,500);}
-    employeeInput.addEventListener("input",scheduleAutoBooking);passwordInput.addEventListener("input",scheduleAutoBooking);
-    manualForm.addEventListener("keydown",function(ev){if(ev.key==="Enter"){ev.preventDefault();startAutoBooking();}});
-    manualForm.addEventListener("submit",function(){submitting=true;clearTimers();});autoForm.addEventListener("submit",function(){submitting=true;clearTimers();});
+    employeeInput.addEventListener('input',scheduleAutoBooking);passwordInput.addEventListener('input',scheduleAutoBooking);
+    manualForm.addEventListener('keydown',function(ev){if(ev.key==='Enter'){ev.preventDefault();startAutoBooking();}});
+    manualForm.addEventListener('submit',function(){submitting=true;clearTimers();});autoForm.addEventListener('submit',function(){submitting=true;clearTimers();});
 })();
 </script>
 {% endblock %}
