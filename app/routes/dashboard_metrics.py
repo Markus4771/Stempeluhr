@@ -27,14 +27,22 @@ def _latest_backup() -> dict:
             if path.is_file() and path.suffix.lower() in {".zip", ".gz", ".tar", ".tgz", ".sql"}
         ]
     if not candidates:
-        return {"label": "Kein Backup gefunden", "age_hours": None, "level": "danger"}
+        return {"label": "Kein Backup", "age_hours": None, "age_label": "nicht vorhanden", "level": "danger"}
     latest = max(candidates, key=lambda path: path.stat().st_mtime)
     backup_time = datetime.fromtimestamp(latest.stat().st_mtime)
     age_hours = max((datetime.now() - backup_time).total_seconds() / 3600, 0)
+    age_days = int(age_hours // 24)
+    if age_hours < 24:
+        age_label = f"{int(age_hours)} Std. alt"
+    elif age_days == 1:
+        age_label = "1 Tag alt"
+    else:
+        age_label = f"{age_days} Tage alt"
     level = "ok" if age_hours <= 24 else "warning" if age_hours <= 72 else "danger"
     return {
         "label": backup_time.strftime("%d.%m.%Y %H:%M"),
         "age_hours": round(age_hours, 1),
+        "age_label": age_label,
         "level": level,
     }
 
@@ -60,12 +68,22 @@ def _scope(db: Session, user) -> tuple[list[int], str]:
     if not user:
         return [], ""
     if role in {"Administrator", "Personal"} or str(getattr(user, "employee_number", "")).lower() == "admin":
-        ids = report_visible_employee_ids(db, user)
-        return ids, "Gesamt"
+        return report_visible_employee_ids(db, user), "Gesamt"
     if role == "Teamleiter":
-        ids = report_visible_employee_ids(db, user)
-        return ids, "Team"
+        return report_visible_employee_ids(db, user), "Team"
     return [user.id], "Eigene"
+
+
+def _system_summary(backup: dict, disk: dict) -> tuple[str, str, str]:
+    if disk["level"] == "danger":
+        return "Speicher knapp", "danger", disk["label"]
+    if backup["level"] == "danger":
+        return "Backup veraltet", "danger", backup["age_label"]
+    if disk["level"] == "warning":
+        return "Speicher prüfen", "warning", disk["label"]
+    if backup["level"] == "warning":
+        return "Backup fällig", "warning", backup["age_label"]
+    return "System OK", "ok", "Datenbank, Backup und Speicher"
 
 
 @router.get("/api/dashboard/metrics")
@@ -77,21 +95,23 @@ def dashboard_metrics(request: Request, db: Session = Depends(get_db)):
     today_start = datetime.combine(date.today(), datetime.min.time())
     today_end = today_start + timedelta(days=1)
 
-    active_query = db.query(Employee).filter(Employee.active == True)
-    active_employees = [employee for employee in active_query.all() if not is_fixed_admin_employee(employee)]
+    active_employees = [
+        employee for employee in db.query(Employee).filter(Employee.active == True).all()
+        if not is_fixed_admin_employee(employee)
+    ]
     active_ids = [employee.id for employee in active_employees]
 
-    latest_entries = []
+    present_count = 0
     for employee_id in active_ids:
         entry = db.query(TimeEntry).filter(
             TimeEntry.employee_id == employee_id,
             not_deleted_filter(),
         ).order_by(TimeEntry.timestamp.desc(), TimeEntry.id.desc()).first()
-        if entry:
-            latest_entries.append(entry)
+        if entry and entry.entry_type in {"kommen", "pause_ende"}:
+            present_count += 1
 
-    present_count = sum(1 for entry in latest_entries if entry.entry_type in {"kommen", "pause_ende"})
     booking_rows = db.query(TimeEntry.entry_type, func.count(TimeEntry.id)).filter(
+        TimeEntry.employee_id.in_(active_ids) if active_ids else False,
         TimeEntry.timestamp >= today_start,
         TimeEntry.timestamp < today_end,
         not_deleted_filter(),
@@ -114,17 +134,13 @@ def dashboard_metrics(request: Request, db: Session = Depends(get_db)):
     disk = _disk_status()
     mail_ready = _settings_status(db, ("smtp_host", "mail_smtp_host", "email_smtp_host"))
     github_token = Path("/etc/stempeluhr/secrets/github_token").exists()
-
-    levels = [backup["level"], disk["level"], plausibility_level]
-    system_level = "danger" if "danger" in levels else "warning" if "warning" in levels else "ok"
-    system_label = "Handlungsbedarf" if system_level == "danger" else "Prüfen" if system_level == "warning" else "OK"
+    system_label, system_level, system_detail = _system_summary(backup, disk)
 
     return {
         "presence": {
             "present": present_count,
             "active": len(active_employees),
             "absent": max(len(active_employees) - present_count, 0),
-            "label": f"{present_count} / {len(active_employees)}",
         },
         "bookings": {
             "total": sum(booking_counts.values()),
@@ -133,22 +149,17 @@ def dashboard_metrics(request: Request, db: Session = Depends(get_db)):
             "pause_start": booking_counts.get("pause_start", 0),
             "pause_ende": booking_counts.get("pause_ende", 0),
         },
-        "plausibility": {
-            "open": open_plausibility,
-            "level": plausibility_level,
-        },
-        "overtime": {
-            "hours": round(overtime_sum, 2),
-            "scope": overtime_scope,
-        },
+        "plausibility": {"open": open_plausibility, "level": plausibility_level},
+        "overtime": {"hours": round(overtime_sum, 2), "scope": overtime_scope},
         "backup": backup,
         "system": {
             "label": system_label,
+            "detail": system_detail,
             "level": system_level,
             "database": {"label": "OK", "level": "ok"},
             "backup": backup,
             "disk": disk,
-            "email": {"label": "Konfiguriert" if mail_ready else "Nicht konfiguriert", "level": "ok" if mail_ready else "warning"},
-            "github": {"label": "Token vorhanden" if github_token else "Token fehlt", "level": "ok" if github_token else "warning"},
+            "email": {"label": "Konfiguriert" if mail_ready else "Nicht konfiguriert", "level": "ok" if mail_ready else "info"},
+            "github": {"label": "Token vorhanden" if github_token else "Token fehlt", "level": "ok" if github_token else "info"},
         },
     }
