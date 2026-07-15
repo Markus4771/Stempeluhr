@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Allgemeine Einstellungen · Dashboard-Buchung</h1>
+{% if saved %}<div class="success-box">Einstellung gespeichert.</div>{% endif %}
+<section class="card settings-card">
+  <h2>Eigene Buchung</h2>
+  <p class="help-text">Angemeldete Mitarbeiter können auf dem Dashboard das eigene Kommen oder Gehen buchen. Zustandsprüfung und Doppelbuchungsschutz bleiben aktiv.</p>
+  <form action="/system/settings/general/self-booking" method="post" class="settings-form">
+    <div class="form-field checkbox-field"><label><input type="checkbox" name="enabled" value="1" {% if enabled %}checked{% endif %}> Eigene Kommen-/Gehen-Buchung im Dashboard aktivieren</label></div>
+    <div class="form-actions"><button type="submit">Speichern</button><a class="button secondary" href="/system/settings/general">Zurück</a></div>
+  </form>
+</section>
+{% endblock %}
