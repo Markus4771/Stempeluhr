@@ -6,9 +6,9 @@ from fastapi import APIRouter, Depends, Request
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models import Employee
+from app.models import Employee, TimeEntry
 from app.services.worktime import calculate_period
-from .common import report_visible_employee_ids, role_name
+from .common import not_deleted_filter, report_visible_employee_ids, role_name
 from .dashboard_metrics import dashboard_metrics as original_dashboard_metrics
 
 router = APIRouter()
@@ -25,7 +25,12 @@ def _visible_scope(db: Session, user):
 
 def _employee_balance(db: Session, employee: Employee, end_day: date) -> float:
     baseline = 0.0
-    start_day = date(end_day.year, 1, 1)
+    first_entry = db.query(TimeEntry).filter(
+        TimeEntry.employee_id == employee.id,
+        not_deleted_filter(),
+    ).order_by(TimeEntry.timestamp.asc(), TimeEntry.id.asc()).first()
+
+    start_day = first_entry.timestamp.date() if first_entry else (employee.entry_date or end_day)
     if employee.entry_date and employee.entry_date > start_day:
         start_day = employee.entry_date
 
