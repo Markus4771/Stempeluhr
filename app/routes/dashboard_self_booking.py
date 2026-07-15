@@ -19,7 +19,9 @@ def employee_setting_key(employee_id: int) -> str:
 
 
 def employee_self_booking_enabled(db: Session, employee_id: int) -> bool:
-    value = str(service_get_setting(db, employee_setting_key(employee_id), "0") or "0").lower()
+    # Bestehende Mitarbeiter behalten nach dem Update ihre Buchungsmöglichkeit.
+    # Administratoren können sie anschließend pro Mitarbeiter deaktivieren.
+    value = str(service_get_setting(db, employee_setting_key(employee_id), "1") or "1").lower()
     return value in {"1", "true", "on", "yes", "ja"}
 
 
