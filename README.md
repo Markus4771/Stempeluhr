@@ -1,23 +1,24 @@
-# Stempeluhr Professional 5.6.27
+# Stempeluhr Professional 5.6.28
 
 Webbasierte Zeiterfassung für Debian-Server und Raspberry-Pi-Terminals mit PostgreSQL, FastAPI, Rollen und Rechten, Reporting, Sicherheitsrichtlinien, Zusatz-Programmen und integriertem Hilfesystem.
 
 ## Aktueller Stand
 
-- Version: **5.6.27**
+- Version: **5.6.28**
 - Standarddatenbank: PostgreSQL
 - Zielplattform: Debian 13 / Raspberry Pi OS
 - Standardbranch: `main`
 
-## Änderungen in 5.6.27
+## Änderungen in 5.6.28
 
-- Dashboard zeigt Anwesenheit als Verhältnis `anwesend / aktiv`
-- heutige Buchungen werden nach Kommen, Gehen und Pause aufgeschlüsselt
-- Plausibilitätsmeldungen erhalten Warnstufen
-- Überstunden werden rollenbezogen als eigener Stand, Team- oder Gesamtsumme angezeigt
-- Backup-Alter wird bewertet: bis 24 Stunden grün, bis 72 Stunden gelb, danach rot
-- Systemstatus berücksichtigt Datenbank, Backup, Speicherplatz, E-Mail-Konfiguration und GitHub-Token
-- System-Schnellstatus wurde entsprechend erweitert
+- Dashboard-Kennzahlen verwenden eine einheitliche Basis aktiver Mitarbeiter
+- widersprüchliche Anzeige `anwesend / aktiv` und abweichende Unterzeile entfernt
+- Kachel `Heute nicht anwesend` entfernt, da sie dieselbe Information doppelt darstellte
+- Anwesenheit wird kompakt als Zahl plus `von X aktiven` angezeigt
+- Systemstatus nennt den konkreten Hauptgrund, z. B. `Backup veraltet` oder `Speicher knapp`
+- E-Mail- und GitHub-Token-Status lösen keinen roten Gesamtstatus mehr aus
+- Backup-Alter wird als Stunden oder Tage verständlich ausgegeben
+- Dashboard-Kacheln wurden sprachlich gekürzt und übersichtlicher gestaltet
 
 ## Bereits enthalten
 
@@ -35,9 +36,9 @@ Webbasierte Zeiterfassung für Debian-Server und Raspberry-Pi-Terminals mit Post
 cd ~/Stempeluhr
 git pull --ff-only origin main
 bash scripts/build_release.sh
-sudo apt install ./releases/stempeluhr_5.6.27_all.deb
+sudo apt install ./releases/stempeluhr_5.6.28_all.deb
 ```
 
 ## Tests
 
-Zu prüfen sind Paketbau, Dienststart, Dashboard-Kennzahlen für Mitarbeiter/Teamleiter/Admin, Backup-Warnstufen, Speicherstatus, E-Mail-/GitHub-Anzeige, `/health` und `/version`.
+Zu prüfen sind Paketbau, Dienststart, konsistente Anwesenheitswerte, konkrete Systemstatusmeldung, Backup-Alter, Rollenansichten, `/health` und `/version`.
