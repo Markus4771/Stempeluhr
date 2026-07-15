@@ -56,25 +56,14 @@
 <script>
 (function () {
     const link = document.getElementById('additionalProgramsNav');
-    if (link) {
-        fetch('/api/additional-programs/menu-visible', {cache: 'no-store', credentials: 'same-origin'})
-            .then(response => response.ok ? response.json() : {visible: false})
-            .then(data => { if (data.visible === true) { link.hidden = false; link.removeAttribute('aria-hidden'); } else { link.remove(); } })
-            .catch(() => link.remove());
-    }
-    if (window.location.pathname === '/system/settings/general') {
-        const actions = document.querySelector('form[action="/system/settings/general"] .form-actions');
-        if (actions && !document.getElementById('dashboardBookingSettingsLink')) {
-            const item = document.createElement('a');
-            item.id = 'dashboardBookingSettingsLink';
-            item.className = 'button secondary';
-            item.href = '/system/settings/general/self-booking';
-            item.textContent = 'Dashboard-Buchung konfigurieren';
-            actions.appendChild(item);
-        }
-    }
+    if (!link) return;
+    fetch('/api/additional-programs/menu-visible', {cache: 'no-store', credentials: 'same-origin'})
+        .then(response => response.ok ? response.json() : {visible: false})
+        .then(data => { if (data.visible === true) { link.hidden = false; link.removeAttribute('aria-hidden'); } else { link.remove(); } })
+        .catch(() => link.remove());
 })();
 </script>
+<script src="/static/employee_self_booking.js"></script>
 {% endif %}
 </body>
 </html>
