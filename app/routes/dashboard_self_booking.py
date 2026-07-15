@@ -29,11 +29,20 @@ def dashboard_self_booking_status(request: Request, db: Session = Depends(get_db
     if not user:
         return JSONResponse({"enabled": False, "authenticated": False}, status_code=401)
     allowed = employee_self_booking_enabled(db, user.id) and not is_fixed_admin_employee(user)
-    return {
-        "enabled": allowed,
-        "authenticated": True,
-        "employee_name": f"{user.first_name} {user.last_name}".strip(),
-    }
+    return {"enabled": allowed, "authenticated": True, "employee_name": f"{user.first_name} {user.last_name}".strip()}
+
+
+@router.get("/api/admin/employees/{employee_id}/self-booking")
+def employee_self_booking_status_admin(employee_id: int, request: Request, db: Session = Depends(get_db)):
+    from .common import Employee, require_admin_response
+
+    admin_user, redirect = require_admin_response(request, db)
+    if redirect:
+        return JSONResponse({"enabled": False}, status_code=403)
+    employee = db.query(Employee).filter(Employee.id == employee_id).first()
+    if not employee:
+        return JSONResponse({"enabled": False}, status_code=404)
+    return {"enabled": employee_self_booking_enabled(db, employee.id)}
 
 
 @router.post("/dashboard/self-book")
