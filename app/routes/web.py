@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 
-from . import dashboard_privacy, dashboard, dashboard_metrics, dashboard_self_booking, employees, report_stamps, reports, corrections, privacy_audit, backup, vacation, plausibility, plausibility_reset, overtime_adjustments, stamp_reasons
+from . import dashboard_privacy, dashboard, dashboard_metrics_corrected, dashboard_metrics, dashboard_self_booking, employees, report_stamps, reports, corrections, privacy_audit, backup, vacation, plausibility, plausibility_reset, overtime_adjustments, stamp_reasons
 from app.modules.developer import routes as developer
 from app.modules.updates import github_routes
 from app.services.absence_approval import register_absence_approval_events
@@ -14,7 +14,7 @@ router = APIRouter()
 for module in (
     security_login,
     privacy_notice,
-    dashboard_privacy, dashboard, dashboard_metrics, dashboard_self_booking, employees, report_stamps, reports, corrections, privacy_audit, backup, vacation, plausibility, plausibility_reset, overtime_adjustments, stamp_reasons,
+    dashboard_privacy, dashboard, dashboard_metrics_corrected, dashboard_metrics, dashboard_self_booking, employees, report_stamps, reports, corrections, privacy_audit, backup, vacation, plausibility, plausibility_reset, overtime_adjustments, stamp_reasons,
     email_settings, departments, api_settings, terminals, time_settings, https_settings,
     security_general, security_policies, roles, offboarding, dsgvo, absence_types, kiosk_settings, monitoring, setup_wizard,
     raspberry_monitor, onboarding, diagnostics, database_security, additional_programs, help_docs, developer, github_routes,
