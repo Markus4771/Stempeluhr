@@ -3,32 +3,24 @@
 <head>
 <meta charset="utf-8">
 <title>Stempeluhr Reporting {{ filters.date_from }} bis {{ filters.date_to }}</title>
-<style>
-body{font-family:Arial,sans-serif;font-size:12px;color:#222;margin:24px} h1,h2{margin-bottom:6px} table{width:100%;border-collapse:collapse;margin:12px 0 22px} th,td{border:1px solid #aaa;padding:5px;text-align:left} th{background:#eee}.right{text-align:right}.warn{color:#b00020;font-weight:bold}.no-print{margin-bottom:16px}@media print{.no-print{display:none} body{margin:10mm}}
-</style>
+<style>body{font-family:Arial,sans-serif;font-size:12px;color:#222;margin:24px}h1,h2{margin-bottom:6px}table{width:100%;border-collapse:collapse;margin:12px 0 22px}th,td{border:1px solid #aaa;padding:5px;text-align:left}th{background:#eee}.right{text-align:right}.no-print{margin-bottom:16px}@media print{.no-print{display:none}body{margin:10mm}}</style>
 </head>
 <body>
 <div class="no-print"><button onclick="window.print()">Als PDF drucken / speichern</button></div>
 <h1>Stempeluhr Reporting</h1>
 <p>Zeitraum: {{ filters.date_from }} bis {{ filters.date_to }}</p>
-
 <h2>Arbeitszeitübersicht</h2>
 <table>
-<tr><th>Datum</th><th>Mitarbeiter</th><th>Soll</th><th>Brutto</th><th>Pause</th><th>Netto</th><th>+/-</th><th>Status</th></tr>
-{% for row in worktime_rows %}
-<tr><td>{{ row.date.strftime('%d.%m.%Y') }}</td><td>{{ row.employee_name }}</td><td class="right">{{ '%.2f'|format(row.target_hours) }}</td><td class="right">{{ '%.2f'|format(row.gross_hours) }}</td><td class="right">{{ '%.2f'|format(row.break_hours) }}</td><td class="right">{{ '%.2f'|format(row.net_hours) }}</td><td class="right">{{ '%.2f'|format(row.overtime_hours) }}</td><td>{% if row.incomplete %}<span class="warn">unvollständig</span>{% else %}OK{% endif %}</td></tr>
-{% endfor %}
-<tr><th colspan="2">Summe</th><th class="right">{{ '%.2f'|format(worktime_totals.target_hours) }}</th><th class="right">{{ '%.2f'|format(worktime_totals.gross_hours) }}</th><th class="right">{{ '%.2f'|format(worktime_totals.break_hours) }}</th><th class="right">{{ '%.2f'|format(worktime_totals.net_hours) }}</th><th class="right">{{ '%.2f'|format(worktime_totals.overtime_hours) }}</th><th></th></tr>
+<tr><th>Datum</th><th>Mitarbeiter</th><th>Kommen</th><th>Gehen</th><th>Soll (Std.)</th><th>Brutto (Std.)</th><th>Pause (Std.)</th><th>Netto (Std.)</th><th>+/- (Std.)</th></tr>
+{% for row in worktime_rows %}{% set times = stamp_times.get((row.employee_id, row.date), {}) %}<tr><td>{{ row.date.strftime('%d.%m.%Y') }}</td><td>{{ row.employee_name }}</td><td>{{ times.get('kommen', '') or '-' }}</td><td>{{ times.get('gehen', '') or '-' }}</td><td class="right">{{ '%.2f'|format(row.target_hours) }}</td><td class="right">{{ '%.2f'|format(row.gross_hours) }}</td><td class="right">{{ '%.2f'|format(row.break_hours) }}</td><td class="right">{{ '%.2f'|format(row.net_hours) }}</td><td class="right">{{ '%.2f'|format(row.overtime_hours) }}</td></tr>{% endfor %}
+<tr><th colspan="4">Summe</th><th class="right">{{ '%.2f'|format(worktime_totals.target_hours) }}</th><th class="right">{{ '%.2f'|format(worktime_totals.gross_hours) }}</th><th class="right">{{ '%.2f'|format(worktime_totals.break_hours) }}</th><th class="right">{{ '%.2f'|format(worktime_totals.net_hours) }}</th><th class="right">{{ '%.2f'|format(worktime_totals.overtime_hours) }}</th></tr>
 </table>
-
+<h2>Alle Stempelzeiten</h2>
+<table><tr><th>Datum</th><th>Uhrzeit</th><th>Mitarbeiter</th><th>Buchung</th><th>Methode</th><th>Terminal</th></tr>
+{% for entry in entries %}<tr><td>{{ entry.timestamp.strftime('%d.%m.%Y') }}</td><td>{{ entry.timestamp.strftime('%H:%M:%S') }}</td><td>{{ entry.employee.first_name }} {{ entry.employee.last_name }}</td><td>{{ entry.entry_type }}</td><td>{{ entry.method or '' }}</td><td>{{ entry.terminal or '' }}</td></tr>{% else %}<tr><td colspan="6">Keine Stempelzeiten im gewählten Zeitraum.</td></tr>{% endfor %}</table>
 <h2>Teamstatistik</h2>
-<table><tr><th>Mitarbeiter</th><th>Soll</th><th>Ist</th><th>Saldo</th><th>Unvollständig</th></tr>
-{% for row in team_stats %}<tr><td>{{ row.employee_name }}</td><td class="right">{{ '%.2f'|format(row.target_hours) }}</td><td class="right">{{ '%.2f'|format(row.net_hours) }}</td><td class="right">{{ '%.2f'|format(row.overtime_hours) }}</td><td>{{ row.incomplete_days }}</td></tr>{% endfor %}
-</table>
-
-<h2>Fehlzeitenanalyse</h2>
-<table><tr><th>Mitarbeiter</th><th>Art</th><th>Status</th><th>Anzahl</th><th>Tage</th></tr>
-{% for row in absence_summary %}<tr><td>{{ row.employee_name }}</td><td>{{ row.type }}</td><td>{{ row.status }}</td><td class="right">{{ row.count }}</td><td class="right">{{ '%.2f'|format(row.days) }}</td></tr>{% else %}<tr><td colspan="5">Keine Abwesenheiten im gewählten Zeitraum.</td></tr>{% endfor %}
-</table>
+<table><tr><th>Mitarbeiter</th><th>Soll (Std.)</th><th>Ist (Std.)</th><th>Saldo (Std.)</th></tr>{% for row in team_stats %}<tr><td>{{ row.employee_name }}</td><td class="right">{{ '%.2f'|format(row.target_hours) }}</td><td class="right">{{ '%.2f'|format(row.net_hours) }}</td><td class="right">{{ '%.2f'|format(row.overtime_hours) }}</td></tr>{% endfor %}</table>
+<h2>Fehlzeiten</h2>
+<table><tr><th>Mitarbeiter</th><th>Art</th><th>Status</th><th>Anzahl</th><th>Tage</th></tr>{% for row in absence_summary %}<tr><td>{{ row.employee_name }}</td><td>{{ row.type }}</td><td>{{ row.status }}</td><td class="right">{{ row.count }}</td><td class="right">{{ '%.2f'|format(row.days) }}</td></tr>{% else %}<tr><td colspan="5">Keine Abwesenheiten im gewählten Zeitraum.</td></tr>{% endfor %}</table>
 </body>
 </html>
