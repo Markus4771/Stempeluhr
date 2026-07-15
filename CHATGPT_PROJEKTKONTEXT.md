@@ -2,22 +2,22 @@
 
 - Repository: `Markus4771/Stempeluhr`
 - Branch: `main`
-- Aktuelle Version: **5.6.29**
+- Aktuelle Version: **5.6.30**
 - Plattform: Debian / Raspberry Pi OS
 - Backend: FastAPI, SQLAlchemy, PostgreSQL
 
-## Version 5.6.29
+## Version 5.6.30
 
-- Dashboard wird abhängig von der Rolle reduziert dargestellt
-- Mitarbeiter sehen persönliche Kennzahlen
-- Teamleiter sehen Kennzahlen ihres Bereichs
-- Personal und Administratoren sehen übergreifende Kennzahlen
-- technische Informationen sind nur für Administratoren sichtbar
-- eigene Kommen- und Gehen-Buchung für angemeldete Benutzer ist optional verfügbar
-- Konfiguration: `/system/settings/general/self-booking`
-- Statusabfrage: `/api/dashboard/self-booking`
+- CSV- und PDF-Report zeigen Kommen- und Gehen-Zeiten pro Tageszeile
+- beide Exporte enthalten eine vollständige Liste aller Stempelzeiten
+- `Aktuell anwesend` bleibt für alle angemeldeten Benutzer sichtbar
+- Dashboard-Selbstbuchung ohne erneute Passworteingabe wird pro Mitarbeiter freigegeben
+- Freigabe erfolgt in der Mitarbeiter-Bearbeitung
+- Statusabfrage für angemeldeten Benutzer: `/api/dashboard/self-booking`
+- Admin-Statusabfrage: `/api/admin/employees/{employee_id}/self-booking`
 - Buchungsroute: `/dashboard/self-book`
-- Buchungen werden dem angemeldeten Mitarbeiter zugeordnet und protokolliert
+- Einstellungsroute: `/admin/employees/{employee_id}/self-booking`
+- globale Einstellung aus den allgemeinen Einstellungen ist nicht mehr maßgeblich
 
 ## Wichtige Pfade
 
@@ -25,6 +25,8 @@
 - Dienst: `stempeluhr.service`
 - Kiosk: `/raspberry`
 - Reporting: `/reports`
+- CSV-Export: `/reports/export.csv`
+- PDF-Ansicht: `/reports/print`
 - Dashboard-Metriken: `/api/dashboard/metrics`
 - GitHub-Token: `/etc/stempeluhr/secrets/github_token`
 
@@ -32,7 +34,7 @@
 
 ```bash
 bash scripts/build_release.sh
-sha256sum -c releases/stempeluhr_5.6.29_all.deb.sha256
+sha256sum -c releases/stempeluhr_5.6.30_all.deb.sha256
 ```
 
-Vor Freigabe sind Paketbau, Dienststart, Dashboard-Rollen, die optionale Eigenbuchung sowie `/health` und `/version` zu testen.
+Vor Freigabe sind Paketbau, Dienststart, CSV/PDF mit Stempelzeiten, Rollenansichten, Mitarbeiterfreigabe der Dashboard-Buchung sowie `/health` und `/version` zu testen.
