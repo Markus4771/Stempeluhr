@@ -30,6 +30,17 @@
   {% endif %}
 </div>
 
+<section class="card">
+  <h2>Aktuell anwesend</h2>
+  <div class="dashboard-chip-list">
+    {% for employee in stats.present_employees %}
+    <span class="dashboard-chip">{{ employee.first_name }} {{ employee.last_name }}</span>
+    {% else %}
+    <span class="muted">Aktuell ist kein Mitarbeiter als anwesend gebucht.</span>
+    {% endfor %}
+  </div>
+</section>
+
 {% if is_admin %}
 <section class="card"><h2>Systemdetails</h2><table>
 <tr><th>Bereich</th><th>Status</th></tr>
