@@ -2,17 +2,16 @@
 {% block content %}
 <h1>Dashboard</h1>
 
-<div class="dashboard-grid">
-    <section class="card stat-card"><span class="stat-label">Heute anwesend</span><strong>{{ stats.present_count }}</strong></section>
-    <section class="card stat-card"><span class="stat-label">Aktive Mitarbeiter</span><strong>{{ stats.active_employees }}</strong></section>
-    <section class="card stat-card"><span class="stat-label">Heute nicht anwesend</span><strong>{{ stats.absent_today_count }}</strong></section>
-    <section class="card stat-card"><span class="stat-label">Buchungen heute</span><strong>{{ stats.today_entries }}</strong></section>
+<div class="dashboard-grid" id="dashboardMetrics">
+    <section class="card stat-card"><span class="stat-label">Heute anwesend</span><strong id="metricPresence">{{ stats.present_count }} / {{ stats.active_employees }}</strong><small>anwesend / aktiv</small></section>
+    <section class="card stat-card"><span class="stat-label">Heute nicht anwesend</span><strong id="metricAbsent">{{ stats.absent_today_count }}</strong><small>von {{ stats.active_employees }} aktiven Mitarbeitern</small></section>
+    <section class="card stat-card"><span class="stat-label">Buchungen heute</span><strong id="metricBookings">{{ stats.today_entries }}</strong><small id="metricBookingBreakdown">Aufschlüsselung wird geladen …</small></section>
     <section class="card stat-card"><span class="stat-label">Offene Abwesenheitsanträge</span><strong>{{ stats.open_vacations }}</strong></section>
     <section class="card stat-card"><span class="stat-label">Offene Korrekturen</span><strong>{{ stats.open_corrections }}</strong></section>
-    <section class="card stat-card"><span class="stat-label">Plausibilitätsmeldungen</span><strong>{{ stats.open_plausibility }}</strong></section>
-    <section class="card stat-card"><span class="stat-label">Überstunden gesamt</span><strong>{{ stats.overtime_sum }} h</strong></section>
-    <section class="card stat-card"><span class="stat-label">Letztes Backup</span><strong class="small-stat">{{ stats.last_backup }}</strong></section>
-    <section class="card stat-card"><span class="stat-label">Systemstatus</span><strong>{{ stats.system_status }}</strong></section>
+    <section class="card stat-card" id="plausibilityCard"><span class="stat-label">Offene Plausibilitätsmeldungen</span><strong id="metricPlausibility">{{ stats.open_plausibility }}</strong><small>offen oder geprüft</small></section>
+    <section class="card stat-card"><span class="stat-label" id="overtimeLabel">Überstunden</span><strong id="metricOvertime">{{ stats.overtime_sum }} h</strong><small id="overtimeScope">sichtbarer Bereich</small></section>
+    <section class="card stat-card" id="backupCard"><span class="stat-label">Letztes Backup</span><strong class="small-stat" id="metricBackup">{{ stats.last_backup }}</strong><small id="backupAge">Alter wird geprüft …</small></section>
+    <section class="card stat-card" id="systemCard"><span class="stat-label">Systemstatus</span><strong id="metricSystem">{{ stats.system_status }}</strong><small>Datenbank, Backup und Speicher</small></section>
 </div>
 
 <div class="grid">
@@ -47,14 +46,8 @@
         <table class="recent-bookings-table">
             <tr><th>Zeit</th><th>Mitarbeiter</th><th>Typ</th></tr>
             {% for entry in stats.recent_entries %}
-            <tr>
-                <td>{{ entry.timestamp.strftime('%d.%m.%Y %H:%M') }}</td>
-                <td>{{ entry.employee.first_name }} {{ entry.employee.last_name }}</td>
-                <td>{{ entry.entry_type }}</td>
-            </tr>
-            {% else %}
-            <tr><td colspan="3">Keine Buchungen vorhanden.</td></tr>
-            {% endfor %}
+            <tr><td>{{ entry.timestamp.strftime('%d.%m.%Y %H:%M') }}</td><td>{{ entry.employee.first_name }} {{ entry.employee.last_name }}</td><td>{{ entry.entry_type }}</td></tr>
+            {% else %}<tr><td colspan="3">Keine Buchungen vorhanden.</td></tr>{% endfor %}
         </table>
     </section>
 </div>
@@ -62,11 +55,8 @@
 <section class="card">
     <h2>Aktuell anwesend</h2>
     <div class="dashboard-chip-list">
-        {% for employee in stats.present_employees %}
-        <span class="dashboard-chip">{{ employee.first_name }} {{ employee.last_name }}</span>
-        {% else %}
-        <span class="muted">Aktuell ist kein Mitarbeiter als anwesend gebucht.</span>
-        {% endfor %}
+        {% for employee in stats.present_employees %}<span class="dashboard-chip">{{ employee.first_name }} {{ employee.last_name }}</span>
+        {% else %}<span class="muted">Aktuell ist kein Mitarbeiter als anwesend gebucht.</span>{% endfor %}
     </div>
 </section>
 
@@ -74,9 +64,12 @@
     <h2>System-Schnellstatus</h2>
     <table>
         <tr><th>Bereich</th><th>Status</th></tr>
-        <tr><td>Datenbank</td><td>{{ stats.system_details.database }}</td></tr>
-        <tr><td>Letztes Backup</td><td>{{ stats.system_details.backup }}</td></tr>
-        <tr><td>Offene Plausibilitätsmeldungen</td><td>{{ stats.system_details.open_plausibility }}</td></tr>
+        <tr><td>Datenbank</td><td id="systemDatabase">{{ stats.system_details.database }}</td></tr>
+        <tr><td>Backup</td><td id="systemBackup">{{ stats.system_details.backup }}</td></tr>
+        <tr><td>Freier Speicherplatz</td><td id="systemDisk">wird geprüft …</td></tr>
+        <tr><td>E-Mail</td><td id="systemEmail">wird geprüft …</td></tr>
+        <tr><td>GitHub-Update</td><td id="systemGithub">wird geprüft …</td></tr>
+        <tr><td>Plausibilität</td><td id="systemPlausibility">{{ stats.system_details.open_plausibility }} offene Meldungen</td></tr>
     </table>
 </section>
 
@@ -85,17 +78,54 @@
     <table>
         <tr><th>Zeit</th><th>Benutzer</th><th>Aktion</th><th>Details</th></tr>
         {% for item in stats.recent_audit %}
-        <tr>
-            <td>{{ item.created_at.strftime('%d.%m.%Y %H:%M') if item.created_at else '' }}</td>
-            <td>{{ item.actor or '' }}</td>
-            <td>{{ item.action }}</td>
-            <td>{{ item.details or '' }}</td>
-        </tr>
-        {% else %}
-        <tr><td colspan="4">Keine Aktivitäten vorhanden.</td></tr>
-        {% endfor %}
+        <tr><td>{{ item.created_at.strftime('%d.%m.%Y %H:%M') if item.created_at else '' }}</td><td>{{ item.actor or '' }}</td><td>{{ item.action }}</td><td>{{ item.details or '' }}</td></tr>
+        {% else %}<tr><td colspan="4">Keine Aktivitäten vorhanden.</td></tr>{% endfor %}
     </table>
 </section>
+
+<script>
+(function () {
+    function applyLevel(element, level) {
+        if (!element) return;
+        element.classList.remove('metric-ok', 'metric-warning', 'metric-danger');
+        element.classList.add('metric-' + (level || 'ok'));
+    }
+    function statusText(item) {
+        return item && item.label ? item.label : 'Unbekannt';
+    }
+    fetch('/api/dashboard/metrics', {cache: 'no-store', credentials: 'same-origin'})
+        .then(response => response.ok ? response.json() : Promise.reject())
+        .then(data => {
+            document.getElementById('metricPresence').textContent = data.presence.label;
+            document.getElementById('metricAbsent').textContent = data.presence.absent;
+            document.getElementById('metricBookings').textContent = data.bookings.total;
+            document.getElementById('metricBookingBreakdown').textContent =
+                'Kommen ' + data.bookings.kommen + ' · Gehen ' + data.bookings.gehen +
+                ' · Pause ' + (data.bookings.pause_start + data.bookings.pause_ende);
+            document.getElementById('metricPlausibility').textContent = data.plausibility.open;
+            applyLevel(document.getElementById('plausibilityCard'), data.plausibility.level);
+            document.getElementById('metricOvertime').textContent = data.overtime.hours.toFixed(2) + ' h';
+            document.getElementById('overtimeLabel').textContent = data.overtime.scope + ' Überstunden';
+            document.getElementById('overtimeScope').textContent = data.overtime.scope === 'Eigene' ? 'persönlicher Stand' : 'Summe des sichtbaren Bereichs';
+            document.getElementById('metricBackup').textContent = data.backup.label;
+            document.getElementById('backupAge').textContent = data.backup.age_hours === null ? 'kein verwertbares Backup' : data.backup.age_hours + ' Stunden alt';
+            applyLevel(document.getElementById('backupCard'), data.backup.level);
+            document.getElementById('metricSystem').textContent = data.system.label;
+            applyLevel(document.getElementById('systemCard'), data.system.level);
+            document.getElementById('systemDatabase').textContent = statusText(data.system.database);
+            document.getElementById('systemBackup').textContent = statusText(data.system.backup);
+            document.getElementById('systemDisk').textContent = statusText(data.system.disk);
+            document.getElementById('systemEmail').textContent = statusText(data.system.email);
+            document.getElementById('systemGithub').textContent = statusText(data.system.github);
+            document.getElementById('systemPlausibility').textContent = data.plausibility.open + ' offene Meldungen';
+        })
+        .catch(() => {
+            const card = document.getElementById('systemCard');
+            document.getElementById('metricSystem').textContent = 'Prüfung fehlgeschlagen';
+            applyLevel(card, 'warning');
+        });
+})();
+</script>
 
 <script>
 (function() {
@@ -109,80 +139,16 @@
     const info = document.getElementById("quickAutoInfo");
     const manualForm = document.getElementById("quickBookingForm");
     if (!employeeInput || !passwordInput || !autoForm || !autoEmployee || !autoPassword || !info || !manualForm) return;
-
-    let autoTimer = null;
-    let countdownTimer = null;
-    let inputPauseTimer = null;
-    let remaining = {{ auto_delay_seconds|default(3) }};
-    let submitting = false;
-
-    function clearTimers() {
-        if (autoTimer) clearTimeout(autoTimer);
-        if (countdownTimer) clearInterval(countdownTimer);
-        autoTimer = null;
-        countdownTimer = null;
-    }
-
-    function valuesReady() {
-        return employeeInput.value.trim().length > 0 && passwordInput.value.trim().length > 0;
-    }
-
-    function submitAutoBooking() {
-        if (submitting || !valuesReady()) return;
-        submitting = true;
-        clearTimers();
-        autoEmployee.value = employeeInput.value.trim();
-        autoPassword.value = passwordInput.value;
-        employeeInput.disabled = true;
-        passwordInput.disabled = true;
-        info.textContent = "Automatische Schnellbuchung wird ausgeführt ...";
-        autoForm.submit();
-    }
-
-    function startAutoBooking() {
-        if (submitting) return;
-        if (!valuesReady()) {
-            clearTimers();
-            info.textContent = "Mitarbeiternummer und Passwort eingeben. Danach wird nach {{ auto_delay_seconds|default(3) }} Sekunden automatisch gebucht.";
-            return;
-        }
-        clearTimers();
-        remaining = AUTO_DELAY_SECONDS;
-        info.textContent = "Daten erkannt. Automatische Buchung in " + remaining + " Sekunden ...";
-        countdownTimer = setInterval(function() {
-            remaining -= 1;
-            if (remaining > 0) {
-                info.textContent = "Daten erkannt. Automatische Buchung in " + remaining + " Sekunden ...";
-            }
-        }, 1000);
-        autoTimer = setTimeout(submitAutoBooking, AUTO_DELAY_MS);
-    }
-
-    function scheduleAutoBooking() {
-        if (submitting) return;
-        if (inputPauseTimer) clearTimeout(inputPauseTimer);
-        inputPauseTimer = setTimeout(startAutoBooking, 500);
-    }
-
-    employeeInput.addEventListener("input", scheduleAutoBooking);
-    passwordInput.addEventListener("input", scheduleAutoBooking);
-
-    manualForm.addEventListener("keydown", function(ev) {
-        if (ev.key === "Enter") {
-            ev.preventDefault();
-            startAutoBooking();
-        }
-    });
-
-    manualForm.addEventListener("submit", function() {
-        submitting = true;
-        clearTimers();
-    });
-
-    autoForm.addEventListener("submit", function() {
-        submitting = true;
-        clearTimers();
-    });
+    let autoTimer = null, countdownTimer = null, inputPauseTimer = null;
+    let remaining = AUTO_DELAY_SECONDS, submitting = false;
+    function clearTimers(){if(autoTimer)clearTimeout(autoTimer);if(countdownTimer)clearInterval(countdownTimer);autoTimer=null;countdownTimer=null;}
+    function valuesReady(){return employeeInput.value.trim().length>0&&passwordInput.value.trim().length>0;}
+    function submitAutoBooking(){if(submitting||!valuesReady())return;submitting=true;clearTimers();autoEmployee.value=employeeInput.value.trim();autoPassword.value=passwordInput.value;employeeInput.disabled=true;passwordInput.disabled=true;info.textContent="Automatische Schnellbuchung wird ausgeführt ...";autoForm.submit();}
+    function startAutoBooking(){if(submitting)return;if(!valuesReady()){clearTimers();info.textContent="Mitarbeiternummer und Passwort eingeben. Danach wird nach {{ auto_delay_seconds|default(3) }} Sekunden automatisch gebucht.";return;}clearTimers();remaining=AUTO_DELAY_SECONDS;info.textContent="Daten erkannt. Automatische Buchung in "+remaining+" Sekunden ...";countdownTimer=setInterval(function(){remaining-=1;if(remaining>0)info.textContent="Daten erkannt. Automatische Buchung in "+remaining+" Sekunden ...";},1000);autoTimer=setTimeout(submitAutoBooking,AUTO_DELAY_MS);}
+    function scheduleAutoBooking(){if(submitting)return;if(inputPauseTimer)clearTimeout(inputPauseTimer);inputPauseTimer=setTimeout(startAutoBooking,500);}
+    employeeInput.addEventListener("input",scheduleAutoBooking);passwordInput.addEventListener("input",scheduleAutoBooking);
+    manualForm.addEventListener("keydown",function(ev){if(ev.key==="Enter"){ev.preventDefault();startAutoBooking();}});
+    manualForm.addEventListener("submit",function(){submitting=true;clearTimers();});autoForm.addEventListener("submit",function(){submitting=true;clearTimers();});
 })();
 </script>
 {% endblock %}
