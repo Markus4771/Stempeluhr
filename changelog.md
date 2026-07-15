@@ -1,3 +1,16 @@
+## 5.6.29
+
+- Dashboard rollenabhängig reduziert
+- Mitarbeiter sehen nur persönliche Kennzahlen und persönliche Buchungsfunktionen
+- Teamleiter sehen Anwesenheit und offene Vorgänge ihres Bereichs
+- Personal und Administratoren sehen übergreifende Vorgänge
+- Backup- und Systeminformationen werden nur Administratoren angezeigt
+- letzte Buchungen, Namensliste der Anwesenden und letzte Aktivitäten aus der normalen Mitarbeiteransicht entfernt
+- optionale Eigenbuchung für angemeldete Benutzer ergänzt
+- Eigenbuchung akzeptiert nur Kommen und Gehen für das eigene Konto
+- Konfiguration unter Allgemeine Einstellungen ergänzt
+- Zustandsprüfung, Doppelbuchungsschutz und Audit-Protokoll bleiben aktiv
+
 ## 5.6.28
 
 - Dashboard verwendet für Anwesenheit und aktive Mitarbeiter dieselbe Datenbasis
