@@ -1,76 +1,35 @@
-# Stempeluhr Professional – zentraler Projektkontext
-
-> Verbindliche Wissensbasis für neue ChatGPT-Unterhaltungen. Zusätzlich immer aktuellen Quellcode, `version.txt`, `README.md` und `changelog.md` prüfen. Bei Abweichungen gilt der tatsächliche Quellcode.
-
-## Projekt
+# Stempeluhr Professional – Projektkontext
 
 - Repository: `Markus4771/Stempeluhr`
-- Standardbranch: `main`
-- Aktuelle Entwicklungs- und Testversion: **5.6.26**
-- Zielplattform: Debian 13 und Raspberry Pi OS
-- Backend: Python, FastAPI, Uvicorn, SQLAlchemy
-- Standarddatenbank: PostgreSQL
-- Installation und Update: Debian-Paket über `install.sh` oder Web-Updater
+- Branch: `main`
+- Aktuelle Version: **5.6.27**
+- Plattform: Debian / Raspberry Pi OS
+- Backend: FastAPI, SQLAlchemy, PostgreSQL
 
-## Verbindliche Regeln
+## Version 5.6.27
 
-Bestehende Daten und Konfigurationen dürfen bei Updates nicht gelöscht werden. PostgreSQL bleibt Standarddatenbank. Secrets gehören niemals in Repository, Logs, URLs oder Diagnoseberichte. `.deb`, Prüfsumme und Release dürfen erst nach tatsächlichem Build und Test als fertig bezeichnet werden.
+Das Dashboard wurde erweitert:
 
-Bei jeder neuen Version synchron aktualisieren: `version.txt`, `app/version.py`, `debian/control`, `README.md`, `changelog.md`, `CHATGPT_PROJEKTKONTEXT.md` und bei Bedarf `NEUER_CHAT.md`.
+- Anwesenheit als Verhältnis anwesend/aktiv
+- Buchungen nach Kommen, Gehen und Pause
+- Warnstufen für Plausibilität und Backup
+- rollenbezogene Überstundenanzeige
+- Systemstatus für Datenbank, Backup, Speicherplatz, E-Mail und GitHub-Token
 
-## Wichtige Pfade und Funktionen
+## Wichtige Pfade
 
 - Anwendung: `/opt/stempeluhr`
-- Konfiguration: `/etc/stempeluhr/stempeluhr.env`
-- GitHub-Token: `/etc/stempeluhr/secrets/github_token`
 - Dienst: `stempeluhr.service`
-- Healthcheck: `/health`
-- Versionsauskunft: `/version`
-- Kiosk-Zeiterfassung: `/raspberry`
-- Auswertung & Reporting: `/reports`
-- Zusatz-Programme: `/additional-programs`
-- Zusatz-Programm-Verwaltung: `/system/settings/general/additional-programs`
-- Stempelgründe: `/system/settings/stamp-reasons`
-
-## Version 5.6.26
-
-Umgesetzt:
-
-- frühere Raspberry-Kiosk-Oberfläche wiederhergestellt
-- RFID-Eingabefeld und große Tasten für Kommen, Gehen, Pause Start und Pause Ende wieder vorhanden
-- automatische Buchung nach konfigurierter Wartezeit bleibt erhalten
-- Admin-, Auswertungs- und Korrektur-Link bleiben im Kiosk sichtbar
-- optionale Stempelgründe sind kompakt in das alte Layout integriert
-- RFID-Lernmodus bleibt erhalten
-- reine Personenstatus und Statusrücksetzung bleiben funktionsfähig
-
-## Bereits enthalten
-
-- Kommen-/Gehen-Uhrzeiten in `Auswertung & Reporting`
-- rollenabhängige Zusatz-Programme
-- vollständiges Ausblenden des Zusatz-Programme-Menüs ohne sichtbare Einträge
-- Plausibilitätsmeldungen zurücksetzen
-- Überstundenänderungen mit Mitarbeitergenehmigung per E-Mail
-- Abwesenheitskalender je Abteilung
-
-## Offene Prüfungen vor Freigabe 5.6.26
-
-- Python-/Template-Syntax und Dienststart prüfen
-- Kiosk auf 800×480 testen
-- manuelle Kommen-, Gehen- und Pausenbuchung testen
-- automatische Buchung nach Wartezeit testen
-- Stempelgründe und reine Personenstatus testen
-- RFID-Lernmodus testen
-- Debian-Paket bauen und installieren
-- `/health` und `/version` prüfen
+- Kiosk: `/raspberry`
+- Reporting: `/reports`
+- Dashboard-Metriken: `/api/dashboard/metrics`
+- GitHub-Token: `/etc/stempeluhr/secrets/github_token`
 
 ## Build
 
 ```bash
 bash scripts/build_release.sh
-sha256sum -c releases/stempeluhr_5.6.26_all.deb.sha256
+sha256sum -c releases/stempeluhr_5.6.27_all.deb.sha256
 ```
 
-## Startanweisung für neue Chats
-
-> Arbeite am GitHub-Projekt `Markus4771/Stempeluhr`. Lies zuerst `NEUER_CHAT.md`, danach `CHATGPT_PROJEKTKONTEXT.md`, `version.txt`, `README.md` und `changelog.md`. Prüfe anschließend den tatsächlichen Quellcode. Bestätige zuerst Version und Ist-Stand. Keine Rekonstruktion, keine erfundenen Dateien und keine behaupteten Builds oder Releases.
+Vor Freigabe sind Paketbau, Dienststart, Dashboard-Rollenansichten, Warnstufen, `/health` und `/version` zu testen.
