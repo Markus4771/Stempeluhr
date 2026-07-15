@@ -7,12 +7,21 @@
 {% if request.query_params.get('message') %}<div class="success-box">{{ request.query_params.get('message') }}</div>{% endif %}
 {% if request.query_params.get('error') %}<div class="error-box">{{ request.query_params.get('error') }}</div>{% endif %}
 
-<section class="card" id="selfBookingCard" hidden>
-  <h2>Meine Zeiterfassung</h2>
-  <p class="help-text">Angemeldet als <strong id="selfBookingName"></strong>. Die Buchung gilt für das eigene Arbeitszeitkonto.</p>
-  <form action="/dashboard/self-book" method="post" class="button-grid">
+<section class="card" id="dashboardBookingCard" hidden>
+  <h2>Direkt buchen</h2>
+  <p class="help-text">Angemeldet als <strong id="selfBookingName"></strong>. Alle Buchungen gelten für dein eigenes Arbeitszeitkonto.</p>
+  <form action="/dashboard/self-book" method="post" class="button-grid" id="dashboardBookingForm">
     <button name="entry_type" value="kommen" type="submit">Kommen</button>
     <button name="entry_type" value="gehen" type="submit" class="danger">Gehen</button>
+    <button name="entry_type" value="pause_start" type="submit">Pause Start</button>
+    <button name="entry_type" value="pause_ende" type="submit" class="warn">Pause Ende</button>
+  </form>
+  <form action="/dashboard/self-book-reason" method="post" id="dashboardReasonForm" class="settings-form" hidden>
+    <div class="form-field">
+      <label for="dashboardReasonSelect">Stempelgrund</label>
+      <select id="dashboardReasonSelect" name="reason_id" required></select>
+    </div>
+    <div class="form-actions"><button type="submit">Stempelgrund buchen</button></div>
   </form>
 </section>
 
@@ -55,7 +64,28 @@
 <script>
 (function(){
  function level(el,value){if(!el)return;el.classList.remove('metric-ok','metric-warning','metric-danger');if(['ok','warning','danger'].includes(value))el.classList.add('metric-'+value);}
- fetch('/api/dashboard/self-booking',{cache:'no-store',credentials:'same-origin'}).then(r=>r.ok?r.json():{enabled:false}).then(data=>{if(data.enabled){document.getElementById('selfBookingName').textContent=data.employee_name||'';document.getElementById('selfBookingCard').hidden=false;}}).catch(()=>{});
+ const bookingCard=document.getElementById('dashboardBookingCard');
+ fetch('/api/dashboard/self-booking',{cache:'no-store',credentials:'same-origin'})
+  .then(r=>r.ok?r.json():{enabled:false})
+  .then(data=>{
+    if(!data.enabled)return;
+    document.getElementById('selfBookingName').textContent=data.employee_name||'';
+    bookingCard.hidden=false;
+    return fetch('/api/stamp-reasons',{cache:'no-store',credentials:'same-origin'});
+  })
+  .then(r=>r&&r.ok?r.json():null)
+  .then(data=>{
+    if(!data||data.enabled!==true||!Array.isArray(data.reasons)||data.reasons.length===0)return;
+    const select=document.getElementById('dashboardReasonSelect');
+    select.innerHTML='<option value="">Bitte auswählen</option>';
+    data.reasons.forEach(reason=>{
+      const option=document.createElement('option');
+      option.value=reason.id;
+      option.textContent=reason.name;
+      select.appendChild(option);
+    });
+    document.getElementById('dashboardReasonForm').hidden=false;
+  }).catch(()=>{});
  fetch('/api/dashboard/metrics',{cache:'no-store',credentials:'same-origin'}).then(r=>r.ok?r.json():Promise.reject()).then(data=>{
   const p=document.getElementById('metricPresence');if(p)p.textContent=data.presence.present;
   const pd=document.getElementById('metricPresenceDetail');if(pd)pd.textContent='von '+data.presence.active+' aktiven';
