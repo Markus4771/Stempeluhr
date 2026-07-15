@@ -1,3 +1,13 @@
+## 5.6.28
+
+- Dashboard verwendet für Anwesenheit und aktive Mitarbeiter dieselbe Datenbasis
+- widersprüchliche Verhältnis- und Unterzeilenanzeige entfernt
+- doppelte Kachel `Heute nicht anwesend` entfernt
+- Systemstatus nennt den konkreten Hauptgrund statt pauschal `Handlungsbedarf`
+- Backup-Alter wird verständlich in Stunden oder Tagen angezeigt
+- E-Mail- und GitHub-Hinweise beeinflussen den roten Gesamtstatus nicht mehr
+- Kacheltexte wurden gekürzt und übersichtlicher gestaltet
+
 ## 5.6.27
 
 - Dashboard zeigt Anwesenheit als Verhältnis aus anwesenden und aktiven Mitarbeitern
