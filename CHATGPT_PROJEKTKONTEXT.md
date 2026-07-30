@@ -2,16 +2,20 @@
 
 - Repository: `Markus4771/Stempeluhr`
 - Branch: `main`
-- Aktuelle Version: **5.6.32**
+- Aktuelle Version: **5.6.33**
 - Plattform: Debian / Raspberry Pi OS
 - Backend: FastAPI, SQLAlchemy, PostgreSQL
 
-## Version 5.6.32
+## Version 5.6.33
 
-- `Meine Zeiterfassung` enthält Kommen, Gehen, Pause Start und Pause Ende.
-- Aktive Stempelgründe werden im Dashboard angeboten.
-- Stempelgründe können Arbeitszeitbuchungen oder reine Personenstatus auslösen.
-- Die Freigabe wird weiterhin je Mitarbeiter verwaltet.
+- Urlaubsberechnung basiert verbindlich auf einer 5-Tage-Woche.
+- Samstage, Sonntage und volle Feiertage werden nicht als Urlaubstage abgezogen.
+- Halbe Feiertage und halbe Urlaubstage werden mit 0,5 Tagen berücksichtigt.
+- Berechnungsmodelle: 5-Tage-Woche, feste Teilzeit, unregelmäßiges Jahresmodell und manueller Anspruch.
+- Eintritt, Austritt und Arbeitszeitwechsel können anteilig berechnet werden.
+- Getrennte Konten für Jahresurlaub, Resturlaub, Zusatzurlaub und Sonderurlaub sind vorhanden.
+- Betriebsferien, Buchungsjournal und Rückbuchung bei Krankheit während Urlaub sind ergänzt.
+- Verwaltung: `/vacation/management`
 
 ## Wichtige Pfade
 
@@ -19,6 +23,7 @@
 - Dienst: `stempeluhr.service`
 - Kiosk: `/raspberry`
 - Reporting: `/reports`
+- Urlaubsverwaltung: `/vacation/management`
 - Dashboard-Buchung: `/dashboard/self-book`
 - Mitarbeiterfreigabe: `/admin/employees/{employee_id}/self-booking`
 - Stempelgründe: `/system/settings/stamp-reasons`
@@ -27,5 +32,5 @@
 
 ```bash
 bash scripts/build_release.sh
-sha256sum -c releases/stempeluhr_5.6.32_all.deb.sha256
+sha256sum -c releases/stempeluhr_5.6.33_all.deb.sha256
 ```
