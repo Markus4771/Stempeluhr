@@ -21,6 +21,8 @@ on:
 jobs:
   vacation-tests:
     runs-on: ubuntu-latest
+    env:
+      PYTHONPATH: ${{ github.workspace }}
     steps:
       - name: Repository auschecken
         uses: actions/checkout@v4
