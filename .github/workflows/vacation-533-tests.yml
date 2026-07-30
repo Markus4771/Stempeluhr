@@ -1,0 +1,49 @@
+name: Urlaub 5.6.33 prüfen
+
+on:
+  pull_request:
+    paths:
+      - 'app/services/vacation_*.py'
+      - 'app/services/absence_approval.py'
+      - 'app/models_vacation.py'
+      - 'app/routes/vacation_management.py'
+      - 'tests/test_vacation_calculation.py'
+      - 'version.txt'
+  push:
+    branches: [main]
+    paths:
+      - 'app/services/vacation_*.py'
+      - 'app/services/absence_approval.py'
+      - 'app/models_vacation.py'
+      - 'app/routes/vacation_management.py'
+      - 'tests/test_vacation_calculation.py'
+
+jobs:
+  vacation-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Repository auschecken
+        uses: actions/checkout@v4
+      - name: Python einrichten
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Abhängigkeiten installieren
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt pytest
+      - name: Syntax prüfen
+        run: |
+          python -m py_compile \
+            app/models_vacation.py \
+            app/services/vacation_calculation.py \
+            app/services/vacation_management.py \
+            app/services/absence_approval.py \
+            app/routes/vacation_management.py
+      - name: Urlaubsberechnungen testen
+        run: pytest -q tests/test_vacation_calculation.py
+      - name: Versionsgleichheit prüfen
+        run: |
+          test "$(cat version.txt)" = "5.6.33"
+          grep -q 'APP_VERSION = "5.6.33"' app/version.py
+          grep -q '^Version: 5.6.33$' debian/control
