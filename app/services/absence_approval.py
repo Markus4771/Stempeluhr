@@ -37,8 +37,6 @@ def _apply_absence_rules(session: Session) -> None:
     pending = session.info.setdefault(_PENDING_KEY, [])
 
     for request in candidates:
-        # Die gespeicherte Tageszahl wird niemals mehr aus Kalendertagen
-        # übernommen. Damit ist eine Woche verbindlich fünf Urlaubstage lang.
         if request.start_date and request.end_date:
             result = calculate_request_days(
                 session,
@@ -47,7 +45,11 @@ def _apply_absence_rules(session: Session) -> None:
                 bool(request.half_day),
             )
             request.days = float(result.chargeable_days)
-            ensure_request_extension(session, request, calculation_result=result)
+            if request.id is None:
+                setattr(request, "_vacation_533_calculation_result", result)
+                pending.append(("extension", request))
+            else:
+                ensure_request_extension(session, request, calculation_result=result)
 
         code = (request.request_type or "").strip()
         if code and code not in type_cache:
@@ -59,7 +61,6 @@ def _apply_absence_rules(session: Session) -> None:
                 )
         absence_type = type_cache.get(code)
 
-        # Genehmigungsfreie Arten, beispielsweise Krank, werden direkt wirksam.
         if absence_type is not None and not absence_type.requires_approval:
             if request.status in (None, "", "beantragt", "offen", "Offen"):
                 request.status = "genehmigt"
@@ -73,8 +74,6 @@ def _apply_absence_rules(session: Session) -> None:
         old_status = history.deleted[0] if history.deleted else None
         new_status = request.status
 
-        # Neue, direkt genehmigte Anträge besitzen vor dem Flush noch keine ID.
-        # Die Kontobuchung wird deshalb nach dem Flush durchgeführt.
         if code in VACATION_REQUEST_TYPES:
             if new_status == "genehmigt" and old_status != "genehmigt":
                 pending.append(("approve", request))
@@ -90,10 +89,15 @@ def _apply_pending_account_entries(session: Session) -> None:
         return
 
     actor = str(session.info.get("actor") or "SYSTEM")
+    handled_extensions: set[int] = set()
     for action, request in pending:
+        if request.id and request.id not in handled_extensions:
+            result = getattr(request, "_vacation_533_calculation_result", None)
+            ensure_request_extension(session, request, calculation_result=result)
+            handled_extensions.add(request.id)
         if action == "approve":
             book_approved_request(session, request, actor)
-        else:
+        elif action == "reverse":
             reverse_request(
                 session,
                 request,
