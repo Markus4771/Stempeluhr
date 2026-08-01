@@ -1,0 +1,32 @@
+schema: itpz/v1
+id: stempeluhr
+name: Stempeluhr Professional
+version: 5.6.33
+description: Webbasierte Zeiterfassung für Debian-Server und Raspberry-Pi-Terminals.
+category: business
+license: Proprietary
+maintainer: Markus4771
+homepage: https://github.com/Markus4771/Stempeluhr
+repository:
+  provider: github
+  owner: Markus4771
+  name: Stempeluhr
+package:
+  type: deb
+  name: stempeluhr
+  asset: stempeluhr_5.6.33_all.deb
+  sha256_asset: stempeluhr_5.6.33_all.deb.sha256
+service:
+  systemd: stempeluhr.service
+health:
+  type: http
+  url: http://127.0.0.1:8000/
+  timeout_seconds: 30
+permissions:
+  - network
+  - systemd
+  - filesystem:/opt/stempeluhr
+  - filesystem:/var/lib/stempeluhr
+  - filesystem:/etc/stempeluhr
+  - database:postgresql
+dependencies: []
