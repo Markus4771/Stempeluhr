@@ -1,0 +1,41 @@
+name: Debian-Paket
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build-Werkzeuge installieren
+        run: sudo apt-get update && sudo apt-get install -y rsync
+      - name: Debian-Paket bauen
+        env:
+          ALLOW_DIRTY: '1'
+        run: |
+          chmod +x scripts/build_release.sh
+          ./scripts/build_release.sh
+      - name: Paket prüfen
+        run: |
+          dpkg-deb --info releases/stempeluhr_*_all.deb
+          sha256sum -c releases/stempeluhr_*_all.deb.sha256
+      - uses: actions/upload-artifact@v4
+        with:
+          name: stempeluhr-debian
+          path: |
+            releases/*.deb
+            releases/*.sha256
+      - name: GitHub-Release veröffentlichen
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            releases/*.deb
+            releases/*.sha256
