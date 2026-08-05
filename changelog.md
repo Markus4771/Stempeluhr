@@ -1,3 +1,14 @@
+## 5.7.0
+
+- modernes responsives Design für die RFID-/NFC-Medienverwaltung ergänzt
+- Raspberry-Terminal kann direkt in der Medienverwaltung ausgewählt und geprüft werden
+- Anlernauftrag wird vom Server an den ausgewählten Raspberry Pi übertragen
+- Browser fragt den Scanstatus automatisch ab und übernimmt die gelesene UID
+- Zeitüberschreitung und verständliche Fehleranzeigen für Offline-Terminals ergänzt
+- eigenständiger Raspberry-RFID-Agent mit Heartbeat und Linux-evdev-Unterstützung ergänzt
+- Installationsskript und systemd-Dienst für den RFID-Agent ergänzt
+- letzte Verwendung eines RFID-/NFC-Mediums wird in der Übersicht angezeigt
+
 ## 5.6.34
 
 - Backup-Erstellung mit Manifest, SHA256-Prüfsumme und Integritätsprüfung repariert
