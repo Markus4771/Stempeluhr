@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 from app.auth import current_user
 from app.database import get_db
 from app.models import AuditLog, PlausibilityIssue
-from app.routes.common import report_visible_employee_ids
+from app.routes.common import report_visible_employee_ids, role_name
 
 router = APIRouter(tags=["plausibility-exceptions"])
 
@@ -33,6 +33,14 @@ def ensure_plausibility_exception_schema(db: Session) -> None:
     db.commit()
 
 
+def _can_approve_exception(user) -> bool:
+    if not user:
+        return False
+    if str(getattr(user, "employee_number", "") or "").strip().lower() == "admin":
+        return True
+    return role_name(user) in {"Administrator", "Personal", "Teamleiter"}
+
+
 @router.post("/plausibility/{issue_id}/approve-exception")
 def approve_plausibility_exception(
     issue_id: int,
@@ -43,6 +51,8 @@ def approve_plausibility_exception(
     user = current_user(request, db)
     if not user:
         return RedirectResponse("/login", status_code=303)
+    if not _can_approve_exception(user):
+        return RedirectResponse("/plausibility?status=offen&error=Keine+Berechtigung", status_code=303)
 
     issue = db.query(PlausibilityIssue).filter(PlausibilityIssue.id == issue_id).first()
     if not issue or issue.employee_id not in report_visible_employee_ids(db, user):
@@ -81,9 +91,6 @@ def approve_plausibility_exception(
         "approved_at": now,
     })
 
-    # "geprueft" ist absichtlich kein offener Dashboard-Status. Die bestehende
-    # Prüflogik findet diesen Datensatz bei späteren Läufen wieder und legt daher
-    # keinen neuen offenen Duplikatfall an.
     issue.status = "geprueft"
     issue.comment = f"Genehmigte Ausnahme: {reason}"
     issue.resolved_at = now
