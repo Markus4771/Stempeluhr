@@ -1,5 +1,7 @@
 {% extends "base.html" %}
 {% block content %}
+{% if request.query_params.get('message') %}<div class="success-box">{{ request.query_params.get('message') }}</div>{% endif %}
+{% if request.query_params.get('error') %}<div class="error-box">{{ request.query_params.get('error') }}</div>{% endif %}
 <p>
   <a class="button" href="/plausibility/assistant">Plausibilitäts-Assistent starten</a>
   <a class="button" href="/plausibility/auto-repair">Sicher automatisch reparieren</a>
@@ -53,6 +55,21 @@
         <td>{% if i.notified_employee_at %}Mitarbeiter{% endif %}{% if i.notified_teamlead_at %}<br>Teamleiter{% endif %}</td>
         <td>
           <a class="button small secondary" href="/plausibility/assistant?issue_id={{ i.id }}">Im Assistenten öffnen</a>
+
+          {% if i.check_type == 'missing_workday' and i.status == 'offen' and user.role and user.role.name in ['Administrator','Personal','Teamleiter'] %}
+          <details style="margin:.45rem 0;">
+            <summary class="button small">Als Ausnahme genehmigen</summary>
+            <form method="post" action="/plausibility/{{ i.id }}/approve-exception" style="margin-top:.5rem;min-width:260px;">
+              <label>
+                Begründung *
+                <textarea name="reason" required minlength="3" rows="3" placeholder="z. B. Altbestand, Außendienst oder Zeiterfassung war ausgefallen"></textarea>
+              </label>
+              <p class="muted-small">Der Fall wird als geprüfte Ausnahme dokumentiert und bei späteren Prüfläufen nicht erneut als offen angelegt.</p>
+              <button class="button small" type="submit">Ausnahme verbindlich genehmigen</button>
+            </form>
+          </details>
+          {% endif %}
+
           <form method="post" action="/plausibility/{{ i.id }}/status">
             <input type="hidden" name="filter_employee_id" value="{{ filters.employee_id }}">
             <input type="hidden" name="filter_status" value="{{ filters.status }}">
