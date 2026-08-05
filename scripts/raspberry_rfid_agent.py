@@ -7,9 +7,9 @@ Konfiguration über Umgebungsvariablen:
   RASPBERRY_HOSTNAME=stempeluhr-terminal
 
 Der Agent meldet sich regelmäßig per Heartbeat, holt einen Befehl
-`rfid_scan:<employee_id>:<token>` ab und liest den nächsten vollständigen
-Tastatur-Wedge-Scan direkt vom Linux-Eingabegerät. Dafür wird python3-evdev
-benötigt und der Dienstbenutzer muss Leserechte auf das Eingabegerät besitzen.
+`rfid_scan:<employee_id>:<token>` ab und liest genau einen vollständigen
+Tastatur-Wedge-Scan direkt vom Linux-Eingabegerät. Nach einem erfolgreichen
+Scan wird der Anlernmodus sofort beendet und der Leser freigegeben.
 """
 from __future__ import annotations
 
@@ -26,7 +26,7 @@ import requests
 SERVER = os.getenv("STEMPELUHR_SERVER", "http://127.0.0.1:8000").rstrip("/")
 HOSTNAME = os.getenv("RASPBERRY_HOSTNAME", socket.gethostname())
 DEVICE = os.getenv("RFID_INPUT_DEVICE", "").strip()
-AGENT_VERSION = "1.0.0"
+AGENT_VERSION = "1.0.1"
 HEARTBEAT_SECONDS = int(os.getenv("HEARTBEAT_SECONDS", "5"))
 SCAN_TIMEOUT = int(os.getenv("RFID_SCAN_TIMEOUT", "35"))
 
@@ -56,7 +56,7 @@ def heartbeat() -> str | None:
         "app_version": "5.7.0",
         "debian_version": Path("/etc/debian_version").read_text().strip() if Path("/etc/debian_version").exists() else "",
         "chromium_running": bool(subprocess.run(["pgrep", "-f", "chromium"], capture_output=True).returncode == 0),
-        "last_log": f"RFID-Agent aktiv; Gerät={DEVICE or 'nicht konfiguriert'}",
+        "last_log": f"RFID-Agent bereit; Gerät={DEVICE or 'nicht konfiguriert'}",
     }
     response = requests.post(f"{SERVER}/api/v1/raspberry/heartbeat-json", json=payload, timeout=10)
     response.raise_for_status()
@@ -64,11 +64,12 @@ def heartbeat() -> str | None:
 
 
 def send_result(command: str, result: dict) -> None:
-    requests.post(
+    response = requests.post(
         f"{SERVER}/api/v1/raspberry/command-result",
         json={"hostname": HOSTNAME, "command": command, "result": json.dumps(result, ensure_ascii=False)},
         timeout=10,
-    ).raise_for_status()
+    )
+    response.raise_for_status()
 
 
 def read_uid(timeout: int) -> str:
@@ -80,30 +81,34 @@ def read_uid(timeout: int) -> str:
         raise RuntimeError("python3-evdev fehlt") from exc
 
     device = InputDevice(DEVICE)
-    buffer: list[str] = []
-    deadline = time.monotonic() + timeout
-    while time.monotonic() < deadline:
-        remaining = max(0.1, deadline - time.monotonic())
-        import select
-        ready, _, _ = select.select([device.fd], [], [], remaining)
-        if not ready:
-            continue
-        for event in device.read():
-            if event.type != ecodes.EV_KEY:
+    try:
+        buffer: list[str] = []
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            remaining = max(0.1, deadline - time.monotonic())
+            import select
+            ready, _, _ = select.select([device.fd], [], [], remaining)
+            if not ready:
                 continue
-            key = categorize(event)
-            if key.keystate != key.key_down:
-                continue
-            code = key.keycode[0] if isinstance(key.keycode, list) else key.keycode
-            if code in ("KEY_ENTER", "KEY_KPENTER"):
-                value = "".join(buffer).strip()
-                if value:
-                    return value
-                continue
-            char = KEYS.get(code)
-            if char:
-                buffer.append(char)
-    raise TimeoutError("Innerhalb der Frist wurde kein RFID-/NFC-Medium gelesen")
+            for event in device.read():
+                if event.type != ecodes.EV_KEY:
+                    continue
+                key = categorize(event)
+                if key.keystate != key.key_down:
+                    continue
+                code = key.keycode[0] if isinstance(key.keycode, list) else key.keycode
+                if code in ("KEY_ENTER", "KEY_KPENTER"):
+                    value = "".join(buffer).strip()
+                    if value:
+                        return value
+                    continue
+                char = KEYS.get(code)
+                if char:
+                    buffer.append(char)
+        raise TimeoutError("Innerhalb der Frist wurde kein RFID-/NFC-Medium gelesen")
+    finally:
+        # Der Leser wird nach Erfolg, Fehler oder Timeout immer sofort freigegeben.
+        device.close()
 
 
 def handle(command: str) -> None:
@@ -115,9 +120,23 @@ def handle(command: str) -> None:
     token = parts[2]
     try:
         uid = read_uid(SCAN_TIMEOUT)
-        send_result(command, {"status": "complete", "token": token, "uid": uid, "reader": DEVICE})
+        # Genau ein Medium erfassen. Das Ergebnis löscht serverseitig sofort
+        # den pending_command und beendet damit den Anlernmodus.
+        send_result(command, {
+            "status": "complete",
+            "token": token,
+            "uid": uid,
+            "reader": DEVICE,
+            "enrollment_finished": True,
+        })
+        print(f"RFID-Anlernen erfolgreich beendet: UID={uid}")
     except Exception as exc:
-        send_result(command, {"status": "error", "token": token, "message": str(exc)})
+        send_result(command, {
+            "status": "error",
+            "token": token,
+            "message": str(exc),
+            "enrollment_finished": True,
+        })
 
 
 def main() -> int:
