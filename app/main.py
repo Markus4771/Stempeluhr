@@ -9,7 +9,7 @@ import time
 from datetime import datetime, timedelta
 
 from app.init_db import init_db
-from app.routes import web, api, api_v1, roles_rights, rfid_terminal_display, terminal_protocol, terminal_admin, auth_plugin_admin
+from app.routes import web, api, api_v1, roles_rights, rfid_terminal_display, terminal_protocol, terminal_admin, auth_plugin_admin, auth_credentials_admin
 from app.version import APP_NAME, APP_VERSION, get_app_version, get_version_info
 from app.core.config import SECRET_KEY, STATIC_DIR
 from app.database import SessionLocal
@@ -17,6 +17,7 @@ from app.services.network_security import access_allowed, https_should_redirect
 from app.services.settings_service import get_setting
 from app.services.startup_checks import run_startup_checks
 from app.services.rfid_media import ensure_rfid_media_schema
+from app.services.auth_credentials import ensure_auth_credential_schema
 from app.services.terminal_protocol import ensure_terminal_protocol_schema
 from app.auth_plugins.registry import ensure_auth_plugin_schema, initialize_auth_plugins
 from app.modules.loader import load_module_routers
@@ -43,6 +44,7 @@ app.include_router(rfid_terminal_display.router)
 app.include_router(terminal_protocol.router)
 app.include_router(terminal_admin.router)
 app.include_router(auth_plugin_admin.router)
+app.include_router(auth_credentials_admin.router)
 
 # 5.2.07: Modul-Lader im sicheren Kompatibilitätsmodus.
 app.state.module_loader_results = load_module_routers(app, register=False)
@@ -135,6 +137,7 @@ def startup():
         logger.warning("Startup checks reported warnings: %s", app.state.startup_checks)
     init_db()
     ensure_rfid_media_schema()
+    ensure_auth_credential_schema()
     ensure_terminal_protocol_schema()
     ensure_auth_plugin_schema()
     db = SessionLocal()
