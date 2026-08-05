@@ -1,10 +1,10 @@
 Package: stempeluhr
-Version: 5.6.34
+Version: 5.7.0
 Section: web
 Priority: optional
 Architecture: all
 Maintainer: Markus <admin@example.local>
-Depends: python3, python3-venv, python3-pip, adduser, systemd, postgresql-client, ca-certificates, openssl, sudo
+Depends: python3, python3-venv, python3-pip, python3-evdev, python3-requests, adduser, systemd, postgresql-client, ca-certificates, openssl, sudo
 Recommends: postgresql, postgresql-contrib, nginx, curl, wget, git, build-essential, python3-dev, libpq-dev
 Replaces: stempeluhr-professional
 Breaks: stempeluhr-professional
