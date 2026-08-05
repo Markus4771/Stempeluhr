@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block content %}
-{% set role_name = user.role.name if user and user.role else '' %}
-{% set can_manage_plausibility = user and (user.employee_number == 'admin' or role_name in ['Administrator','Personal','Teamleiter']) %}
+{% set current_role = user.role.name if user and user.role else '' %}
+{% set can_manage_plausibility = (user and user.employee_number == 'admin') or current_role in ['Administrator','Personal','Teamleiter'] %}
 {% if request.query_params.get('message') %}<div class="success-box">{{ request.query_params.get('message') }}</div>{% endif %}
 {% if request.query_params.get('error') %}<div class="error-box">{{ request.query_params.get('error') }}</div>{% endif %}
 <p>
@@ -27,7 +27,7 @@
     <label>Bis <input type="date" name="date_to" value="{{ filters.date_to }}"></label>
     <button class="button" type="submit">Filtern</button>
   </form>
-  {% if can_manage_plausibility %}
+  {% if (user and user.employee_number == 'admin') or current_role in ['Administrator','Personal'] %}
   <form method="post" action="/plausibility/run" class="inline-form">
     <input type="date" name="day" value="{{ filters.date_to }}">
     <button class="button" type="submit">Prüfung jetzt ausführen</button>
@@ -40,14 +40,36 @@
   </form>
   {% endif %}
 </section>
+
+{% if can_manage_plausibility and filters.status == 'offen' %}
+<section class="card">
+  <h2>Mehrere fehlende Arbeitstage genehmigen</h2>
+  <p class="muted">Markiere unten die gewünschten Fälle vom Typ <strong>missing_workday</strong>. Alle ausgewählten Tage erhalten dieselbe revisionssichere Begründung.</p>
+  <form method="post" action="/plausibility/approve-exceptions-bulk" id="bulkExceptionForm">
+    <label>Gemeinsame Begründung *
+      <textarea name="reason" required minlength="3" rows="3" placeholder="z. B. Altbestand übernommen, Außendienst oder Zeiterfassung war ausgefallen"></textarea>
+    </label>
+    <div class="form-actions">
+      <button class="button" type="submit">Ausgewählte Fälle als Ausnahme genehmigen</button>
+      <button class="button secondary" type="button" id="selectAllMissingWorkdays">Alle sichtbaren fehlenden Arbeitstage auswählen</button>
+    </div>
+  </form>
+</section>
+{% endif %}
+
 <section class="card table-card">
   <h2>Auffälligkeiten</h2>
   <div class="table-wrap">
   <table>
-    <thead><tr><th>Datum</th><th>Mitarbeiter</th><th>Schwere</th><th>Prüfung</th><th>Hinweis</th><th>Status</th><th>E-Mail</th><th>Aktion</th></tr></thead>
+    <thead><tr><th>Auswahl</th><th>Datum</th><th>Mitarbeiter</th><th>Schwere</th><th>Prüfung</th><th>Hinweis</th><th>Status</th><th>E-Mail</th><th>Aktion</th></tr></thead>
     <tbody>
     {% for i in issues %}
       <tr class="severity-{{ i.severity }}">
+        <td>
+          {% if can_manage_plausibility and i.check_type == 'missing_workday' and i.status == 'offen' %}
+          <input class="missing-workday-checkbox" type="checkbox" name="issue_ids" value="{{ i.id }}" form="bulkExceptionForm" aria-label="Fall {{ i.id }} auswählen">
+          {% endif %}
+        </td>
         <td>{{ i.issue_date.strftime('%d.%m.%Y') }}</td>
         <td>{{ i.employee.employee_number }} – {{ i.employee.first_name }} {{ i.employee.last_name }}</td>
         <td>{{ i.severity }}</td>
@@ -58,7 +80,7 @@
         <td>
           <a class="button small secondary" href="/plausibility/assistant?issue_id={{ i.id }}">Im Assistenten öffnen</a>
 
-          {% if i.check_type == 'missing_workday' and i.status == 'offen' and can_manage_plausibility %}
+          {% if can_manage_plausibility and i.check_type == 'missing_workday' and i.status == 'offen' %}
           <details style="margin:.45rem 0;">
             <summary class="button small">Als Ausnahme genehmigen</summary>
             <form method="post" action="/plausibility/{{ i.id }}/approve-exception" style="margin-top:.5rem;min-width:260px;">
@@ -98,10 +120,23 @@
         </td>
       </tr>
     {% else %}
-      <tr><td colspan="8">Keine Auffälligkeiten gefunden.</td></tr>
+      <tr><td colspan="9">Keine Auffälligkeiten gefunden.</td></tr>
     {% endfor %}
     </tbody>
   </table>
   </div>
 </section>
+
+<script>
+(function(){
+  const button=document.getElementById('selectAllMissingWorkdays');
+  if(!button)return;
+  button.addEventListener('click',function(){
+    const boxes=Array.from(document.querySelectorAll('.missing-workday-checkbox'));
+    const shouldSelect=boxes.some(box=>!box.checked);
+    boxes.forEach(box=>{box.checked=shouldSelect;});
+    button.textContent=shouldSelect?'Auswahl aufheben':'Alle sichtbaren fehlenden Arbeitstage auswählen';
+  });
+})();
+</script>
 {% endblock %}
