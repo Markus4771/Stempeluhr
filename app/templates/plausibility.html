@@ -1,6 +1,9 @@
 {% extends "base.html" %}
 {% block content %}
-<p><a class="button" href="/plausibility/mail-history">Plausibilitätsversand anzeigen</a></p>
+<p>
+  <a class="button" href="/plausibility/assistant">Plausibilitäts-Assistent starten</a>
+  <a class="button secondary" href="/plausibility/mail-history">Plausibilitätsversand anzeigen</a>
+</p>
 <h1>Plausibilitätsprüfung</h1>
 <section class="card">
   <form method="get" class="filter-row">
@@ -45,6 +48,7 @@
         <td>{{ i.status }}</td>
         <td>{% if i.notified_employee_at %}Mitarbeiter{% endif %}{% if i.notified_teamlead_at %}<br>Teamleiter{% endif %}</td>
         <td>
+          <a class="button small secondary" href="/plausibility/assistant?issue_id={{ i.id }}">Im Assistenten öffnen</a>
           <form method="post" action="/plausibility/{{ i.id }}/status">
             <input type="hidden" name="filter_employee_id" value="{{ filters.employee_id }}">
             <input type="hidden" name="filter_status" value="{{ filters.status }}">
