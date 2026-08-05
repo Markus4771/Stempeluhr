@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Raspberry-Terminal-Agent für entferntes RFID-/NFC-Anlernen."""
+"""Stempeluhr-Terminal-Agent mit Protokoll 1.0 und RFID-Kompatibilität."""
 from __future__ import annotations
 
 import json
@@ -15,9 +15,11 @@ from urllib.parse import quote
 import requests
 
 SERVER = os.getenv("STEMPELUHR_SERVER", "http://127.0.0.1:8000").rstrip("/")
-HOSTNAME = os.getenv("RASPBERRY_HOSTNAME", socket.gethostname())
+HOSTNAME = os.getenv("TERMINAL_CODE", os.getenv("RASPBERRY_HOSTNAME", socket.gethostname())).strip()
+TERMINAL_NAME = os.getenv("TERMINAL_NAME", HOSTNAME).strip()
 DEVICE = os.getenv("RFID_INPUT_DEVICE", "").strip()
-AGENT_VERSION = "1.1.0"
+AGENT_VERSION = "2.0.0"
+PROTOCOL_VERSION = "1.0"
 HEARTBEAT_SECONDS = int(os.getenv("HEARTBEAT_SECONDS", "5"))
 SCAN_TIMEOUT = int(os.getenv("RFID_SCAN_TIMEOUT", "35"))
 DISPLAY_ENABLED = os.getenv("RFID_DISPLAY_ENABLED", "true").lower() in {"1", "true", "yes", "on"}
@@ -26,6 +28,7 @@ DISPLAY = os.getenv("RFID_DISPLAY", ":0").strip() or ":0"
 WAYLAND_DISPLAY = os.getenv("RFID_WAYLAND_DISPLAY", "wayland-0").strip()
 XDG_RUNTIME_DIR = os.getenv("RFID_XDG_RUNTIME_DIR", "").strip()
 SUCCESS_SECONDS = int(os.getenv("RFID_SUCCESS_SECONDS", "3"))
+STATE_FILE = Path(os.getenv("TERMINAL_STATE_FILE", "/etc/stempeluhr/terminal-state.json"))
 
 KEYS = {
     "KEY_0": "0", "KEY_1": "1", "KEY_2": "2", "KEY_3": "3", "KEY_4": "4",
@@ -45,15 +48,96 @@ def ip_address() -> str:
         return ""
 
 
-def heartbeat() -> str | None:
+def chromium_binary() -> str | None:
+    for name in ("chromium", "chromium-browser"):
+        path = subprocess.run(["sh", "-lc", f"command -v {name}"], capture_output=True, text=True).stdout.strip()
+        if path:
+            return path
+    return None
+
+
+def detect_capabilities() -> list[dict]:
+    capabilities: list[dict] = []
+    if DISPLAY_ENABLED and chromium_binary():
+        capabilities.append({"name": "display", "details": {"browser": Path(chromium_binary() or "").name}})
+    if DEVICE and Path(DEVICE).exists():
+        capabilities.extend([
+            {"name": "rfid", "details": {"input_device": DEVICE, "mode": "keyboard-wedge"}},
+            {"name": "nfc", "details": {"input_device": DEVICE, "mode": "keyboard-wedge", "limited": True}},
+        ])
+    if Path("/dev/video0").exists():
+        capabilities.append({"name": "camera", "details": {"device": "/dev/video0"}})
+    if subprocess.run(["sh", "-lc", "command -v bluetoothctl"], capture_output=True).returncode == 0:
+        capabilities.append("bluetooth")
+    capabilities.append("offline_buffer")
+    return capabilities
+
+
+def load_state() -> dict:
+    try:
+        return json.loads(STATE_FILE.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+
+
+def save_state(state: dict) -> None:
+    try:
+        STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
+        STATE_FILE.write_text(json.dumps(state, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        os.chmod(STATE_FILE, 0o600)
+    except Exception as exc:
+        print(f"Terminalstatus konnte nicht gespeichert werden: {exc}", file=sys.stderr)
+
+
+def register_v2() -> dict:
+    payload = {
+        "protocol_version": PROTOCOL_VERSION,
+        "terminal_code": HOSTNAME,
+        "hostname": socket.gethostname(),
+        "name": TERMINAL_NAME,
+        "ip_address": ip_address(),
+        "agent_version": AGENT_VERSION,
+        "capabilities": detect_capabilities(),
+    }
+    response = requests.post(f"{SERVER}/api/v2/terminals/register", json=payload, timeout=10)
+    response.raise_for_status()
+    data = response.json()
+    state = load_state()
+    state.update({
+        "terminal_id": data.get("terminal_id"),
+        "terminal_code": HOSTNAME,
+        "api_key": data.get("api_key") or state.get("api_key"),
+        "protocol_version": data.get("protocol_version", PROTOCOL_VERSION),
+        "registered_at": int(time.time()),
+    })
+    save_state(state)
+    return state
+
+
+def heartbeat_v2(state: dict) -> None:
+    payload = {
+        "protocol_version": PROTOCOL_VERSION,
+        "terminal_code": HOSTNAME,
+        "api_key": state.get("api_key", ""),
+        "ip_address": ip_address(),
+        "agent_version": AGENT_VERSION,
+    }
+    response = requests.post(f"{SERVER}/api/v2/terminals/heartbeat", json=payload, timeout=10)
+    if response.status_code == 409:
+        register_v2()
+        return
+    response.raise_for_status()
+
+
+def heartbeat_legacy() -> str | None:
     payload = {
         "hostname": HOSTNAME,
         "ip_address": ip_address(),
         "agent_version": AGENT_VERSION,
-        "app_version": "5.7.0",
+        "app_version": "6.0.0",
         "debian_version": Path("/etc/debian_version").read_text().strip() if Path("/etc/debian_version").exists() else "",
         "chromium_running": subprocess.run(["pgrep", "-f", "chromium"], capture_output=True).returncode == 0,
-        "last_log": f"RFID-Agent aktiv; Gerät={DEVICE or 'nicht konfiguriert'}; Display={'aktiv' if DISPLAY_ENABLED else 'aus'}",
+        "last_log": f"Terminal-Agent aktiv; Protokoll={PROTOCOL_VERSION}; Gerät={DEVICE or 'nicht konfiguriert'}",
     }
     response = requests.post(f"{SERVER}/api/v1/raspberry/heartbeat-json", json=payload, timeout=10)
     response.raise_for_status()
@@ -68,14 +152,6 @@ def send_result(command: str, result: dict) -> None:
     ).raise_for_status()
 
 
-def chromium_binary() -> str | None:
-    for name in ("chromium", "chromium-browser"):
-        path = subprocess.run(["sh", "-lc", f"command -v {name}"], capture_output=True, text=True).stdout.strip()
-        if path:
-            return path
-    return None
-
-
 def display_command(url: str) -> list[str] | None:
     browser = chromium_binary()
     if not DISPLAY_ENABLED or not browser:
@@ -87,8 +163,7 @@ def display_command(url: str) -> list[str] | None:
         env_parts.append(f"XDG_RUNTIME_DIR={XDG_RUNTIME_DIR}")
     return [
         "runuser", "-u", DISPLAY_USER, "--", "env", *env_parts,
-        browser,
-        "--kiosk", "--no-first-run", "--disable-session-crashed-bubble",
+        browser, "--kiosk", "--no-first-run", "--disable-session-crashed-bubble",
         "--disable-infobars", "--noerrdialogs", "--disable-translate",
         "--user-data-dir=/tmp/stempeluhr-rfid-display", url,
     ]
@@ -127,16 +202,15 @@ def read_uid(timeout: int) -> str:
     try:
         from evdev import InputDevice, categorize, ecodes
     except ImportError as exc:
-        raise RuntimeError("python3-evdev fehlt; bitte Stempeluhr-Paket neu installieren") from exc
+        raise RuntimeError("python3-evdev fehlt; bitte Terminal-Paket neu installieren") from exc
 
     device = InputDevice(DEVICE)
     try:
         buffer: list[str] = []
         deadline = time.monotonic() + timeout
         while time.monotonic() < deadline:
-            remaining = max(0.1, deadline - time.monotonic())
             import select
-            ready, _, _ = select.select([device.fd], [], [], remaining)
+            ready, _, _ = select.select([device.fd], [], [], max(0.1, deadline - time.monotonic()))
             if not ready:
                 continue
             for event in device.read():
@@ -176,26 +250,32 @@ def handle(command: str) -> None:
         send_result(command, {"status": "complete", "token": token, "uid": uid, "reader": DEVICE})
         close_display(waiting_display)
         success_display = open_display(employee_id, uid)
-        print(f"RFID-Anlernen erfolgreich beendet: UID={uid}")
+        print(f"Anlernen erfolgreich beendet: UID={uid}")
         time.sleep(max(1, SUCCESS_SECONDS))
         close_display(success_display)
     except Exception as exc:
         send_result(command, {"status": "error", "token": token, "message": str(exc)})
         close_display(waiting_display)
-        print(f"RFID-Anlernen beendet: {exc}", file=sys.stderr)
+        print(f"Anlernen beendet: {exc}", file=sys.stderr)
 
 
 def main() -> int:
-    print(f"Raspberry RFID Agent {AGENT_VERSION}: Server={SERVER}, Host={HOSTNAME}, Gerät={DEVICE or 'nicht gesetzt'}")
+    print(f"Stempeluhr Terminal Agent {AGENT_VERSION}: Server={SERVER}, Terminal={HOSTNAME}")
+    state: dict = {}
     while True:
         try:
-            command = heartbeat()
+            if not state:
+                state = register_v2()
+                print(f"Terminal registriert: ID={state.get('terminal_id')}, Protokoll={state.get('protocol_version')}")
+            heartbeat_v2(state)
+            command = heartbeat_legacy()
             if command:
                 handle(str(command))
         except KeyboardInterrupt:
             return 0
         except Exception as exc:
             print(f"Agent-Fehler: {exc}", file=sys.stderr)
+            state = load_state()
         time.sleep(HEARTBEAT_SECONDS)
 
 
