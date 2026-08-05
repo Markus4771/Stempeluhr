@@ -1,3 +1,15 @@
+## 5.6.34
+
+- Backup-Erstellung mit Manifest, SHA256-Prüfsumme und Integritätsprüfung repariert
+- leere oder unvollständige PostgreSQL-Dumps werden als Fehler erkannt
+- Backups werden atomar über eine temporäre Datei erstellt
+- Prüfsummen werden bei SMB-/NAS-Zielen mitkopiert und bei der Rotation berücksichtigt
+- mehrere RFID-/NFC-Medien pro Mitarbeiter ergänzt
+- bestehende RFID-Zuordnungen werden automatisch in das neue Medienmodell übernommen
+- UID-Normalisierung für Karten, Smartphones, Smartwatches und NFC-Ringe ergänzt
+- neue Verwaltungsseite für RFID-/NFC-Medien pro Mitarbeiter ergänzt
+- letzte Verwendung eines Mediums wird protokolliert
+
 ## 5.6.33
 
 - Urlaubsberechnung verbindlich auf eine 5-Tage-Woche umgestellt
