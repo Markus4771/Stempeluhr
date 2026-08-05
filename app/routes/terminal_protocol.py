@@ -37,6 +37,7 @@ async def register_terminal(request: Request, db: Session = Depends(get_db)):
 
     terminal = db.query(Terminal).filter(Terminal.terminal_code == code).first()
     created = terminal is None
+    generated_key = False
     if terminal is None:
         terminal = Terminal(
             name=str(data.get("name") or data.get("hostname") or code)[:100],
@@ -45,8 +46,12 @@ async def register_terminal(request: Request, db: Session = Depends(get_db)):
             active=True,
             created_at=datetime.now(),
         )
+        generated_key = True
         db.add(terminal)
         db.flush()
+    elif not terminal.api_key:
+        terminal.api_key = secrets.token_urlsafe(32)
+        generated_key = True
 
     terminal.last_seen = datetime.now()
     terminal.last_ip = str(data.get("ip_address") or (request.client.host if request.client else ""))[:100]
@@ -69,7 +74,7 @@ async def register_terminal(request: Request, db: Session = Depends(get_db)):
     result.update({
         "created": created,
         "terminal_code": terminal.terminal_code,
-        "api_key": terminal.api_key if created else None,
+        "api_key": terminal.api_key if generated_key else None,
         "capabilities": [item["name"] for item in capabilities if item["enabled"]],
     })
     return result
@@ -95,8 +100,8 @@ async def terminal_heartbeat(request: Request, db: Session = Depends(get_db)):
         }, status_code=409)
 
     supplied_key = str(data.get("api_key") or "")
-    if terminal.api_key and supplied_key and not secrets.compare_digest(terminal.api_key, supplied_key):
-        return JSONResponse({"status": "error", "message": "Ungültiger Terminal-Schlüssel"}, status_code=403)
+    if not terminal.api_key or not supplied_key or not secrets.compare_digest(terminal.api_key, supplied_key):
+        return JSONResponse({"status": "error", "message": "Ungültiger oder fehlender Terminal-Schlüssel"}, status_code=403)
 
     terminal.last_seen = datetime.now()
     terminal.last_ip = str(data.get("ip_address") or (request.client.host if request.client else ""))[:100]
