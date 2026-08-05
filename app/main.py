@@ -16,6 +16,7 @@ from app.database import SessionLocal
 from app.services.network_security import access_allowed, https_should_redirect
 from app.services.settings_service import get_setting
 from app.services.startup_checks import run_startup_checks
+from app.services.rfid_media import ensure_rfid_media_schema
 from app.modules.loader import load_module_routers
 
 logging.basicConfig(level=logging.INFO)
@@ -38,18 +39,10 @@ app.include_router(api_v1.router)
 app.include_router(roles_rights.router)
 
 # 5.2.07: Modul-Lader im sicheren Kompatibilitätsmodus.
-# Bestehende Legacy-Routen bleiben aktiv; der Lader prüft Module, registriert
-# aber noch keine Router automatisch.
 app.state.module_loader_results = load_module_routers(app, register=False)
 
 
-
 def dsgvo_scheduler_loop():
-    """Einfacher interner DSGVO-Nachtlauf ohne externe Abhängigkeit.
-
-    Prüft minütlich, ob der konfigurierte Zeitpunkt erreicht ist. Pro Tag wird
-    höchstens ein automatischer Lauf ausgeführt.
-    """
     last_run_date = None
     while True:
         try:
@@ -71,12 +64,6 @@ def dsgvo_scheduler_loop():
 
 
 def caldav_scheduler_loop():
-    """Synchronisiert aktive CalDAV-Konten im Hintergrund.
-
-    5.2.12: Der Lauf ist bewusst leichtgewichtig und prüft nur alle 15 Minuten,
-    ob ein Konto laut eigenem Intervall fällig ist. Fehler werden im
-    CalDAV-Synchronisationsprotokoll gespeichert und stoppen den Dienst nicht.
-    """
     while True:
         try:
             from app.routes.caldav_accounts import sync_due_caldav_accounts
@@ -90,15 +77,7 @@ def caldav_scheduler_loop():
         time.sleep(900)
 
 
-
 def plausibility_scheduler_loop():
-    """5.2.31: Robuster Tageslauf fuer Plausibilitaets-E-Mails.
-
-    Der Tick laeuft jede Minute, versendet aber nur einmal pro Tag ab der in
-    den Plausibilitaets-Einstellungen gespeicherten Uhrzeit. Der Tagesstatus
-    wird in PostgreSQL protokolliert, damit nach Neustarts keine Doppelmail
-    entsteht.
-    """
     while True:
         try:
             from app.services.plausibility import plausibility_scheduler_tick
@@ -113,12 +92,8 @@ def plausibility_scheduler_loop():
             logger.exception("Plausibility scheduler failed")
         time.sleep(60)
 
-def monthly_reporting_scheduler_loop():
-    """5.2.16: automatischer Monatsreport per E-Mail.
 
-    Prüft minütlich, ob der konfigurierte Versandzeitpunkt erreicht ist.
-    Versendet standardmäßig den Report für den Vormonat.
-    """
+def monthly_reporting_scheduler_loop():
     while True:
         try:
             from app.routes.reports import monthly_reporting_scheduler_tick
@@ -130,6 +105,7 @@ def monthly_reporting_scheduler_loop():
         except Exception:
             logger.exception("Monthly reporting scheduler failed")
         time.sleep(60)
+
 
 @app.middleware("http")
 async def network_security_middleware(request: Request, call_next):
@@ -145,22 +121,26 @@ async def network_security_middleware(request: Request, call_next):
         db.close()
     return await call_next(request)
 
+
 @app.on_event("startup")
 def startup():
     app.state.startup_checks = run_startup_checks()
     if not app.state.startup_checks.get("ok"):
         logger.warning("Startup checks reported warnings: %s", app.state.startup_checks)
     init_db()
+    ensure_rfid_media_schema()
     threading.Thread(target=dsgvo_scheduler_loop, daemon=True).start()
     threading.Thread(target=caldav_scheduler_loop, daemon=True).start()
     threading.Thread(target=monthly_reporting_scheduler_loop, daemon=True).start()
     threading.Thread(target=plausibility_scheduler_loop, daemon=True).start()
+
 
 @app.exception_handler(StarletteHTTPException)
 async def http_exception_handler(request: Request, exc: StarletteHTTPException):
     if exc.status_code == 404:
         return HTMLResponse("<h1>Seite nicht gefunden</h1><p><a href='/'>Zurück zum Dashboard</a></p>", status_code=404)
     return JSONResponse({"detail": exc.detail}, status_code=exc.status_code)
+
 
 @app.exception_handler(Exception)
 async def unhandled_exception_handler(request: Request, exc: Exception):
@@ -172,24 +152,24 @@ async def unhandled_exception_handler(request: Request, exc: Exception):
         status_code=500,
     )
 
+
 @app.get("/health")
 def health():
     checks = getattr(app.state, "startup_checks", None) or run_startup_checks()
     return {"status": "ok" if checks.get("ok") else "warning", "version": get_app_version(), "database": "postgresql", "startup": checks}
+
 
 @app.get("/version")
 def version():
     return get_version_info()
 
 
-# Update-System
 try:
     from app.routes import updates
     app.include_router(updates.router)
 except Exception as exc:
     print("Update-Router konnte nicht geladen werden:", exc)
 
-# CalDAV-Konten / externe Kalender
 try:
     from app.routes import caldav_accounts
     app.include_router(caldav_accounts.router)

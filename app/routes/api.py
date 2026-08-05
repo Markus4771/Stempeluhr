@@ -6,6 +6,7 @@ from app.database import get_db
 from app.models import Employee, TimeEntry, Setting
 from app.schemas import ClockRequest
 from app.security import verify_password
+from app.services.rfid_media import normalize_rfid_uid, resolve_employee_by_rfid
 
 
 def _exclude_fixed_admin(query, Employee):
@@ -43,16 +44,20 @@ def employees(db: Session = Depends(get_db)):
 def clock(data: ClockRequest, db: Session = Depends(get_db)):
     if data.entry_type not in VALID_ENTRY_TYPES:
         raise HTTPException(400, "Ungültiger Buchungstyp")
-    if data.rfid_code: data.rfid_code=data.rfid_code.strip().replace("\\r","").replace("\\n","")
-    if data.employee_number: data.employee_number=data.employee_number.strip()
-    employee=None; method="api"
     if data.rfid_code:
-        employee=db.query(Employee).filter(Employee.rfid_code==data.rfid_code, Employee.active==True).first(); method="rfid"
+        data.rfid_code = normalize_rfid_uid(data.rfid_code)
+    if data.employee_number:
+        data.employee_number=data.employee_number.strip()
+    employee=None; method="api"; medium=None
+    if data.rfid_code:
+        employee, medium = resolve_employee_by_rfid(db, data.rfid_code)
+        method="rfid"
     if not employee and data.employee_number and data.password:
         employee=db.query(Employee).filter(Employee.employee_number==data.employee_number, Employee.active==True).first(); method="password"
         if not employee or not verify_password(data.password, employee.password_hash):
             raise HTTPException(401, "Mitarbeiter oder Passwort falsch")
-    if not employee: raise HTTPException(404, "RFID/Mitarbeiter nicht gefunden")
+    if not employee:
+        raise HTTPException(404, "RFID/Mitarbeiter nicht gefunden")
     duplicate, last = api_is_duplicate_booking(db, employee.id, 8)
     if duplicate:
         return {
@@ -65,5 +70,11 @@ def clock(data: ClockRequest, db: Session = Depends(get_db)):
         }
 
     entry=TimeEntry(employee_id=employee.id,timestamp=datetime.now(),entry_type=data.entry_type,method=method,terminal=data.terminal,note=data.note)
-    db.add(entry); db.commit()
-    return {"success":True,"employee":f"{employee.first_name} {employee.last_name}","entry_type":data.entry_type}
+    db.add(entry)
+    db.commit()
+    return {
+        "success":True,
+        "employee":f"{employee.first_name} {employee.last_name}",
+        "entry_type":data.entry_type,
+        "rfid_medium": medium.name if medium else None,
+    }

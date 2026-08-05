@@ -1,30 +1,29 @@
-# Stempeluhr Professional 5.6.33
+# Stempeluhr Professional 5.6.34
 
 Webbasierte Zeiterfassung für Debian-Server und Raspberry-Pi-Terminals.
 
 ## Aktueller Stand
 
-- Version: **5.6.33**
+- Version: **5.6.34**
 - Standarddatenbank: PostgreSQL
 - Zielplattform: Debian / Raspberry Pi OS
 - Standardbranch: `main`
 
-## Änderungen in 5.6.33
+## Änderungen in 5.6.34
 
-- Urlaubswochen werden verbindlich mit fünf Arbeitstagen berechnet.
-- Samstage, Sonntage und volle Feiertage werden nicht vom Urlaubskonto abgezogen.
-- Halbe Feiertage und halbe Urlaubstage werden mit 0,5 Tagen berücksichtigt.
-- Unterstützte Modelle: feste 5-Tage-Woche, feste Teilzeit, unregelmäßiges Jahresmodell und manueller Anspruch.
-- Eintritt, Austritt und Arbeitszeitwechsel können zeitanteilig berechnet werden.
-- Getrennte Konten für Jahres-, Rest-, Zusatz- und Sonderurlaub sowie ein Buchungsjournal sind enthalten.
-- Betriebsferien und die Rückbuchung bei Krankheit während des Urlaubs sind administrierbar.
-- Verwaltung: `/vacation/management`
+- Mehrere RFID-/NFC-Medien können einem Mitarbeiter zugeordnet werden.
+- Handy, Smartwatch, Karte, Ring und weitere Medien werden getrennt verwaltet.
+- RFID-/NFC-UIDs werden vor dem Vergleich vereinheitlicht.
+- Bestehende Werte aus `employees.rfid_code` werden automatisch übernommen.
+- Das Backupformat enthält ein Manifest und SHA256-Prüfsummen.
+- PostgreSQL-Dumps und Archive werden vor der Veröffentlichung geprüft.
+- Backup-Dateien werden atomar erstellt und Prüfsummen auch auf SMB/NAS kopiert.
 
 ## Installation
 
 ```bash
 cd ~/Stempeluhr
-git pull --ff-only origin main
+git pull --ff-only
 bash scripts/build_release.sh
-sudo apt install ./releases/stempeluhr_5.6.33_all.deb
+sudo apt install ./releases/stempeluhr_5.6.34_all.deb
 ```

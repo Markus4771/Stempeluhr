@@ -46,8 +46,15 @@
     <div class="form-section-title">Zugang</div>
 
     <div class="form-field">
-        <label>RFID-Code</label>
+        <label>Bestehender RFID-Code</label>
         <input name="rfid_code" value="{{ employee.rfid_code or '' }}">
+        <small>Dieser bestehende Code bleibt aus Kompatibilitätsgründen erhalten.</small>
+    </div>
+
+    <div class="form-field">
+        <label>Mehrere RFID-/NFC-Medien</label>
+        <a class="button" href="/admin/employees/{{ employee.id }}/rfid-media">RFID/NFC-Medien verwalten</a>
+        <small>Hier können Firmenkarte, Handy, Smartwatch, NFC-Ring und weitere Medien getrennt angelernt werden.</small>
     </div>
 
     <div class="form-field">
@@ -66,7 +73,7 @@
             {% endfor %}
         </select>
     </div>
-<div class="form-field">
+    <div class="form-field">
         <label>Abteilung</label>
         <select name="department_id">
             <option value="0">Keine Abteilung</option>
@@ -79,7 +86,6 @@
     <div class="form-field checkbox-field">
         <label><input name="active" type="checkbox" {% if employee.active %}checked{% endif %}> Aktiv</label>
     </div>
-
 
     <div class="form-section-title">Berechtigungen & Prüfungen</div>
 
