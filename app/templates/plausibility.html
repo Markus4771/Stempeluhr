@@ -1,5 +1,7 @@
 {% extends "base.html" %}
 {% block content %}
+{% set role_name = user.role.name if user and user.role else '' %}
+{% set can_manage_plausibility = user and (user.employee_number == 'admin' or role_name in ['Administrator','Personal','Teamleiter']) %}
 {% if request.query_params.get('message') %}<div class="success-box">{{ request.query_params.get('message') }}</div>{% endif %}
 {% if request.query_params.get('error') %}<div class="error-box">{{ request.query_params.get('error') }}</div>{% endif %}
 <p>
@@ -25,7 +27,7 @@
     <label>Bis <input type="date" name="date_to" value="{{ filters.date_to }}"></label>
     <button class="button" type="submit">Filtern</button>
   </form>
-  {% if user.role and user.role.name in ['Administrator','Personal'] %}
+  {% if can_manage_plausibility %}
   <form method="post" action="/plausibility/run" class="inline-form">
     <input type="date" name="day" value="{{ filters.date_to }}">
     <button class="button" type="submit">Prüfung jetzt ausführen</button>
@@ -56,7 +58,7 @@
         <td>
           <a class="button small secondary" href="/plausibility/assistant?issue_id={{ i.id }}">Im Assistenten öffnen</a>
 
-          {% if i.check_type == 'missing_workday' and i.status == 'offen' and user.role and user.role.name in ['Administrator','Personal','Teamleiter'] %}
+          {% if i.check_type == 'missing_workday' and i.status == 'offen' and can_manage_plausibility %}
           <details style="margin:.45rem 0;">
             <summary class="button small">Als Ausnahme genehmigen</summary>
             <form method="post" action="/plausibility/{{ i.id }}/approve-exception" style="margin-top:.5rem;min-width:260px;">
@@ -84,7 +86,7 @@
             <input name="comment" value="{{ i.comment or '' }}" placeholder="Kommentar">
             <button class="button small" type="submit">Speichern</button>
           </form>
-          {% if user.role and user.role.name in ['Administrator','Personal','Teamleiter'] %}
+          {% if can_manage_plausibility %}
           <form method="post" action="/plausibility/{{ i.id }}/reset" class="inline-form" onsubmit="return confirm('Diese Plausibilitätsmeldung wirklich zurücksetzen?');">
             <input type="hidden" name="filter_employee_id" value="{{ filters.employee_id }}">
             <input type="hidden" name="filter_status" value="{{ filters.status }}">
