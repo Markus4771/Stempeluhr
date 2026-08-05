@@ -28,6 +28,9 @@
     <input type="date" name="day" value="{{ filters.date_to }}">
     <button class="button" type="submit">Prüfung jetzt ausführen</button>
   </form>
+  <form method="post" action="/plausibility/reconcile" class="inline-form" onsubmit="return confirm('Alle offenen Fälle erneut gegen die aktuellen Buchungen prüfen? Nicht mehr vorhandene Ursachen werden automatisch erledigt.');">
+    <button class="button secondary" type="submit">Offene Fälle neu abgleichen</button>
+  </form>
   <form method="post" action="/plausibility/teamlead-summary" class="inline-form">
     <button class="button secondary" type="submit">Teamleiter-Mail senden</button>
   </form>
