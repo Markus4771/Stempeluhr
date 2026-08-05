@@ -9,7 +9,7 @@ import time
 from datetime import datetime, timedelta
 
 from app.init_db import init_db
-from app.routes import web, api, api_v1, roles_rights, rfid_terminal_display, terminal_protocol, terminal_admin, auth_plugin_admin, auth_credentials_admin, dashboard_plausibility, plausibility_assistant, plausibility_auto_repair, employee_plausibility, plausibility_patterns
+from app.routes import web, api, api_v1, roles_rights, rfid_terminal_display, terminal_protocol, terminal_admin, auth_plugin_admin, auth_credentials_admin, dashboard_plausibility, plausibility_assistant, plausibility_auto_repair, employee_plausibility, plausibility_patterns, overtime_reset
 from app.version import APP_NAME, APP_VERSION, get_app_version, get_version_info
 from app.core.config import SECRET_KEY, STATIC_DIR
 from app.database import SessionLocal
@@ -19,6 +19,7 @@ from app.services.startup_checks import run_startup_checks
 from app.services.rfid_media import ensure_rfid_media_schema
 from app.services.auth_credentials import ensure_auth_credential_schema
 from app.services.terminal_protocol import ensure_terminal_protocol_schema
+from app.services.overtime_reset import ensure_overtime_reset_schema
 from app.auth_plugins.registry import ensure_auth_plugin_schema, initialize_auth_plugins
 from app.modules.loader import load_module_routers
 
@@ -50,8 +51,8 @@ app.include_router(plausibility_assistant.router)
 app.include_router(plausibility_auto_repair.router)
 app.include_router(employee_plausibility.router)
 app.include_router(plausibility_patterns.router)
+app.include_router(overtime_reset.router)
 
-# 5.2.07: Modul-Lader im sicheren Kompatibilitätsmodus.
 app.state.module_loader_results = load_module_routers(app, register=False)
 
 
@@ -145,6 +146,7 @@ def startup():
     ensure_auth_credential_schema()
     ensure_terminal_protocol_schema()
     ensure_auth_plugin_schema()
+    ensure_overtime_reset_schema()
     db = SessionLocal()
     try:
         app.state.authentication_plugins = initialize_auth_plugins(db)
