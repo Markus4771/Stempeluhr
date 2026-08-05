@@ -118,12 +118,19 @@ def dashboard_metrics(request: Request, db: Session = Depends(get_db)):
     ).group_by(TimeEntry.entry_type).all()
     booking_counts = {str(entry_type or ""): int(count or 0) for entry_type, count in booking_rows}
 
-    open_plausibility = db.query(PlausibilityIssue).filter(
-        PlausibilityIssue.status.in_(["offen", "geprueft"])
-    ).count()
+    # Nur tatsächlich offene Fälle zählen. "geprueft" bedeutet bereits bearbeitet
+    # und darf die offene Dashboard-Zahl nicht weiter erhöhen.
+    visible_ids, overtime_scope = _scope(db, user)
+    plausibility_query = db.query(PlausibilityIssue).filter(
+        func.lower(func.trim(func.coalesce(PlausibilityIssue.status, "offen"))) == "offen"
+    )
+    if visible_ids:
+        plausibility_query = plausibility_query.filter(PlausibilityIssue.employee_id.in_(visible_ids))
+    else:
+        plausibility_query = plausibility_query.filter(PlausibilityIssue.id == -1)
+    open_plausibility = plausibility_query.count()
     plausibility_level = "ok" if open_plausibility == 0 else "warning" if open_plausibility <= 10 else "danger"
 
-    visible_ids, overtime_scope = _scope(db, user)
     overtime_sum = 0.0
     if visible_ids:
         overtime_sum = float(db.query(func.coalesce(func.sum(Employee.overtime_balance), 0)).filter(
