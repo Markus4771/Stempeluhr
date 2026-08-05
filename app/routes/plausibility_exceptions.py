@@ -41,34 +41,8 @@ def _can_approve_exception(user) -> bool:
     return role_name(user) in {"Administrator", "Personal", "Teamleiter"}
 
 
-@router.post("/plausibility/{issue_id}/approve-exception")
-def approve_plausibility_exception(
-    issue_id: int,
-    request: Request,
-    reason: str = Form(...),
-    db: Session = Depends(get_db),
-):
-    user = current_user(request, db)
-    if not user:
-        return RedirectResponse("/login", status_code=303)
-    if not _can_approve_exception(user):
-        return RedirectResponse("/plausibility?status=offen&error=Keine+Berechtigung", status_code=303)
-
-    issue = db.query(PlausibilityIssue).filter(PlausibilityIssue.id == issue_id).first()
-    if not issue or issue.employee_id not in report_visible_employee_ids(db, user):
-        return RedirectResponse("/plausibility?status=offen&error=Keine+Berechtigung", status_code=303)
-
-    reason = (reason or "").strip()
-    if len(reason) < 3:
-        return RedirectResponse("/plausibility?status=offen&error=Bitte+eine+Begründung+angeben", status_code=303)
-
-    if issue.check_type != "missing_workday":
-        return RedirectResponse("/plausibility?status=offen&error=Dieser+Fall+kann+nicht+als+Arbeitstagsausnahme+genehmigt+werden", status_code=303)
-
-    ensure_plausibility_exception_schema(db)
-    actor = str(getattr(user, "employee_number", "") or "admin")
+def _approve_issue(db: Session, issue: PlausibilityIssue, actor: str, reason: str, request: Request) -> None:
     now = datetime.now()
-
     db.execute(text("""
         INSERT INTO plausibility_exceptions
             (issue_id, employee_id, issue_date, check_type, reason, approved_by, approved_at, active)
@@ -108,9 +82,88 @@ def approve_plausibility_exception(
         ),
         ip_address=request.client.host if request.client else None,
     ))
+
+
+@router.post("/plausibility/{issue_id}/approve-exception")
+def approve_plausibility_exception(
+    issue_id: int,
+    request: Request,
+    reason: str = Form(...),
+    db: Session = Depends(get_db),
+):
+    user = current_user(request, db)
+    if not user:
+        return RedirectResponse("/login", status_code=303)
+    if not _can_approve_exception(user):
+        return RedirectResponse("/plausibility?status=offen&error=Keine+Berechtigung", status_code=303)
+
+    issue = db.query(PlausibilityIssue).filter(PlausibilityIssue.id == issue_id).first()
+    if not issue or issue.employee_id not in report_visible_employee_ids(db, user):
+        return RedirectResponse("/plausibility?status=offen&error=Keine+Berechtigung", status_code=303)
+
+    reason = (reason or "").strip()
+    if len(reason) < 3:
+        return RedirectResponse("/plausibility?status=offen&error=Bitte+eine+Begründung+angeben", status_code=303)
+    if issue.check_type != "missing_workday" or issue.status != "offen":
+        return RedirectResponse("/plausibility?status=offen&error=Dieser+Fall+kann+nicht+als+Arbeitstagsausnahme+genehmigt+werden", status_code=303)
+
+    ensure_plausibility_exception_schema(db)
+    actor = str(getattr(user, "employee_number", "") or "admin")
+    _approve_issue(db, issue, actor, reason, request)
     db.commit()
 
     return RedirectResponse(
         "/plausibility?status=offen&message=Ausnahme+wurde+genehmigt",
+        status_code=303,
+    )
+
+
+@router.post("/plausibility/approve-exceptions-bulk")
+def approve_plausibility_exceptions_bulk(
+    request: Request,
+    issue_ids: list[int] = Form(default=[]),
+    reason: str = Form(...),
+    db: Session = Depends(get_db),
+):
+    user = current_user(request, db)
+    if not user:
+        return RedirectResponse("/login", status_code=303)
+    if not _can_approve_exception(user):
+        return RedirectResponse("/plausibility?status=offen&error=Keine+Berechtigung", status_code=303)
+
+    reason = (reason or "").strip()
+    if len(reason) < 3:
+        return RedirectResponse("/plausibility?status=offen&error=Bitte+eine+Begründung+angeben", status_code=303)
+    if not issue_ids:
+        return RedirectResponse("/plausibility?status=offen&error=Keine+Fälle+ausgewählt", status_code=303)
+
+    visible_ids = set(report_visible_employee_ids(db, user))
+    issues = db.query(PlausibilityIssue).filter(
+        PlausibilityIssue.id.in_(issue_ids),
+        PlausibilityIssue.employee_id.in_(visible_ids),
+        PlausibilityIssue.check_type == "missing_workday",
+        PlausibilityIssue.status == "offen",
+    ).order_by(PlausibilityIssue.issue_date.asc(), PlausibilityIssue.id.asc()).all()
+
+    if not issues:
+        return RedirectResponse("/plausibility?status=offen&error=Keine+geeigneten+offenen+Fälle+gefunden", status_code=303)
+
+    ensure_plausibility_exception_schema(db)
+    actor = str(getattr(user, "employee_number", "") or "admin")
+    for issue in issues:
+        _approve_issue(db, issue, actor, reason, request)
+
+    db.add(AuditLog(
+        actor=actor,
+        action="plausibility_exceptions_bulk_approved",
+        entity="plausibility",
+        entity_id="bulk",
+        details=f"{len(issues)} Arbeitstagsausnahmen gemeinsam genehmigt; Grund: {reason}",
+        ip_address=request.client.host if request.client else None,
+    ))
+    db.commit()
+
+    return RedirectResponse(
+        f"/plausibility?status=offen&message={len(issues)}+Ausnahmen+wurden+genehmigt",
         status_code=303,
     )
