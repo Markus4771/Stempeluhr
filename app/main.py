@@ -9,7 +9,7 @@ import time
 from datetime import datetime, timedelta
 
 from app.init_db import init_db
-from app.routes import web, api, api_v1, roles_rights, rfid_terminal_display, terminal_protocol, terminal_admin, auth_plugin_admin, auth_credentials_admin
+from app.routes import web, api, api_v1, roles_rights, rfid_terminal_display, terminal_protocol, terminal_admin, auth_plugin_admin, auth_credentials_admin, dashboard_plausibility
 from app.version import APP_NAME, APP_VERSION, get_app_version, get_version_info
 from app.core.config import SECRET_KEY, STATIC_DIR
 from app.database import SessionLocal
@@ -45,6 +45,7 @@ app.include_router(terminal_protocol.router)
 app.include_router(terminal_admin.router)
 app.include_router(auth_plugin_admin.router)
 app.include_router(auth_credentials_admin.router)
+app.include_router(dashboard_plausibility.router)
 
 # 5.2.07: Modul-Lader im sicheren Kompatibilitätsmodus.
 app.state.module_loader_results = load_module_routers(app, register=False)
