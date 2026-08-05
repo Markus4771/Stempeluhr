@@ -9,7 +9,7 @@ import time
 from datetime import datetime, timedelta
 
 from app.init_db import init_db
-from app.routes import web, api, api_v1, roles_rights, rfid_terminal_display, terminal_protocol, terminal_admin, auth_plugin_admin, auth_credentials_admin, dashboard_plausibility, plausibility_assistant, plausibility_auto_repair, employee_plausibility, plausibility_patterns, overtime_reset
+from app.routes import web, api, api_v1, roles_rights, rfid_terminal_display, terminal_protocol, terminal_admin, auth_plugin_admin, auth_credentials_admin, dashboard_plausibility, plausibility_assistant, plausibility_auto_repair, employee_plausibility, plausibility_patterns, overtime_reset, plausibility_reconcile
 from app.version import APP_NAME, APP_VERSION, get_app_version, get_version_info
 from app.core.config import SECRET_KEY, STATIC_DIR
 from app.database import SessionLocal
@@ -52,6 +52,7 @@ app.include_router(plausibility_auto_repair.router)
 app.include_router(employee_plausibility.router)
 app.include_router(plausibility_patterns.router)
 app.include_router(overtime_reset.router)
+app.include_router(plausibility_reconcile.router)
 
 app.state.module_loader_results = load_module_routers(app, register=False)
 
@@ -107,6 +108,22 @@ def plausibility_scheduler_loop():
         time.sleep(60)
 
 
+def plausibility_reconcile_loop():
+    while True:
+        try:
+            from app.services.plausibility_reconcile import reconcile_open_plausibility_issues
+            db = SessionLocal()
+            try:
+                result = reconcile_open_plausibility_issues(db)
+                if result.get("resolved"):
+                    logger.info("Plausibility reconcile: %s", result)
+            finally:
+                db.close()
+        except Exception:
+            logger.exception("Plausibility reconcile failed")
+        time.sleep(300)
+
+
 def monthly_reporting_scheduler_loop():
     while True:
         try:
@@ -156,6 +173,7 @@ def startup():
     threading.Thread(target=caldav_scheduler_loop, daemon=True).start()
     threading.Thread(target=monthly_reporting_scheduler_loop, daemon=True).start()
     threading.Thread(target=plausibility_scheduler_loop, daemon=True).start()
+    threading.Thread(target=plausibility_reconcile_loop, daemon=True).start()
 
 
 @app.exception_handler(StarletteHTTPException)
