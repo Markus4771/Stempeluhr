@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 
 from app.database import Base, engine
 from app.models import Employee
-from app.services.rfid_media import EmployeeRfidMedia, normalize_rfid_uid
+from app.services.rfid_media import normalize_rfid_uid
 
 
 class EmployeeAuthCredential(Base):
@@ -45,6 +45,19 @@ def credential_identifier_hash(provider: str, identifier: str) -> str:
     return hashlib.sha256(f"{normalized_provider}\0{normalized_identifier}".encode("utf-8")).hexdigest()
 
 
+def credential_identifier_hint(provider: str, identifier: str) -> str:
+    """Nur eine ungefährliche Anzeigehilfe speichern, niemals PINs oder Tokens im Klartext."""
+    provider = str(provider or "").strip().lower()
+    identifier = str(identifier or "").strip()
+    if provider in {"pin", "mobile_app", "smartwatch", "fido2", "bluetooth"}:
+        return "••••••••"
+    if provider == "fingerprint":
+        return "Biometrische Vorlage"
+    if len(identifier) > 16:
+        return f"{identifier[:6]}…{identifier[-4:]}"
+    return identifier
+
+
 def ensure_auth_credential_schema() -> None:
     Base.metadata.create_all(bind=engine, tables=[EmployeeAuthCredential.__table__])
     with engine.begin() as conn:
@@ -61,6 +74,7 @@ def ensure_auth_credential_schema() -> None:
             ), {"identifier_hash": identifier_hash}).first()
             if exists:
                 continue
+            raw_hint = row.uid_raw or row.uid
             conn.execute(text(
                 "INSERT INTO employee_auth_credentials "
                 "(employee_id, provider, credential_type, identifier_hash, identifier_hint, display_name, active, metadata_json, created_at, updated_at, last_used_at) "
@@ -69,7 +83,7 @@ def ensure_auth_credential_schema() -> None:
                 "employee_id": row.employee_id,
                 "credential_type": row.media_type or "rfid",
                 "identifier_hash": identifier_hash,
-                "identifier_hint": row.uid_raw or row.uid,
+                "identifier_hint": credential_identifier_hint("rfid", raw_hint),
                 "display_name": row.name or "RFID/NFC-Medium",
                 "active": bool(row.active),
                 "metadata_json": json.dumps({"legacy_rfid_media_id": row.id}, ensure_ascii=False),
@@ -107,6 +121,7 @@ def add_auth_credential(
     if not provider or not identifier:
         raise ValueError("Provider und Kennung sind erforderlich")
     identifier_hash = credential_identifier_hash(provider, identifier)
+    hint = credential_identifier_hint(provider, identifier)
     existing = db.query(EmployeeAuthCredential).filter(
         EmployeeAuthCredential.provider == provider,
         EmployeeAuthCredential.identifier_hash == identifier_hash,
@@ -119,7 +134,7 @@ def add_auth_credential(
         existing.revoked_reason = None
         existing.display_name = display_name.strip() or existing.display_name
         existing.credential_type = credential_type
-        existing.identifier_hint = identifier
+        existing.identifier_hint = hint
         existing.metadata_json = json.dumps(metadata or {}, ensure_ascii=False)
         existing.updated_at = datetime.now()
         return existing
@@ -128,7 +143,7 @@ def add_auth_credential(
         provider=provider,
         credential_type=credential_type,
         identifier_hash=identifier_hash,
-        identifier_hint=identifier,
+        identifier_hint=hint,
         display_name=display_name.strip() or f"{provider}-Medium",
         active=True,
         metadata_json=json.dumps(metadata or {}, ensure_ascii=False),
