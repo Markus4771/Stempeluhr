@@ -1,12 +1,14 @@
 from __future__ import annotations
 
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from decimal import Decimal, ROUND_HALF_UP
 
 from sqlalchemy import event
 from sqlalchemy.orm import Session
 
+from app.database import SessionLocal
 from app.models import Employee, Holiday, VacationRequest
+from app.models_vacation import VacationAccount, VacationProfile
 
 
 WEEKDAY_FIELDS = (
@@ -56,8 +58,6 @@ def entitlement_from_employee_schedule(base_entitlement: float | Decimal, employ
     base = Decimal(str(base_entitlement or 0))
     if workdays <= 0:
         return Decimal("0")
-    # Vertragsbasis ist weiterhin die übliche 5-Tage-Woche. Sechs-/Sieben-Tage-
-    # Modelle werden proportional unterstützt statt still auf fünf zu begrenzen.
     return _round_half_day(base * Decimal(workdays) / Decimal("5"))
 
 
@@ -102,7 +102,6 @@ def vacation_days_and_hours(
         current += timedelta(days=1)
 
     if half_day:
-        # Halber Urlaub ist nur für einen einzelnen regulären Arbeitstag erlaubt.
         if start_date != end_date:
             return 0.0, 0.0
         scheduled = Decimal(str(scheduled_hours_for_date(employee, start_date)))
@@ -115,6 +114,65 @@ def vacation_days_and_hours(
     return float(_round_half_day(days)), round(float(hours), 2)
 
 
+def sync_employee_vacation_profile(db: Session, employee: Employee) -> VacationProfile:
+    """Synchronisiert Standard-/Teilzeitprofile mit dem echten Wochenplan.
+
+    Manuelle und unregelmäßige Jahresmodelle werden bewusst nicht überschrieben.
+    """
+    profile = db.query(VacationProfile).filter(VacationProfile.employee_id == employee.id).first()
+    if profile is None:
+        workdays = regular_workdays_per_week(employee)
+        profile = VacationProfile(
+            employee_id=employee.id,
+            calculation_model="five_day" if workdays == 5 else "fixed_part_time",
+            base_entitlement=float(employee.vacation_days_total or 30.0),
+            weekly_workdays=float(workdays),
+            annual_workdays=float(workdays * 52),
+            automatic_proration=True,
+            valid_from=employee.entry_date or employee.hired_at,
+            valid_to=employee.exit_date or employee.left_at,
+            updated_at=datetime.now(),
+        )
+        db.add(profile)
+        db.flush()
+        return profile
+
+    if profile.calculation_model in {"five_day", "fixed_part_time"}:
+        workdays = regular_workdays_per_week(employee)
+        profile.calculation_model = "five_day" if workdays == 5 else "fixed_part_time"
+        profile.weekly_workdays = float(workdays)
+        profile.annual_workdays = float(workdays * 52)
+        profile.updated_at = datetime.now()
+    return profile
+
+
+def sync_all_vacation_profiles_from_work_schedule() -> None:
+    """Einmaliger Startabgleich für bestehende Mitarbeiter und Urlaubskonten."""
+    db = SessionLocal()
+    try:
+        employees = db.query(Employee).filter(Employee.active == True, Employee.employee_number != "admin").all()
+        for employee in employees:
+            sync_employee_vacation_profile(db, employee)
+        db.commit()
+
+        # Bestehende Jahreskonten behalten Verbrauch/Übertrag, erhalten aber den
+        # nach dem synchronisierten Profil neu berechneten Anspruch.
+        from app.services.vacation_management import annual_entitlement
+        accounts = db.query(VacationAccount).filter(VacationAccount.account_type == "annual").all()
+        employee_map = {employee.id: employee for employee in employees}
+        for account in accounts:
+            employee = employee_map.get(account.employee_id)
+            if employee is None:
+                continue
+            account.entitlement = float(annual_entitlement(db, employee, account.year))
+            account.updated_at = datetime.now()
+        db.commit()
+    except Exception:
+        db.rollback()
+    finally:
+        db.close()
+
+
 def _recalculate_request(session: Session, request_row: VacationRequest) -> None:
     if request_row.request_type not in {"abwesenheit", "urlaub"}:
         return
@@ -123,6 +181,7 @@ def _recalculate_request(session: Session, request_row: VacationRequest) -> None
         employee = session.query(Employee).filter(Employee.id == request_row.employee_id).first()
     if employee is None or not request_row.start_date or not request_row.end_date:
         return
+    sync_employee_vacation_profile(session, employee)
     days, _hours = vacation_days_and_hours(
         session,
         employee,
@@ -148,5 +207,10 @@ def register_vacation_work_schedule_events() -> None:
         for obj in candidates:
             if isinstance(obj, VacationRequest):
                 _recalculate_request(session, obj)
+            elif isinstance(obj, Employee):
+                # Änderungen an den Wochentagsstunden werden beim nächsten Flush
+                # direkt in das Standard-/Teilzeit-Urlaubsprofil übernommen.
+                sync_employee_vacation_profile(session, obj)
 
     _registered = True
+    sync_all_vacation_profiles_from_work_schedule()
