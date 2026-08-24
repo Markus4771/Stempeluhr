@@ -4,10 +4,12 @@ from . import dashboard_privacy, dashboard, dashboard_metrics_corrected, dashboa
 from app.modules.developer import routes as developer
 from app.modules.updates import github_routes
 from app.services.absence_approval import register_absence_approval_events
+from app.services.vacation_work_schedule import register_vacation_work_schedule_events
 from . import email_settings, departments, api_settings, terminals, time_settings, https_settings
 from . import security_general, security_login, security_policies, roles, offboarding, dsgvo, absence_types, kiosk_settings, monitoring, setup_wizard, raspberry_monitor, onboarding, diagnostics, database_security, additional_programs, help_docs, privacy_notice, rfid_media_admin
 
 register_absence_approval_events()
+register_vacation_work_schedule_events()
 
 router = APIRouter()
 
