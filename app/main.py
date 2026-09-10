@@ -9,7 +9,7 @@ import time
 from datetime import datetime, timedelta
 
 from app.init_db import init_db
-from app.routes import web, api, api_v1, roles_rights, rfid_terminal_display, terminal_protocol, terminal_admin, auth_plugin_admin, auth_credentials_admin, dashboard_plausibility, plausibility_assistant, plausibility_auto_repair, employee_plausibility, plausibility_patterns, overtime_reset, plausibility_reconcile
+from app.routes import web, api, api_v1, roles_rights, rfid_terminal_display, terminal_protocol, terminal_admin, auth_plugin_admin, auth_credentials_admin, dashboard_plausibility, plausibility_assistant, plausibility_auto_repair, employee_plausibility, plausibility_patterns, overtime_reset, plausibility_reconcile, mobile_pairing
 from app.version import APP_NAME, APP_VERSION, get_app_version, get_version_info
 from app.core.config import SECRET_KEY, STATIC_DIR
 from app.database import SessionLocal
@@ -28,13 +28,7 @@ logger = logging.getLogger("stempeluhr")
 
 app = FastAPI(title=APP_NAME, version=APP_VERSION)
 
-app.add_middleware(
-    SessionMiddleware,
-    secret_key=SECRET_KEY,
-    same_site="lax",
-    https_only=False,
-)
-
+app.add_middleware(SessionMiddleware, secret_key=SECRET_KEY, same_site="lax", https_only=False)
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
 app.include_router(web.router)
@@ -46,6 +40,7 @@ app.include_router(terminal_protocol.router)
 app.include_router(terminal_admin.router)
 app.include_router(auth_plugin_admin.router)
 app.include_router(auth_credentials_admin.router)
+app.include_router(mobile_pairing.router)
 app.include_router(dashboard_plausibility.router)
 app.include_router(plausibility_assistant.router)
 app.include_router(plausibility_auto_repair.router)
@@ -161,6 +156,7 @@ def startup():
     init_db()
     ensure_rfid_media_schema()
     ensure_auth_credential_schema()
+    mobile_pairing.ensure_mobile_pairing_schema()
     ensure_terminal_protocol_schema()
     ensure_auth_plugin_schema()
     ensure_overtime_reset_schema()
@@ -186,12 +182,7 @@ async def http_exception_handler(request: Request, exc: StarletteHTTPException):
 @app.exception_handler(Exception)
 async def unhandled_exception_handler(request: Request, exc: Exception):
     logger.exception("Unhandled error on %s", request.url.path)
-    return HTMLResponse(
-        "<h1>Interner Fehler</h1>"
-        "<p>Der Fehler wurde im Server-Log protokolliert.</p>"
-        "<p><a href='/'>Zurück zum Dashboard</a></p>",
-        status_code=500,
-    )
+    return HTMLResponse("<h1>Interner Fehler</h1><p>Der Fehler wurde im Server-Log protokolliert.</p><p><a href='/'>Zurück zum Dashboard</a></p>", status_code=500)
 
 
 @app.get("/health")
