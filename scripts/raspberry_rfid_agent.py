@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""Stempeluhr-Terminal-Agent mit Protokoll 1.0 und RFID-Kompatibilität."""
+"""Stempeluhr-Terminal-Agent mit Protokoll 1.0 und pluginbasiertem Anlernmodus."""
 from __future__ import annotations
 
 import json
 import os
+import pwd
 import signal
 import socket
 import subprocess
@@ -18,7 +19,7 @@ SERVER = os.getenv("STEMPELUHR_SERVER", "http://127.0.0.1:8000").rstrip("/")
 HOSTNAME = os.getenv("TERMINAL_CODE", os.getenv("RASPBERRY_HOSTNAME", socket.gethostname())).strip()
 TERMINAL_NAME = os.getenv("TERMINAL_NAME", HOSTNAME).strip()
 DEVICE = os.getenv("RFID_INPUT_DEVICE", "").strip()
-AGENT_VERSION = "2.0.1"
+AGENT_VERSION = "2.1.0"
 PROTOCOL_VERSION = "1.0"
 HEARTBEAT_SECONDS = int(os.getenv("HEARTBEAT_SECONDS", "5"))
 SCAN_TIMEOUT = int(os.getenv("RFID_SCAN_TIMEOUT", "35"))
@@ -57,10 +58,11 @@ def chromium_binary() -> str | None:
     return None
 
 
-def detect_capabilities() -> list[dict]:
-    capabilities: list[dict] = []
-    if DISPLAY_ENABLED and chromium_binary():
-        capabilities.append({"name": "display", "details": {"browser": Path(chromium_binary() or "").name}})
+def detect_capabilities() -> list:
+    capabilities: list = []
+    browser = chromium_binary()
+    if DISPLAY_ENABLED and browser:
+        capabilities.append({"name": "display", "details": {"browser": Path(browser).name}})
     if DEVICE and Path(DEVICE).exists():
         capabilities.extend([
             {"name": "rfid", "details": {"input_device": DEVICE, "mode": "keyboard-wedge"}},
@@ -156,32 +158,54 @@ def send_result(command: str, result: dict) -> None:
     ).raise_for_status()
 
 
+def _desktop_runtime_dir() -> str:
+    if XDG_RUNTIME_DIR:
+        return XDG_RUNTIME_DIR
+    try:
+        uid = pwd.getpwnam(DISPLAY_USER).pw_uid
+        candidate = Path(f"/run/user/{uid}")
+        if candidate.exists():
+            return str(candidate)
+    except Exception:
+        pass
+    return ""
+
+
 def display_command(url: str) -> list[str] | None:
     browser = chromium_binary()
     if not DISPLAY_ENABLED or not browser:
         return None
     env_parts = [f"DISPLAY={DISPLAY}"]
+    runtime_dir = _desktop_runtime_dir()
+    if runtime_dir:
+        env_parts.append(f"XDG_RUNTIME_DIR={runtime_dir}")
+        bus = Path(runtime_dir) / "bus"
+        if bus.exists():
+            env_parts.append(f"DBUS_SESSION_BUS_ADDRESS=unix:path={bus}")
     if WAYLAND_DISPLAY:
         env_parts.append(f"WAYLAND_DISPLAY={WAYLAND_DISPLAY}")
-    if XDG_RUNTIME_DIR:
-        env_parts.append(f"XDG_RUNTIME_DIR={XDG_RUNTIME_DIR}")
     return [
         "runuser", "-u", DISPLAY_USER, "--", "env", *env_parts,
         browser, "--kiosk", "--no-first-run", "--disable-session-crashed-bubble",
         "--disable-infobars", "--noerrdialogs", "--disable-translate",
-        "--user-data-dir=/tmp/stempeluhr-rfid-display", url,
+        "--user-data-dir=/tmp/stempeluhr-auth-enrollment", url,
     ]
 
 
-def open_display(employee_id: int, uid: str = "") -> subprocess.Popen | None:
-    url = f"{SERVER}/terminal/rfid-enrollment/{employee_id}?seconds={SCAN_TIMEOUT}"
-    if uid:
-        url += f"&uid={quote(uid)}"
+def open_display(plugin_key: str, employee_id: int, identifier: str = "", message: str = "") -> subprocess.Popen | None:
+    url = f"{SERVER}/terminal/auth-enrollment/{quote(plugin_key)}/{employee_id}?seconds={SCAN_TIMEOUT}"
+    if identifier:
+        url += f"&identifier={quote(identifier)}"
+    if message:
+        url += f"&message={quote(message)}"
     command = display_command(url)
     if not command:
+        print("Terminal-Anzeige nicht verfügbar (Chromium/Display-Konfiguration prüfen)", file=sys.stderr)
         return None
     try:
-        return subprocess.Popen(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
+        process = subprocess.Popen(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
+        print(f"Anlern-GUI geöffnet: Plugin={plugin_key}, PID={process.pid}")
+        return process
     except Exception as exc:
         print(f"Display konnte nicht geöffnet werden: {exc}", file=sys.stderr)
         return None
@@ -237,29 +261,67 @@ def read_uid(timeout: int) -> str:
         device.close()
 
 
+def _parse_enrollment_command(command: str) -> tuple[str, int, str] | None:
+    if command.startswith("auth_enroll:"):
+        parts = command.split(":", 3)
+        if len(parts) != 4:
+            return None
+        try:
+            return parts[1], int(parts[2]), parts[3]
+        except ValueError:
+            return None
+    if command.startswith("rfid_scan:"):
+        parts = command.split(":", 2)
+        if len(parts) != 3:
+            return None
+        try:
+            return "rfid", int(parts[1]), parts[2]
+        except ValueError:
+            return None
+    return None
+
+
 def handle(command: str) -> None:
-    if not command.startswith("rfid_scan:"):
+    parsed = _parse_enrollment_command(command)
+    if not parsed:
         return
-    parts = command.split(":", 2)
-    if len(parts) != 3:
+    plugin_key, employee_id, token = parsed
+
+    if plugin_key != "rfid":
+        message = (
+            "Dieses Gerät verwendet ein sicheres Pairing. Eine zufällige NFC-UID wird nicht gespeichert."
+        )
+        process = open_display(plugin_key, employee_id, message=message)
+        try:
+            send_result(command, {
+                "status": "pairing_required",
+                "token": token,
+                "provider": plugin_key,
+                "message": message,
+            })
+            time.sleep(max(1, min(SUCCESS_SECONDS + 2, 8)))
+        finally:
+            close_display(process)
         return
-    try:
-        employee_id = int(parts[1])
-    except ValueError:
-        return
-    token = parts[2]
-    waiting_display = open_display(employee_id)
+
+    waiting_display = open_display("rfid", employee_id)
     try:
         uid = read_uid(SCAN_TIMEOUT)
-        send_result(command, {"status": "complete", "token": token, "uid": uid, "reader": DEVICE})
+        send_result(command, {
+            "status": "complete",
+            "token": token,
+            "provider": "rfid",
+            "uid": uid,
+            "reader": DEVICE,
+        })
         close_display(waiting_display)
-        success_display = open_display(employee_id, uid)
+        success_display = open_display("rfid", employee_id, uid)
         print(f"Anlernen erfolgreich beendet: UID={uid}")
         time.sleep(max(1, SUCCESS_SECONDS))
         close_display(success_display)
     except Exception as exc:
         try:
-            send_result(command, {"status": "error", "token": token, "message": str(exc)})
+            send_result(command, {"status": "error", "token": token, "provider": "rfid", "message": str(exc)})
         except Exception as result_exc:
             print(f"Fehler konnte nicht an Server gemeldet werden: {result_exc}", file=sys.stderr)
         close_display(waiting_display)
