@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import socket
 from datetime import datetime
 from html import escape
 
@@ -139,11 +140,24 @@ def _client_for_request(db: Session, request: Request, terminal_code: str) -> Ra
     code = (terminal_code or "").strip()
     if code:
         return db.query(RaspberryClient).filter(RaspberryClient.hostname == code).first()
+
     remote_ip = request.client.host if request.client else ""
     if remote_ip:
         matches = db.query(RaspberryClient).filter(RaspberryClient.ip_address == remote_ip).all()
         if len(matches) == 1:
             return matches[0]
+
+    # All-in-One-Terminal: Der Kiosk ruft den lokalen Server über 127.0.0.1 auf.
+    # In diesem Fall entspricht der registrierte Raspberry-Hostname dem Hostnamen
+    # des Servers. So funktioniert die Bildschirmumschaltung auch ohne
+    # terminal_code-Parameter in einer bestehenden Kiosk-Autostart-Konfiguration.
+    if remote_ip in {"127.0.0.1", "::1", "localhost"}:
+        local_hostname = socket.gethostname().strip()
+        if local_hostname:
+            client = db.query(RaspberryClient).filter(RaspberryClient.hostname == local_hostname).first()
+            if client:
+                return client
+
     return None
 
 
