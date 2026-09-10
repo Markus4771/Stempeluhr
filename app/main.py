@@ -4,6 +4,7 @@ from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 from starlette.exceptions import HTTPException as StarletteHTTPException
 import logging
+import subprocess
 import threading
 import time
 from datetime import datetime, timedelta
@@ -70,6 +71,67 @@ def dsgvo_scheduler_loop():
                 db.close()
         except Exception:
             logger.exception("DSGVO scheduler failed")
+        time.sleep(60)
+
+
+def backup_scheduler_loop():
+    """Führt das konfigurierte tägliche Backup zuverlässig aus.
+
+    Die alte Backup-Seite versuchte einen systemd-Timer direkt aus dem
+    unprivilegierten Webdienst heraus umzuschreiben. Das schlägt auf einer
+    gehärteten Installation fehl. Der Scheduler liest deshalb die vorhandenen
+    Einstellungen direkt aus der Datenbank und startet backup_gfs.py als
+    Stempeluhr-Dienstbenutzer.
+
+    Durch den Vergleich mit backup_last_time wird ein verpasstes Zeitfenster
+    (z. B. Neustart exakt um 02:00 Uhr) noch am selben Tag nachgeholt und ein
+    doppeltes Tagesbackup verhindert.
+    """
+    while True:
+        try:
+            db = SessionLocal()
+            try:
+                enabled = str(get_setting(db, "backup_enabled", "true") or "true").lower() in {
+                    "true", "1", "on", "ja", "yes"
+                }
+                run_time = str(get_setting(db, "backup_time", "02:00") or "02:00")[:5]
+                now = datetime.now()
+
+                try:
+                    hour, minute = [int(value) for value in run_time.split(":", 1)]
+                    scheduled = now.replace(hour=hour, minute=minute, second=0, microsecond=0)
+                except Exception:
+                    run_time = "02:00"
+                    scheduled = now.replace(hour=2, minute=0, second=0, microsecond=0)
+
+                last_time_raw = str(get_setting(db, "backup_last_time", "") or "").strip()
+                last_date = None
+                for fmt in ("%d.%m.%Y %H:%M:%S", "%Y-%m-%d %H:%M:%S", "%Y-%m-%dT%H:%M:%S"):
+                    try:
+                        last_date = datetime.strptime(last_time_raw, fmt).date()
+                        break
+                    except (TypeError, ValueError):
+                        continue
+
+                should_run = enabled and now >= scheduled and last_date != now.date()
+            finally:
+                db.close()
+
+            if should_run:
+                logger.info("Automatic backup starting (configured time %s)", run_time)
+                result = subprocess.run(
+                    ["/opt/stempeluhr/.venv/bin/python", "/opt/stempeluhr/scripts/backup_gfs.py", "daily"],
+                    capture_output=True,
+                    text=True,
+                    timeout=1800,
+                )
+                output = ((result.stdout or "") + (result.stderr or "")).strip()
+                if result.returncode == 0:
+                    logger.info("Automatic backup completed: %s", output[-1000:])
+                else:
+                    logger.error("Automatic backup failed (exit %s): %s", result.returncode, output[-2000:])
+        except Exception:
+            logger.exception("Automatic backup scheduler failed")
         time.sleep(60)
 
 
@@ -166,6 +228,7 @@ def startup():
     finally:
         db.close()
     threading.Thread(target=dsgvo_scheduler_loop, daemon=True).start()
+    threading.Thread(target=backup_scheduler_loop, daemon=True).start()
     threading.Thread(target=caldav_scheduler_loop, daemon=True).start()
     threading.Thread(target=monthly_reporting_scheduler_loop, daemon=True).start()
     threading.Thread(target=plausibility_scheduler_loop, daemon=True).start()
