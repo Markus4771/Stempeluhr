@@ -38,14 +38,14 @@ class PluginDefinition:
 
 PLUGIN_DEFINITIONS = (
     PluginDefinition("rfid", "app.auth_plugins.rfid", True),
+    PluginDefinition("mobile_app", "app.auth_plugins.mobile_app", True),
+    PluginDefinition("smartwatch", "app.auth_plugins.smartwatch", True),
 )
 
 PLANNED_PLUGINS = (
     {"key": "qr", "name": "QR-Code", "description": "Dynamische und statische QR-Anmeldung.", "required_capabilities": ["camera"]},
     {"key": "pin", "name": "PIN", "description": "Anmeldung über Terminal-Tastatur oder Touchdisplay.", "required_capabilities": ["pin"]},
     {"key": "fingerprint", "name": "Fingerabdruck", "description": "Biometrische Anmeldung über Fingerprint-Sensor.", "required_capabilities": ["fingerprint"]},
-    {"key": "mobile_app", "name": "Handy-App", "description": "Sichere Geräteanmeldung über App und Zertifikat.", "required_capabilities": ["bluetooth"]},
-    {"key": "smartwatch", "name": "Smartwatch", "description": "Wearable-Anmeldung über App oder Bluetooth.", "required_capabilities": ["bluetooth"]},
     {"key": "fido2", "name": "FIDO2 / Passkey", "description": "Anmeldung mit Sicherheitsschlüssel oder Passkey.", "required_capabilities": []},
 )
 
