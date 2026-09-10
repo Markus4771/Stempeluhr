@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 
 from app.database import Base, get_db
 from app.models import Department, Employee, Setting, VacationRequest
+from app.services.rfid_media import resolve_employee_by_rfid
 from .common import *
 from .common import _save_pending_rfid_from_terminal
 from .vacation import _check_absence_calendar_access, absence_reason_for_request, absence_type_label_map
@@ -178,13 +179,14 @@ def stamp_reason_save(reason_id: int, request: Request, name: str = Form(...), e
 
 @router.post("/raspberry/reason-scan", response_class=HTMLResponse)
 def raspberry_reason_scan(request: Request, rfid_code: str = Form(""), reason_id: int = Form(0), db: Session = Depends(get_db)):
-    rfid_code = (rfid_code or "").strip().replace("\r", "").replace("\n", "")
+    rfid_code = (rfid_code or "").strip().replace("\\r", "").replace("\\n", "")
     if not rfid_code:
         return templates.TemplateResponse("message.html", {"request": request, "title": "Fehler", "message": "Kein RFID-Code erkannt.", "return_to": "/raspberry"})
     learn_response = _save_pending_rfid_from_terminal(request, db, rfid_code)
     if learn_response:
         return learn_response
-    employee = db.query(Employee).filter(Employee.rfid_code == rfid_code, Employee.active == True).first()
+
+    employee, rfid_medium = resolve_employee_by_rfid(db, rfid_code)
     if not employee or is_fixed_admin_employee(employee):
         return templates.TemplateResponse("rfid_unknown.html", {"request": request, "rfid_code": rfid_code, "message": "RFID unbekannt! Bitte Administrator informieren.", "return_to": "/raspberry"})
 
@@ -210,6 +212,8 @@ def raspberry_reason_scan(request: Request, rfid_code: str = Form(""), reason_id
     entry_type = reason.entry_type if reason else determine_auto_entry_type(db, employee.id)
     note = f"Stempelgrund: {reason.name} ({reason.code})" if reason else "Automatische Kommen-/Gehen-Buchung ohne ausgewählten Stempelgrund"
     method = "rfid_reason" if reason else "rfid_auto"
+    if rfid_medium:
+        note += f" | Medium: {rfid_medium.name}"
     entry, duplicate_last = create_time_entry(db, employee, entry_type, method, "raspberry", note, duplicate_seconds=8)
     if duplicate_last:
         return templates.TemplateResponse("duplicate_booking.html", {"request": request, "employee": employee, "last": duplicate_last, "seconds": 8, "return_to": "/raspberry"})
