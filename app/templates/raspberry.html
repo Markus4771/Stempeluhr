@@ -58,6 +58,7 @@ const autoReasonId = document.getElementById("autoReasonId");
 const autoInfo = document.getElementById("autoInfo");
 const reasonArea = document.getElementById("reasonArea");
 const reasonSelect = document.getElementById("reasonSelect");
+const terminalCode = new URLSearchParams(window.location.search).get("terminal_code") || "";
 
 let autoTimer = null;
 let countdownTimer = null;
@@ -66,6 +67,7 @@ let remaining = AUTO_DELAY_SECONDS;
 let learnActive = {{ 'true' if pending_rfid_employee else 'false' }};
 let learnEmployeeName = "{% if pending_rfid_employee %}{{ pending_rfid_employee.first_name }} {{ pending_rfid_employee.last_name }}{% endif %}";
 let manualSubmit = false;
+let enrollmentRedirecting = false;
 
 function clearAutoTimers() {
     if (autoTimer) clearTimeout(autoTimer);
@@ -82,6 +84,29 @@ function setLearnStatus(active, name) {
     } else if (!input.value.trim()) {
         autoInfo.textContent = "RFID scannen. Danach " + AUTO_DELAY_SECONDS + " Sekunden Zeit für Auswahl.";
     }
+}
+
+async function pollPluginEnrollment() {
+    if (enrollmentRedirecting || document.hidden) return;
+    try {
+        const q = new URLSearchParams();
+        if (terminalCode) q.set("terminal_code", terminalCode);
+        const res = await fetch("/terminal/enrollment-state?" + q.toString(), {cache: "no-store"});
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data.status !== "active" || !data.plugin || !data.employee_id || !data.token) return;
+        enrollmentRedirecting = true;
+        clearAutoTimers();
+        const p = new URLSearchParams({
+            token: String(data.token),
+            terminal_code: String(data.terminal_code || terminalCode || ""),
+            seconds: String(data.seconds || 35)
+        });
+        window.location.replace(
+            "/terminal/auth-enrollment/" + encodeURIComponent(data.plugin) + "/" +
+            encodeURIComponent(data.employee_id) + "?" + p.toString()
+        );
+    } catch (e) {}
 }
 
 async function pollLearnStatus() {
@@ -169,7 +194,9 @@ manualForm.addEventListener('submit', function() {
 
 loadReasons();
 pollLearnStatus();
-let learnPollTimer = setInterval(() => { if (!document.hidden) pollLearnStatus(); }, 5000);
+pollPluginEnrollment();
+setInterval(() => { if (!document.hidden) pollLearnStatus(); }, 5000);
+setInterval(pollPluginEnrollment, 750);
 window.addEventListener("load", () => input.focus());
 document.addEventListener("click", () => input.focus());
 </script>
