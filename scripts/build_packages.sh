@@ -49,7 +49,7 @@ Description: Stempeluhr Professional Server
 EOF
 
 # ---------------- Terminal ----------------
-mkdir -p "$TERMINAL_ROOT/opt/stempeluhr-terminal" "$TERMINAL_ROOT/etc/systemd/system" "$TERMINAL_ROOT/etc/stempeluhr" "$TERMINAL_ROOT/var/log/stempeluhr"
+mkdir -p "$TERMINAL_ROOT/opt/stempeluhr-terminal" "$TERMINAL_ROOT/etc/systemd/system" "$TERMINAL_ROOT/etc/stempeluhr" "$TERMINAL_ROOT/var/log/stempeluhr" "$TERMINAL_ROOT/var/lib/stempeluhr"
 install -m 0755 scripts/raspberry_rfid_agent.py "$TERMINAL_ROOT/opt/stempeluhr-terminal/terminal_agent.py"
 install -m 0755 scripts/install_rfid_agent.sh "$TERMINAL_ROOT/opt/stempeluhr-terminal/configure-terminal.sh"
 sed 's#/opt/stempeluhr/scripts/raspberry_rfid_agent.py#/opt/stempeluhr-terminal/terminal_agent.py#' stempeluhr-rfid-agent.service \
@@ -73,7 +73,7 @@ EOF
 cat > "$TERMINAL_ROOT/DEBIAN/postinst" <<'EOF'
 #!/usr/bin/env bash
 set -Eeuo pipefail
-install -d -m 0750 /etc/stempeluhr /var/log/stempeluhr
+install -d -m 0750 /etc/stempeluhr /var/log/stempeluhr /var/lib/stempeluhr
 if [[ ! -f /etc/stempeluhr/terminal.env ]]; then
   DEVICE="$(find /dev/input/by-id /dev/input -maxdepth 1 \( -type l -o -name 'event*' \) 2>/dev/null | head -n1 || true)"
   cat > /etc/stempeluhr/terminal.env <<ENV
