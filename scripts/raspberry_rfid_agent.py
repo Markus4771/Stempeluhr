@@ -18,7 +18,7 @@ SERVER = os.getenv("STEMPELUHR_SERVER", "http://127.0.0.1:8000").rstrip("/")
 HOSTNAME = os.getenv("TERMINAL_CODE", os.getenv("RASPBERRY_HOSTNAME", socket.gethostname())).strip()
 TERMINAL_NAME = os.getenv("TERMINAL_NAME", HOSTNAME).strip()
 DEVICE = os.getenv("RFID_INPUT_DEVICE", "").strip()
-AGENT_VERSION = "2.0.0"
+AGENT_VERSION = "2.0.1"
 PROTOCOL_VERSION = "1.0"
 HEARTBEAT_SECONDS = int(os.getenv("HEARTBEAT_SECONDS", "5"))
 SCAN_TIMEOUT = int(os.getenv("RFID_SCAN_TIMEOUT", "35"))
@@ -28,7 +28,8 @@ DISPLAY = os.getenv("RFID_DISPLAY", ":0").strip() or ":0"
 WAYLAND_DISPLAY = os.getenv("RFID_WAYLAND_DISPLAY", "wayland-0").strip()
 XDG_RUNTIME_DIR = os.getenv("RFID_XDG_RUNTIME_DIR", "").strip()
 SUCCESS_SECONDS = int(os.getenv("RFID_SUCCESS_SECONDS", "3"))
-STATE_FILE = Path(os.getenv("TERMINAL_STATE_FILE", "/etc/stempeluhr/terminal-state.json"))
+STATE_FILE = Path(os.getenv("TERMINAL_STATE_FILE", "/var/lib/stempeluhr/terminal-state.json"))
+LEGACY_STATE_FILE = Path("/etc/stempeluhr/terminal-state.json")
 
 KEYS = {
     "KEY_0": "0", "KEY_1": "1", "KEY_2": "2", "KEY_3": "3", "KEY_4": "4",
@@ -74,19 +75,21 @@ def detect_capabilities() -> list[dict]:
 
 
 def load_state() -> dict:
-    try:
-        return json.loads(STATE_FILE.read_text(encoding="utf-8"))
-    except Exception:
-        return {}
+    for path in (STATE_FILE, LEGACY_STATE_FILE):
+        try:
+            if path.exists():
+                return json.loads(path.read_text(encoding="utf-8"))
+        except Exception:
+            continue
+    return {}
 
 
 def save_state(state: dict) -> None:
-    try:
-        STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
-        STATE_FILE.write_text(json.dumps(state, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-        os.chmod(STATE_FILE, 0o600)
-    except Exception as exc:
-        print(f"Terminalstatus konnte nicht gespeichert werden: {exc}", file=sys.stderr)
+    STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
+    tmp = STATE_FILE.with_suffix(".tmp")
+    tmp.write_text(json.dumps(state, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    os.chmod(tmp, 0o600)
+    tmp.replace(STATE_FILE)
 
 
 def register_v2() -> dict:
@@ -114,7 +117,7 @@ def register_v2() -> dict:
     return state
 
 
-def heartbeat_v2(state: dict) -> None:
+def heartbeat_v2(state: dict) -> dict:
     payload = {
         "protocol_version": PROTOCOL_VERSION,
         "terminal_code": HOSTNAME,
@@ -123,10 +126,11 @@ def heartbeat_v2(state: dict) -> None:
         "agent_version": AGENT_VERSION,
     }
     response = requests.post(f"{SERVER}/api/v2/terminals/heartbeat", json=payload, timeout=10)
-    if response.status_code == 409:
-        register_v2()
-        return
+    if response.status_code in (403, 409):
+        print(f"Terminal-Schlüssel ungültig oder Registrierung erforderlich (HTTP {response.status_code}); registriere neu.")
+        return register_v2()
     response.raise_for_status()
+    return state
 
 
 def heartbeat_legacy() -> str | None:
@@ -254,20 +258,23 @@ def handle(command: str) -> None:
         time.sleep(max(1, SUCCESS_SECONDS))
         close_display(success_display)
     except Exception as exc:
-        send_result(command, {"status": "error", "token": token, "message": str(exc)})
+        try:
+            send_result(command, {"status": "error", "token": token, "message": str(exc)})
+        except Exception as result_exc:
+            print(f"Fehler konnte nicht an Server gemeldet werden: {result_exc}", file=sys.stderr)
         close_display(waiting_display)
         print(f"Anlernen beendet: {exc}", file=sys.stderr)
 
 
 def main() -> int:
-    print(f"Stempeluhr Terminal Agent {AGENT_VERSION}: Server={SERVER}, Terminal={HOSTNAME}")
-    state: dict = {}
+    print(f"Stempeluhr Terminal Agent {AGENT_VERSION}: Server={SERVER}, Terminal={HOSTNAME}, State={STATE_FILE}")
+    state: dict = load_state()
     while True:
         try:
-            if not state:
+            if not state or not state.get("api_key"):
                 state = register_v2()
                 print(f"Terminal registriert: ID={state.get('terminal_id')}, Protokoll={state.get('protocol_version')}")
-            heartbeat_v2(state)
+            state = heartbeat_v2(state)
             command = heartbeat_legacy()
             if command:
                 handle(str(command))
