@@ -77,15 +77,11 @@ def dsgvo_scheduler_loop():
 def backup_scheduler_loop():
     """Führt das konfigurierte tägliche Backup zuverlässig aus.
 
-    Die alte Backup-Seite versuchte einen systemd-Timer direkt aus dem
-    unprivilegierten Webdienst heraus umzuschreiben. Das schlägt auf einer
-    gehärteten Installation fehl. Der Scheduler liest deshalb die vorhandenen
-    Einstellungen direkt aus der Datenbank und startet backup_gfs.py als
-    Stempeluhr-Dienstbenutzer.
-
-    Durch den Vergleich mit backup_last_time wird ein verpasstes Zeitfenster
-    (z. B. Neustart exakt um 02:00 Uhr) noch am selben Tag nachgeholt und ein
-    doppeltes Tagesbackup verhindert.
+    Alle 15 Minuten wird geprüft, ob das für heute vorgesehene Backup bereits
+    erfolgreich gelaufen ist. Ist die konfigurierte Backup-Uhrzeit erreicht
+    oder überschritten und fehlt das Tagesbackup, wird es einmal nachgeholt.
+    Dadurch werden auch ausgeschaltete oder neu gestartete Systeme abgedeckt,
+    ohne unnötige minütliche Prüfungen oder Doppelbackups zu erzeugen.
     """
     while True:
         try:
@@ -132,7 +128,7 @@ def backup_scheduler_loop():
                     logger.error("Automatic backup failed (exit %s): %s", result.returncode, output[-2000:])
         except Exception:
             logger.exception("Automatic backup scheduler failed")
-        time.sleep(60)
+        time.sleep(15 * 60)
 
 
 def caldav_scheduler_loop():
