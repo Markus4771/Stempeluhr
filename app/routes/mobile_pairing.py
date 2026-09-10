@@ -1,12 +1,15 @@
 from __future__ import annotations
 
+import base64
 import hashlib
+import io
 import secrets
 from datetime import datetime, timedelta
 from html import escape
 
+import qrcode
 from fastapi import APIRouter, Depends, Form, Request
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String
 from sqlalchemy.orm import Session
 
@@ -58,17 +61,41 @@ def create_pairing_session(db: Session, employee_id: int, provider: str = "mobil
     return row, raw
 
 
+def pairing_url(request: Request, token: str) -> str:
+    return str(request.url_for("pairing_form", token=token))
+
+
+def pairing_qr_data_uri(url: str) -> str:
+    image = qrcode.make(url)
+    output = io.BytesIO()
+    image.save(output, format="PNG")
+    return "data:image/png;base64," + base64.b64encode(output.getvalue()).decode("ascii")
+
+
+def pairing_details(request: Request, db: Session, employee_id: int, provider: str = "mobile_app") -> dict:
+    row, token = create_pairing_session(db, employee_id, provider)
+    url = pairing_url(request, token)
+    return {
+        "session_id": row.id,
+        "token": token,
+        "pairing_code": row.pairing_hint,
+        "pairing_url": url,
+        "qr_data_uri": pairing_qr_data_uri(url),
+        "expires_at": row.expires_at.isoformat(timespec="seconds"),
+    }
+
+
 def _pairing_page(token: str, message: str = "", error: str = "") -> str:
-    notice = f"<p style='color:#167344'>{escape(message)}</p>" if message else ""
-    failure = f"<p style='color:#b42318'>{escape(error)}</p>" if error else ""
+    notice = f"<p class='ok'>{escape(message)}</p>" if message else ""
+    failure = f"<p class='error'>{escape(error)}</p>" if error else ""
     return f"""<!doctype html><html lang='de'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'>
-<title>Handy koppeln</title><style>body{{font-family:system-ui;margin:0;background:#f3f6fa;color:#172033}}main{{max-width:520px;margin:8vh auto;background:white;padding:28px;border-radius:16px}}input,button{{width:100%;padding:13px;margin-top:10px;font:inherit;box-sizing:border-box}}button{{background:#1769e0;color:white;border:0;border-radius:8px;font-weight:700}}</style></head><body><main>
-<h1>Handy mit Stempeluhr koppeln</h1><p>Gib diesem Gerät einen Namen. Danach wird auf diesem Handy ein stabiler, zufälliger Geräte-Token erzeugt und sicher im Browser gespeichert. Die wechselnde NFC-UID wird nicht verwendet.</p>{notice}{failure}
+<title>Handy koppeln</title><style>body{{font-family:system-ui;margin:0;background:#f3f6fa;color:#172033}}main{{max-width:520px;margin:8vh auto;background:white;padding:28px;border-radius:16px;box-shadow:0 8px 30px #0001}}input,button{{width:100%;padding:13px;margin-top:10px;font:inherit;box-sizing:border-box}}button{{background:#1769e0;color:white;border:0;border-radius:8px;font-weight:700}}.ok{{color:#167344}}.error{{color:#b42318}}</style></head><body><main>
+<h1>Handy mit Stempeluhr koppeln</h1><p>Gib diesem Gerät einen Namen. Danach wird ein stabiler, zufälliger Geräte-Token erzeugt und nur auf diesem Handy im Browser gespeichert. Die wechselnde NFC-UID wird nicht verwendet.</p>{notice}{failure}
 <form method='post' action='/mobile/pair/{escape(token)}'><label>Gerätename</label><input name='device_name' value='Mein Handy' maxlength='100' required><button type='submit'>Dieses Handy koppeln</button></form>
 </main></body></html>"""
 
 
-@router.get('/mobile/pair/{token}', response_class=HTMLResponse)
+@router.get('/mobile/pair/{token}', response_class=HTMLResponse, name="pairing_form")
 def pairing_form(token: str, db: Session = Depends(get_db)):
     row = db.query(MobilePairingSession).filter(MobilePairingSession.pairing_hash == _hash(token)).first()
     if not row or row.completed or row.expires_at < datetime.now():
@@ -98,8 +125,7 @@ def pairing_complete(token: str, device_name: str = Form('Mein Handy'), db: Sess
     row.completed_at = datetime.now()
     db.commit()
 
-    # Der Klartext-Token wird nur einmal an dieses Gerät ausgeliefert und bleibt nicht in der DB.
-    html = f"""<!doctype html><html lang='de'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>Handy gekoppelt</title></head><body><main style='font-family:system-ui;max-width:520px;margin:8vh auto'><h1>Handy gekoppelt</h1><p>Dieses Gerät ist jetzt mit der Stempeluhr verbunden.</p><script>localStorage.setItem('stempeluhr_mobile_token',{device_token!r});</script></main></body></html>"""
+    html = f"""<!doctype html><html lang='de'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>Handy gekoppelt</title><style>body{{font-family:system-ui;background:#f3f6fa;color:#172033}}main{{max-width:520px;margin:8vh auto;background:white;padding:28px;border-radius:16px}}</style></head><body><main><h1>Handy gekoppelt</h1><p>Dieses Gerät ist jetzt mit der Stempeluhr verbunden. Du kannst diese Seite schließen.</p><script>localStorage.setItem('stempeluhr_mobile_token',{device_token!r});localStorage.setItem('stempeluhr_mobile_credential_id',{str(credential.id)!r});</script></main></body></html>"""
     return HTMLResponse(html)
 
 
@@ -112,4 +138,4 @@ def pairing_status(session_id: int, db: Session = Depends(get_db)):
         return {'status': 'complete', 'credential_id': row.credential_id}
     if row.expires_at < datetime.now():
         return {'status': 'expired'}
-    return {'status': 'waiting', 'expires_at': row.expires_at.isoformat(timespec='seconds')}
+    return {'status': 'waiting', 'pairing_code': row.pairing_hint, 'expires_at': row.expires_at.isoformat(timespec='seconds')}
