@@ -21,6 +21,8 @@ PLUGIN_UI = {
     "smartwatch": {"title":"SMARTWATCH KOPPELN","instruction":"Smartwatch über das sichere Geräte-Pairing koppeln.","symbol":"WATCH","success":"Smartwatch gekoppelt","identifier_label":"Gerät"},
 }
 
+PAGE_CSS = """*{box-sizing:border-box}html,body{width:100%;height:100%;margin:0;overflow:hidden}body{font-family:system-ui;background:#06080d;color:white;display:flex;align-items:center;justify-content:center}.panel{width:100vw;height:100vh;padding:5vh 6vw;display:flex;flex-direction:column;background:radial-gradient(circle at 20% 20%,#17233b,#06080d 58%)}.top{display:flex;justify-content:space-between}.heading{font-size:4vw;font-weight:800}.clock{font-size:3vw}.main{flex:1;display:flex;align-items:center;justify-content:center;gap:5vw}h2{font-size:3.8vw}p{font-size:2.2vw;color:#d8e0ec}.name{font-weight:750}.waves{font-size:7vw;font-weight:900}.check{font-size:12vw}.pair{display:flex;align-items:center;gap:4vw}.qr{width:min(38vh,32vw);height:min(38vh,32vw);background:white;padding:12px;border-radius:12px}.small{font-size:1.2vw;max-width:45vw;word-break:break-all}.footer{padding:2vh 3vw;font-size:2.5vw;font-weight:750;border-radius:1vw;display:flex;justify-content:space-between}"""
+
 
 def _return_url(terminal_code: str) -> str:
     if terminal_code:
@@ -43,16 +45,25 @@ def _page(plugin_key: str, employee_name: str, seconds: int, identifier: str = "
     footer = "Anlernmodus beendet" if success else "Verbleibende Zeit: <span id='countdown'></span>"
     return_url = _return_url(terminal_code)
     if success:
-        state_script = f"<script>setTimeout(()=>location.replace({json.dumps(return_url)}),3000);</script>"
+        state_script = "<script>setTimeout(function(){location.replace(" + json.dumps(return_url) + ")},3000);</script>"
     else:
-        state_script = f"""<script>
-let remaining={seconds},finished=false;const countdown=document.getElementById('countdown');const statusMessage=document.getElementById('status-message');const terminalCode={json.dumps(terminal_code)};const enrollmentToken={json.dumps(token)};const returnUrl={json.dumps(return_url)};
-function tick(){{countdown.textContent=Math.floor(remaining/60)+':'+String(Math.max(0,remaining%60)).padStart(2,'0');remaining=Math.max(0,remaining-1)}}tick();setInterval(tick,1000);
-async function pollEnrollment(){{if(finished||!enrollmentToken)return;try{{const q=new URLSearchParams({{terminal_code:terminalCode,token:enrollmentToken}});const res=await fetch('/terminal/enrollment-state?'+q.toString(),{{cache:'no-store'}});if(!res.ok)return;const data=await res.json();if(data.status==='complete'){{finished=true;const p=new URLSearchParams(location.search);p.set('identifier',data.identifier||'Handy');location.replace(location.pathname+'?'+p.toString());return}}if(data.status==='error'||data.status==='timeout'||data.status==='expired'){{finished=true;if(statusMessage)statusMessage.textContent=data.message||'Anlernmodus beendet.';countdown.textContent='--:--';setTimeout(()=>location.replace(returnUrl),4000)}}}}catch(e){{}}}}
+        state_script = """<script>
+let remaining=SECONDS,finished=false;const countdown=document.getElementById('countdown');const statusMessage=document.getElementById('status-message');const terminalCode=TERMINAL_CODE;const enrollmentToken=TOKEN;const returnUrl=RETURN_URL;
+function tick(){countdown.textContent=Math.floor(remaining/60)+':'+String(Math.max(0,remaining%60)).padStart(2,'0');remaining=Math.max(0,remaining-1)}tick();setInterval(tick,1000);
+async function pollEnrollment(){if(finished||!enrollmentToken)return;try{const q=new URLSearchParams({terminal_code:terminalCode,token:enrollmentToken});const res=await fetch('/terminal/enrollment-state?'+q.toString(),{cache:'no-store'});if(!res.ok)return;const data=await res.json();if(data.status==='complete'){finished=true;const p=new URLSearchParams(location.search);p.set('identifier',data.identifier||'Handy');location.replace(location.pathname+'?'+p.toString());return}if(data.status==='error'||data.status==='timeout'||data.status==='expired'){finished=true;if(statusMessage)statusMessage.textContent=data.message||'Anlernmodus beendet.';countdown.textContent='--:--';setTimeout(function(){location.replace(returnUrl)},4000)}}catch(e){}}
 setInterval(pollEnrollment,750);pollEnrollment();</script>"""
+        state_script = state_script.replace("SECONDS", str(seconds), 1).replace("TERMINAL_CODE", json.dumps(terminal_code), 1).replace("TOKEN", json.dumps(token), 1).replace("RETURN_URL", json.dumps(return_url), 1)
     success_mark = "✓" if success else ""
     clock_script = "<script>function clock(){document.getElementById('clock').textContent=new Date().toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'})}clock();setInterval(clock,1000);</script>"
-    return f"""<!doctype html><html lang='de'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>{escape(config['title'])}</title><style>*{{box-sizing:border-box}}html,body{{width:100%;height:100%;margin:0;overflow:hidden}}body{{font-family:system-ui;background:#06080d;color:white;display:flex;align-items:center;justify-content:center}}.panel{{width:100vw;height:100vh;padding:5vh 6vw;display:flex;flex-direction:column;background:radial-gradient(circle at 20% 20%,#17233b,#06080d 58%)}}.top{{display:flex;justify-content:space-between}}.heading{{font-size:4vw;color:{accent};font-weight:800}}.clock{{font-size:3vw}}.main{{flex:1;display:flex;align-items:center;justify-content:center;gap:5vw}}h2{{font-size:3.8vw}}p{{font-size:2.2vw;color:#d8e0ec}}.name{{color:{accent};font-weight:750}}.waves{{font-size:7vw;color:{accent};font-weight:900}}.check{{font-size:12vw;color:{accent}}.pair{{display:flex;align-items:center;gap:4vw}}.qr{{width:min(38vh,32vw);height:min(38vh,32vw);background:white;padding:12px;border-radius:12px}}.small{{font-size:1.2vw;max-width:45vw;word-break:break-all}}.footer{{background:{accent};padding:2vh 3vw;font-size:2.5vw;font-weight:750;border-radius:1vw;display:flex;justify-content:space-between}}</style></head><body><main class='panel'><div class='top'><div class='heading'>{escape(heading)}</div><div class='clock' id='clock'></div></div><div class='main'><div>{body}</div><div><p>Mitarbeiter</p><h2 class='name'>{escape(employee_name)}</h2></div></div><div class='footer'><span>{footer}</span><span>{success_mark}</span></div></main>{clock_script}{state_script}</body></html>"""
+    dynamic_css = f".heading,.name,.waves,.check{{color:{accent}}}.footer{{background:{accent}}}"
+    return (
+        "<!doctype html><html lang='de'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'>"
+        f"<title>{escape(config['title'])}</title><style>{PAGE_CSS}{dynamic_css}</style></head><body>"
+        "<main class='panel'><div class='top'>"
+        f"<div class='heading'>{escape(heading)}</div><div class='clock' id='clock'></div></div>"
+        f"<div class='main'><div>{body}</div><div><p>Mitarbeiter</p><h2 class='name'>{escape(employee_name)}</h2></div></div>"
+        f"<div class='footer'><span>{footer}</span><span>{success_mark}</span></div></main>{clock_script}{state_script}</body></html>"
+    )
 
 
 def _employee_name(db: Session, employee_id: int) -> str:
