@@ -19,7 +19,7 @@ SERVER = os.getenv("STEMPELUHR_SERVER", "http://127.0.0.1:8000").rstrip("/")
 HOSTNAME = os.getenv("TERMINAL_CODE", os.getenv("RASPBERRY_HOSTNAME", socket.gethostname())).strip()
 TERMINAL_NAME = os.getenv("TERMINAL_NAME", HOSTNAME).strip()
 DEVICE = os.getenv("RFID_INPUT_DEVICE", "").strip()
-AGENT_VERSION = "2.2.0"
+AGENT_VERSION = "2.2.1"
 PROTOCOL_VERSION = "1.0"
 HEARTBEAT_SECONDS = int(os.getenv("HEARTBEAT_SECONDS", "5"))
 SCAN_TIMEOUT = int(os.getenv("RFID_SCAN_TIMEOUT", "35"))
@@ -202,30 +202,27 @@ def handle(command: str) -> None:
     parsed = _parse_enrollment_command(command)
     if not parsed: return
     plugin_key, employee_id, token = parsed
+    base_result = {"token": token, "provider": plugin_key, "employee_id": employee_id}
 
-    # Passive RFID and NFC media can currently use the same keyboard-wedge reader,
-    # but remain separate authentication providers in the server architecture.
     if plugin_key in {"rfid", "nfc"}:
         waiting_display = open_display(plugin_key, employee_id)
         try:
             uid = read_uid(SCAN_TIMEOUT)
-            send_result(command, {"status": "complete", "token": token, "provider": plugin_key, "uid": uid, "reader": DEVICE})
+            send_result(command, {**base_result, "status": "complete", "uid": uid, "reader": DEVICE})
             close_display(waiting_display)
             success_display = open_display(plugin_key, employee_id, uid)
-            print(f"{plugin_key.upper()}-Anlernen erfolgreich beendet: UID={uid}")
+            print(f"{plugin_key.upper()}-Anlernen erfolgreich beendet: Mitarbeiter={employee_id}, UID={uid}")
             time.sleep(max(1, SUCCESS_SECONDS)); close_display(success_display)
         except Exception as exc:
-            try: send_result(command, {"status": "error", "token": token, "provider": plugin_key, "message": str(exc)})
+            try: send_result(command, {**base_result, "status": "error", "message": str(exc)})
             except Exception as result_exc: print(f"Fehler konnte nicht an Server gemeldet werden: {result_exc}", file=sys.stderr)
             close_display(waiting_display); print(f"Anlernen beendet: {exc}", file=sys.stderr)
         return
 
-    # Mobile App and Smartwatch are device plugins. Their transport is handled
-    # by the plugin itself and must not be confused with a passive NFC UID.
     message = "Geräte-Plugin gestartet. Die Authentifizierung wird durch das ausgewählte Plugin durchgeführt."
     process = open_display(plugin_key, employee_id, message=message)
     try:
-        send_result(command, {"status": "pairing_required", "token": token, "provider": plugin_key, "message": message})
+        send_result(command, {**base_result, "status": "pairing_required", "message": message})
         time.sleep(max(1, min(SUCCESS_SECONDS + 2, 8)))
     finally: close_display(process)
 
