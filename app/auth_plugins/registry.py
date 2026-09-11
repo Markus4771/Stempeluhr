@@ -38,6 +38,7 @@ class PluginDefinition:
 
 PLUGIN_DEFINITIONS = (
     PluginDefinition("rfid", "app.auth_plugins.rfid", True),
+    PluginDefinition("nfc", "app.auth_plugins.nfc", True),
     PluginDefinition("mobile_app", "app.auth_plugins.mobile_app", True),
     PluginDefinition("smartwatch", "app.auth_plugins.smartwatch", True),
 )
