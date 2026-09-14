@@ -1,7 +1,7 @@
 from .common import *
 from app.models import PasswordResetToken
 from app.services.rfid_media import resolve_employee_by_rfid
-from .common import _dashboard_stats, _get_pending_rfid_employee, _get_pending_rfid_status, _save_pending_rfid_from_terminal
+from .common import _dashboard_stats
 
 router = APIRouter()
 
@@ -77,7 +77,9 @@ def password_reset_submit(request: Request, token: str, password: str = Form(...
     return templates.TemplateResponse("password_reset.html", {"request": request, "token": "", "error": None, "message": "Dein Passwort wurde geändert. Du kannst dich jetzt anmelden."})
 
 @router.get("/api/rfid-learn/status")
-def rfid_learn_status(db: Session = Depends(get_db)): return JSONResponse(_get_pending_rfid_status(db))
+def rfid_learn_status():
+    # Kompatibilität für ältere Raspberry-Agenten: der alte Lernmodus ist deaktiviert.
+    return JSONResponse({"active": False, "employee": None, "started_at": ""})
 
 def _rfid_employee(db, rfid_code):
     employee, medium = resolve_employee_by_rfid(db, rfid_code)
@@ -87,8 +89,6 @@ def _rfid_employee(db, rfid_code):
 def raspberry_rfid_scan(request: Request, rfid_code: str = Form(""), db: Session = Depends(get_db)):
     rfid_code = (rfid_code or "").strip().replace("\r", "").replace("\n", "")
     if not rfid_code: return templates.TemplateResponse("message.html", {"request": request, "title": "Fehler", "message": "Kein RFID-Code erkannt.", "return_to": "/raspberry"})
-    learn_response = _save_pending_rfid_from_terminal(request, db, rfid_code)
-    if learn_response: return learn_response
     employee = _rfid_employee(db, rfid_code)
     if not employee or is_fixed_admin_employee(employee): return templates.TemplateResponse("rfid_unknown.html", {"request": request, "rfid_code": rfid_code, "message": "RFID unbekannt! Bitte Administrator informieren.", "return_to": "/raspberry"})
     entry_type = determine_auto_entry_type(db, employee.id); entry, duplicate_last = create_time_entry(db, employee, entry_type, "rfid_auto", "raspberry", "Automatische Buchung über Raspberry-Scan", duplicate_seconds=8)
@@ -97,19 +97,16 @@ def raspberry_rfid_scan(request: Request, rfid_code: str = Form(""), db: Session
 
 @router.get("/raspberry", response_class=HTMLResponse)
 def raspberry(request: Request, db: Session = Depends(get_db)):
-    pending_rfid_employee = _get_pending_rfid_employee(db); settings = service_settings_dict(db)
+    settings = service_settings_dict(db)
     try: auto_delay_seconds = int(settings.get("booking_auto_delay_seconds", "3"))
     except Exception: auto_delay_seconds = 3
     auto_delay_seconds = max(1, min(auto_delay_seconds, 30))
-    return templates.TemplateResponse("raspberry.html", {"request": request, "pending_rfid_employee": pending_rfid_employee, "auto_delay_seconds": auto_delay_seconds})
+    return templates.TemplateResponse("raspberry.html", {"request": request, "pending_rfid_employee": None, "auto_delay_seconds": auto_delay_seconds})
 
 @router.post("/book_auto", response_class=HTMLResponse)
 def book_auto(request: Request, rfid_code: str = Form(""), return_to: str = Form("/raspberry"), db: Session = Depends(get_db)):
     return_to = "/raspberry" if return_to == "/raspberry" else "/"; rfid_code = (rfid_code or "").strip().replace("\r", "").replace("\n", "")
     if not rfid_code: return templates.TemplateResponse("message.html", {"request": request, "title": "Fehler", "message": "Kein RFID-Code erkannt.", "return_to": return_to})
-    if return_to == "/raspberry":
-        learn_response = _save_pending_rfid_from_terminal(request, db, rfid_code)
-        if learn_response: return learn_response
     employee = _rfid_employee(db, rfid_code)
     if not employee or is_fixed_admin_employee(employee): return templates.TemplateResponse("rfid_unknown.html", {"request": request, "rfid_code": rfid_code, "message": "RFID unbekannt! Bitte Administrator informieren.", "return_to": return_to})
     entry_type = determine_auto_entry_type(db, employee.id); terminal_name = "raspberry" if return_to == "/raspberry" else "dashboard"; entry, duplicate_last = create_time_entry(db, employee, entry_type, "rfid_auto", terminal_name, "Automatische Buchung nach 3 Sekunden ohne Auswahl", duplicate_seconds=8)
@@ -129,9 +126,6 @@ def book_auto_password(request: Request, employee_number: str = Form(""), passwo
 @router.post("/book", response_class=HTMLResponse)
 def book(request: Request, entry_type: str = Form(...), rfid_code: str = Form(""), employee_number: str = Form(""), password: str = Form(""), return_to: str = Form("/"), manual_booking: str = Form("0"), db: Session = Depends(get_db)):
     rfid_code = (rfid_code or "").strip().replace("\r", "").replace("\n", ""); employee_number = normalize_employee_number(employee_number, get_employee_number_length(db)) if employee_number else ""; return_to = return_to if return_to in ["/raspberry", "/dashboard", "/"] else "/"
-    if return_to == "/raspberry" and rfid_code:
-        learn_response = _save_pending_rfid_from_terminal(request, db, rfid_code)
-        if learn_response: return learn_response
     if entry_type not in VALID_ENTRY_TYPES: return templates.TemplateResponse("message.html", {"request": request, "title": "Fehler", "message": "Ungültiger Buchungstyp", "return_to": return_to})
     employee = None; method = "web"
     if rfid_code: employee = _rfid_employee(db, rfid_code); method = "rfid"
