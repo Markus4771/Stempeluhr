@@ -6,7 +6,7 @@ import json
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint, inspect, text
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Session
 
 from app.database import Base, engine
@@ -59,38 +59,16 @@ def credential_identifier_hint(provider: str, identifier: str) -> str:
 
 
 def ensure_auth_credential_schema() -> None:
+    """Legt nur die generische Credential-Tabelle an.
+
+    RFID-/NFC-UIDs werden ab Stempeluhr 6.0 ausschließlich über
+    ``employee_rfid_media`` verwaltet. Frühere Versionen spiegelten diese
+    Datensätze zusätzlich als provider='rfid' nach
+    ``employee_auth_credentials``. Diese Spiegelung war redundant und konnte
+    nach Änderungen oder Neu-Zuordnungen zu widersprüchlichen Besitzern führen.
+    Bestehende Alt-Datensätze werden hier bewusst nicht neu erzeugt.
+    """
     Base.metadata.create_all(bind=engine, tables=[EmployeeAuthCredential.__table__])
-    with engine.begin() as conn:
-        if not inspect(conn).has_table("employee_rfid_media"):
-            return
-        rows = conn.execute(text(
-            "SELECT id, employee_id, uid, uid_raw, name, media_type, active, created_at, last_used_at "
-            "FROM employee_rfid_media"
-        )).fetchall()
-        for row in rows:
-            identifier_hash = credential_identifier_hash("rfid", row.uid)
-            exists = conn.execute(text(
-                "SELECT 1 FROM employee_auth_credentials WHERE provider='rfid' AND identifier_hash=:identifier_hash"
-            ), {"identifier_hash": identifier_hash}).first()
-            if exists:
-                continue
-            raw_hint = row.uid_raw or row.uid
-            conn.execute(text(
-                "INSERT INTO employee_auth_credentials "
-                "(employee_id, provider, credential_type, identifier_hash, identifier_hint, display_name, active, metadata_json, created_at, updated_at, last_used_at) "
-                "VALUES (:employee_id, 'rfid', :credential_type, :identifier_hash, :identifier_hint, :display_name, :active, :metadata_json, :created_at, :updated_at, :last_used_at)"
-            ), {
-                "employee_id": row.employee_id,
-                "credential_type": row.media_type or "rfid",
-                "identifier_hash": identifier_hash,
-                "identifier_hint": credential_identifier_hint("rfid", raw_hint),
-                "display_name": row.name or "RFID/NFC-Medium",
-                "active": bool(row.active),
-                "metadata_json": json.dumps({"legacy_rfid_media_id": row.id}, ensure_ascii=False),
-                "created_at": row.created_at or datetime.now(),
-                "updated_at": datetime.now(),
-                "last_used_at": row.last_used_at,
-            })
 
 
 def list_employee_credentials(db: Session, employee_id: int) -> list[EmployeeAuthCredential]:
