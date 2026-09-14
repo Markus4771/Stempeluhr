@@ -13,7 +13,6 @@ from sqlalchemy.orm import Session
 from app.auth_plugins.registry import installed_plugin
 from app.database import get_db
 from app.models import Employee, RaspberryClient
-from app.services.auth_credentials import EmployeeAuthCredential, add_auth_credential, credential_identifier_hash
 from app.services.rfid_media import EmployeeRfidMedia, add_rfid_medium
 from .common import require_admin_response, log_action
 
@@ -49,8 +48,9 @@ def create_medium(employee_id:int,request:Request,uid:str=Form(''),name:str=Form
     plugin_key=MEDIA_PLUGIN.get(media_type,'rfid')
     if plugin_key not in UID_PLUGINS:return RedirectResponse(f'/admin/employees/{employee_id}/rfid-media?message={quote("Handy und Smartwatch werden über ihr eigenes Geräte-Plugin gekoppelt.")}',status_code=303)
     try:
+        # RFID-/NFC-UIDs haben genau eine fachliche Quelle: employee_rfid_media.
+        # Keine zusätzliche generische Credential-Zeile erzeugen.
         medium=add_rfid_medium(db,employee_id,uid,name,media_type)
-        add_auth_credential(db,employee_id=employee_id,provider=plugin_key,credential_type=media_type,identifier=uid,display_name=name,metadata={'rfid_media_uid':medium.uid})
         db.commit();log_action(db,user.employee_number,f'{plugin_key}_medium_added','employees',str(employee_id),f'{medium.name}: {medium.uid}');message=f'{plugin_key.upper()}-Medium wurde gespeichert.'
     except ValueError as exc:db.rollback();message=str(exc)
     return RedirectResponse(f'/admin/employees/{employee_id}/rfid-media?message={quote(message)}',status_code=303)
@@ -107,8 +107,5 @@ def delete_medium(employee_id:int,medium_id:int,request:Request,db:Session=Depen
     medium=db.query(EmployeeRfidMedia).filter(EmployeeRfidMedia.id==medium_id,EmployeeRfidMedia.employee_id==employee_id).first()
     if medium:
         details=f'{medium.name}: {medium.uid}'
-        provider='nfc' if medium.media_type in {'nfc_tag','nfc_ring'} else 'rfid'
-        identifier_hash=credential_identifier_hash(provider,medium.uid_raw or medium.uid)
-        db.query(EmployeeAuthCredential).filter(EmployeeAuthCredential.employee_id==employee_id,EmployeeAuthCredential.provider==provider,EmployeeAuthCredential.identifier_hash==identifier_hash).delete(synchronize_session=False)
         db.delete(medium);db.commit();log_action(db,user.employee_number,'auth_medium_deleted','employees',str(employee_id),details)
     return RedirectResponse(f'/admin/employees/{employee_id}/rfid-media',status_code=303)
