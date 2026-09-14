@@ -1,5 +1,8 @@
 from fastapi import APIRouter
 
+# Muss vor den übrigen Web-Routen geladen werden: korrigiert den gemeinsamen
+# NULL-sicheren Ausschluss des festen Systemadmins.
+from . import fixed_admin_filter_fix
 from . import dashboard_privacy, dashboard, dashboard_metrics_corrected, dashboard_metrics, dashboard_self_booking_extended, dashboard_self_booking, employees, report_stamps, reports, corrections, corrections_restore, privacy_audit, backup, vacation, vacation_management, plausibility, plausibility_reset, plausibility_exceptions, overtime_adjustments, stamp_reasons, terminal_hardware
 from app.modules.developer import routes as developer
 from app.modules.updates import github_routes
