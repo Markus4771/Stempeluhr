@@ -10,7 +10,7 @@ import time
 from datetime import datetime, timedelta
 
 from app.init_db import init_db
-from app.routes import web, api, api_v1, api_v1_rfid_compat, rfid_legacy_cleanup, roles_rights, rfid_terminal_display, terminal_protocol, terminal_admin, auth_plugin_admin, auth_credentials_admin, dashboard_plausibility, plausibility_assistant, plausibility_auto_repair, employee_plausibility, plausibility_patterns, overtime_reset, plausibility_reconcile, mobile_pairing
+from app.routes import web, api, api_v1, api_v1_rfid_compat, roles_rights, rfid_terminal_display, terminal_protocol, terminal_admin, auth_plugin_admin, auth_credentials_admin, dashboard_plausibility, plausibility_assistant, plausibility_auto_repair, employee_plausibility, plausibility_patterns, overtime_reset, plausibility_reconcile, mobile_pairing
 from app.version import APP_NAME, APP_VERSION, get_app_version, get_version_info
 from app.core.config import SECRET_KEY, STATIC_DIR
 from app.database import SessionLocal
@@ -19,6 +19,7 @@ from app.services.settings_service import get_setting
 from app.services.startup_checks import run_startup_checks
 from app.services.rfid_media import ensure_rfid_media_schema
 from app.services.auth_credentials import ensure_auth_credential_schema
+from app.services.legacy_rfid_cleanup import disable_legacy_rfid_paths
 from app.services.terminal_protocol import ensure_terminal_protocol_schema
 from app.services.overtime_reset import ensure_overtime_reset_schema
 from app.auth_plugins.registry import ensure_auth_plugin_schema, initialize_auth_plugins
@@ -38,9 +39,6 @@ app.include_router(api.router)
 # die zentrale employee_rfid_media-Tabelle, bevor Legacy-Routen geprüft werden.
 app.include_router(api_v1_rfid_compat.router)
 app.include_router(api_v1.router)
-# Alte RFID-Lern-URLs werden vor den modularen Web-Routen abgefangen und
-# auf die zentrale Medienverwaltung umgeleitet bzw. deaktiviert.
-app.include_router(rfid_legacy_cleanup.router)
 app.include_router(roles_rights.router)
 app.include_router(rfid_terminal_display.router)
 app.include_router(terminal_protocol.router)
@@ -81,31 +79,20 @@ def dsgvo_scheduler_loop():
 
 
 def backup_scheduler_loop():
-    """Führt das konfigurierte tägliche Backup zuverlässig aus.
-
-    Alle 15 Minuten wird geprüft, ob das für heute vorgesehene Backup bereits
-    erfolgreich gelaufen ist. Ist die konfigurierte Backup-Uhrzeit erreicht
-    oder überschritten und fehlt das Tagesbackup, wird es einmal nachgeholt.
-    Dadurch werden auch ausgeschaltete oder neu gestartete Systeme abgedeckt,
-    ohne unnötige minütliche Prüfungen oder Doppelbackups zu erzeugen.
-    """
+    """Führt das konfigurierte tägliche Backup zuverlässig aus."""
     while True:
         try:
             db = SessionLocal()
             try:
-                enabled = str(get_setting(db, "backup_enabled", "true") or "true").lower() in {
-                    "true", "1", "on", "ja", "yes"
-                }
+                enabled = str(get_setting(db, "backup_enabled", "true") or "true").lower() in {"true", "1", "on", "ja", "yes"}
                 run_time = str(get_setting(db, "backup_time", "02:00") or "02:00")[:5]
                 now = datetime.now()
-
                 try:
                     hour, minute = [int(value) for value in run_time.split(":", 1)]
                     scheduled = now.replace(hour=hour, minute=minute, second=0, microsecond=0)
                 except Exception:
                     run_time = "02:00"
                     scheduled = now.replace(hour=2, minute=0, second=0, microsecond=0)
-
                 last_time_raw = str(get_setting(db, "backup_last_time", "") or "").strip()
                 last_date = None
                 for fmt in ("%d.%m.%Y %H:%M:%S", "%Y-%m-%d %H:%M:%S", "%Y-%m-%dT%H:%M:%S"):
@@ -114,19 +101,12 @@ def backup_scheduler_loop():
                         break
                     except (TypeError, ValueError):
                         continue
-
                 should_run = enabled and now >= scheduled and last_date != now.date()
             finally:
                 db.close()
-
             if should_run:
                 logger.info("Automatic backup starting (configured time %s)", run_time)
-                result = subprocess.run(
-                    ["/opt/stempeluhr/.venv/bin/python", "/opt/stempeluhr/scripts/backup_gfs.py", "daily"],
-                    capture_output=True,
-                    text=True,
-                    timeout=1800,
-                )
+                result = subprocess.run(["/opt/stempeluhr/.venv/bin/python", "/opt/stempeluhr/scripts/backup_gfs.py", "daily"], capture_output=True, text=True, timeout=1800)
                 output = ((result.stdout or "") + (result.stderr or "")).strip()
                 if result.returncode == 0:
                     logger.info("Automatic backup completed: %s", output[-1000:])
@@ -142,12 +122,9 @@ def caldav_scheduler_loop():
         try:
             from app.routes.caldav_accounts import sync_due_caldav_accounts
             db = SessionLocal()
-            try:
-                sync_due_caldav_accounts(db)
-            finally:
-                db.close()
-        except Exception:
-            logger.exception("CalDAV scheduler failed")
+            try: sync_due_caldav_accounts(db)
+            finally: db.close()
+        except Exception: logger.exception("CalDAV scheduler failed")
         time.sleep(900)
 
 
@@ -158,12 +135,9 @@ def plausibility_scheduler_loop():
             db = SessionLocal()
             try:
                 result = plausibility_scheduler_tick(db)
-                if result.get("status") not in {"waiting", "already_done"}:
-                    logger.info("Plausibility scheduler: %s", result)
-            finally:
-                db.close()
-        except Exception:
-            logger.exception("Plausibility scheduler failed")
+                if result.get("status") not in {"waiting", "already_done"}: logger.info("Plausibility scheduler: %s", result)
+            finally: db.close()
+        except Exception: logger.exception("Plausibility scheduler failed")
         time.sleep(60)
 
 
@@ -174,12 +148,9 @@ def plausibility_reconcile_loop():
             db = SessionLocal()
             try:
                 result = reconcile_open_plausibility_issues(db)
-                if result.get("resolved"):
-                    logger.info("Plausibility reconcile: %s", result)
-            finally:
-                db.close()
-        except Exception:
-            logger.exception("Plausibility reconcile failed")
+                if result.get("resolved"): logger.info("Plausibility reconcile: %s", result)
+            finally: db.close()
+        except Exception: logger.exception("Plausibility reconcile failed")
         time.sleep(300)
 
 
@@ -188,12 +159,9 @@ def monthly_reporting_scheduler_loop():
         try:
             from app.routes.reports import monthly_reporting_scheduler_tick
             db = SessionLocal()
-            try:
-                monthly_reporting_scheduler_tick(db)
-            finally:
-                db.close()
-        except Exception:
-            logger.exception("Monthly reporting scheduler failed")
+            try: monthly_reporting_scheduler_tick(db)
+            finally: db.close()
+        except Exception: logger.exception("Monthly reporting scheduler failed")
         time.sleep(60)
 
 
@@ -205,18 +173,15 @@ async def network_security_middleware(request: Request, call_next):
             https_url = request.url.replace(scheme="https")
             return RedirectResponse(str(https_url), status_code=307)
         allowed, reason = access_allowed(request, db)
-        if not allowed:
-            return PlainTextResponse(f"Zugriff nicht erlaubt: {reason}", status_code=403)
-    finally:
-        db.close()
+        if not allowed: return PlainTextResponse(f"Zugriff nicht erlaubt: {reason}", status_code=403)
+    finally: db.close()
     return await call_next(request)
 
 
 @app.on_event("startup")
 def startup():
     app.state.startup_checks = run_startup_checks()
-    if not app.state.startup_checks.get("ok"):
-        logger.warning("Startup checks reported warnings: %s", app.state.startup_checks)
+    if not app.state.startup_checks.get("ok"): logger.warning("Startup checks reported warnings: %s", app.state.startup_checks)
     init_db()
     ensure_rfid_media_schema()
     ensure_auth_credential_schema()
@@ -226,6 +191,7 @@ def startup():
     ensure_overtime_reset_schema()
     db = SessionLocal()
     try:
+        disable_legacy_rfid_paths(db)
         app.state.authentication_plugins = initialize_auth_plugins(db)
     finally:
         db.close()
@@ -239,8 +205,7 @@ def startup():
 
 @app.exception_handler(StarletteHTTPException)
 async def http_exception_handler(request: Request, exc: StarletteHTTPException):
-    if exc.status_code == 404:
-        return HTMLResponse("<h1>Seite nicht gefunden</h1><p><a href='/'>Zurück zum Dashboard</a></p>", status_code=404)
+    if exc.status_code == 404: return HTMLResponse("<h1>Seite nicht gefunden</h1><p><a href='/'>Zurück zum Dashboard</a></p>", status_code=404)
     return JSONResponse({"detail": exc.detail}, status_code=exc.status_code)
 
 
@@ -257,18 +222,15 @@ def health():
 
 
 @app.get("/version")
-def version():
-    return get_version_info()
+def version(): return get_version_info()
 
 
 try:
     from app.routes import updates
     app.include_router(updates.router)
-except Exception as exc:
-    print("Update-Router konnte nicht geladen werden:", exc)
+except Exception as exc: print("Update-Router konnte nicht geladen werden:", exc)
 
 try:
     from app.routes import caldav_accounts
     app.include_router(caldav_accounts.router)
-except Exception as exc:
-    print("CalDAV-Konten-Router konnte nicht geladen werden:", exc)
+except Exception as exc: print("CalDAV-Konten-Router konnte nicht geladen werden:", exc)
