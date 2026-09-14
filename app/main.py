@@ -10,7 +10,7 @@ import time
 from datetime import datetime, timedelta
 
 from app.init_db import init_db
-from app.routes import web, api, api_v1, api_v1_rfid_compat, roles_rights, rfid_terminal_display, terminal_protocol, terminal_admin, auth_plugin_admin, auth_credentials_admin, dashboard_plausibility, plausibility_assistant, plausibility_auto_repair, employee_plausibility, plausibility_patterns, overtime_reset, plausibility_reconcile, mobile_pairing
+from app.routes import web, api, api_v1, api_v1_rfid_compat, rfid_legacy_cleanup, roles_rights, rfid_terminal_display, terminal_protocol, terminal_admin, auth_plugin_admin, auth_credentials_admin, dashboard_plausibility, plausibility_assistant, plausibility_auto_repair, employee_plausibility, plausibility_patterns, overtime_reset, plausibility_reconcile, mobile_pairing
 from app.version import APP_NAME, APP_VERSION, get_app_version, get_version_info
 from app.core.config import SECRET_KEY, STATIC_DIR
 from app.database import SessionLocal
@@ -38,6 +38,9 @@ app.include_router(api.router)
 # die zentrale employee_rfid_media-Tabelle, bevor Legacy-Routen geprüft werden.
 app.include_router(api_v1_rfid_compat.router)
 app.include_router(api_v1.router)
+# Alte RFID-Lern-URLs werden vor den modularen Web-Routen abgefangen und
+# auf die zentrale Medienverwaltung umgeleitet bzw. deaktiviert.
+app.include_router(rfid_legacy_cleanup.router)
 app.include_router(roles_rights.router)
 app.include_router(rfid_terminal_display.router)
 app.include_router(terminal_protocol.router)
