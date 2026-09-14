@@ -37,7 +37,9 @@ async def register_terminal(request: Request, db: Session = Depends(get_db)):
 
     terminal = db.query(Terminal).filter(Terminal.terminal_code == code).first()
     created = terminal is None
+    supplied_key = str(data.get("api_key") or "").strip()
     generated_key = False
+
     if terminal is None:
         terminal = Terminal(
             name=str(data.get("name") or data.get("hostname") or code)[:100],
@@ -52,7 +54,15 @@ async def register_terminal(request: Request, db: Session = Depends(get_db)):
     elif not terminal.api_key:
         terminal.api_key = secrets.token_urlsafe(32)
         generated_key = True
+    elif not supplied_key or not secrets.compare_digest(terminal.api_key, supplied_key):
+        # Ein bereits bekanntes Terminal kann seinen lokalen State verlieren
+        # (Neuinstallation, defekte/gelöschte State-Datei). In diesem Fall
+        # wird bei der expliziten Neuregistrierung ein neuer Schlüssel erzeugt.
+        # Der alte Schlüssel wird damit sofort ungültig und nicht offengelegt.
+        terminal.api_key = secrets.token_urlsafe(32)
+        generated_key = True
 
+    terminal.active = True
     terminal.last_seen = datetime.now()
     terminal.last_ip = str(data.get("ip_address") or (request.client.host if request.client else ""))[:100]
     terminal.app_version = str(data.get("agent_version") or data.get("app_version") or "")[:50]
