@@ -10,7 +10,7 @@ import time
 from datetime import datetime, timedelta
 
 from app.init_db import init_db
-from app.routes import web, api, api_v1, api_v1_rfid_compat, roles_rights, rfid_terminal_display, terminal_protocol, terminal_admin, auth_plugin_admin, auth_credentials_admin, dashboard_plausibility, plausibility_assistant, plausibility_auto_repair, employee_plausibility, plausibility_patterns, overtime_reset, plausibility_reconcile, mobile_pairing
+from app.routes import web, api, api_v1, api_v1_rfid_compat, roles_rights, rfid_terminal_display, terminal_protocol, terminal_admin, auth_plugin_admin, auth_credentials_admin, dashboard_plausibility, plausibility_assistant, plausibility_auto_repair, employee_plausibility, plausibility_patterns, overtime_reset, plausibility_reconcile, mobile_pairing, mobile_device_admin
 from app.version import APP_NAME, APP_VERSION, get_app_version, get_version_info
 from app.core.config import SECRET_KEY, STATIC_DIR
 from app.database import SessionLocal
@@ -46,6 +46,7 @@ app.include_router(terminal_admin.router)
 app.include_router(auth_plugin_admin.router)
 app.include_router(auth_credentials_admin.router)
 app.include_router(mobile_pairing.router)
+app.include_router(mobile_device_admin.router)
 app.include_router(dashboard_plausibility.router)
 app.include_router(plausibility_assistant.router)
 app.include_router(plausibility_auto_repair.router)
