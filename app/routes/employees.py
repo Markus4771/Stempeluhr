@@ -35,8 +35,7 @@ def admin(
             (Employee.employee_number.ilike(search)) |
             (Employee.first_name.ilike(search)) |
             (Employee.last_name.ilike(search)) |
-            (Employee.email.ilike(search)) |
-            (Employee.rfid_code.ilike(search))
+            (Employee.email.ilike(search))
         )
 
     if role_id:
@@ -170,7 +169,6 @@ def add_employee(
         phone=phone.strip() or None,
         birth_date=parse_optional_date(birth_date),
         entry_date=parse_optional_date(entry_date),
-        rfid_code=rfid_code.strip() or None,
         password_hash=hash_password(password) if password else None,
         role_id=role_id or None,
         department_id=department_id or None,
@@ -278,7 +276,6 @@ def edit_employee_save(
     e.phone = phone.strip() or None
     e.birth_date = parse_optional_date(birth_date)
     e.entry_date = parse_optional_date(entry_date)
-    e.rfid_code = rfid_code.strip() or None
 
     if password:
         e.password_hash = hash_password(password)
