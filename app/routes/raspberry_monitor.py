@@ -45,6 +45,26 @@ def _client_dict(c: RaspberryClient) -> dict:
     }
 
 
+def _parse_enrollment_command(command: str) -> tuple[str, int, str] | None:
+    if command.startswith('auth_enroll:'):
+        parts = command.split(':', 3)
+        if len(parts) != 4:
+            return None
+        try:
+            return parts[1], int(parts[2]), parts[3]
+        except ValueError:
+            return None
+    if command.startswith('rfid_scan:'):
+        parts = command.split(':', 2)
+        if len(parts) != 3:
+            return None
+        try:
+            return 'rfid', int(parts[1]), parts[2]
+        except ValueError:
+            return None
+    return None
+
+
 @router.get('/system/raspberry-monitor', response_class=HTMLResponse)
 def raspberry_monitor_page(request: Request, db: Session = Depends(get_db)):
     user, redirect = require_system_admin_response(request, db)
@@ -108,13 +128,40 @@ async def raspberry_command_result(request: Request, db: Session = Depends(get_d
     command = str(data.get('command') or '').strip()[:100]
     result = str(data.get('result') or '').strip()[:1000]
     client = db.query(RaspberryClient).filter(RaspberryClient.hostname == hostname).first()
-    if client:
-        if not command or client.pending_command == command:
-            client.pending_command = None
-        client.command_result = result or 'Befehl abgeschlossen'
-        client.command_finished_at = datetime.now()
-        client.updated_at = datetime.now()
-        db.commit()
+    if client is None:
+        return JSONResponse({'status': 'error', 'message': 'Terminal nicht registriert'}, status_code=404)
+
+    # Ergebnisse werden nur für genau den Befehl akzeptiert, der diesem
+    # Terminal aktuell zugewiesen ist. Dadurch können verspätete oder fremde
+    # Antworten keinen neueren Auftrag abschließen oder überschreiben.
+    if not command or not client.pending_command or client.pending_command != command:
+        return JSONResponse({'status': 'error', 'message': 'Kein passender ausstehender Befehl'}, status_code=409)
+
+    enrollment = _parse_enrollment_command(command)
+    if enrollment is not None:
+        expected_provider, expected_employee_id, expected_token = enrollment
+        try:
+            result_data = json.loads(result) if result else {}
+        except Exception:
+            return JSONResponse({'status': 'error', 'message': 'Ungültiges Ergebnisformat'}, status_code=400)
+        if not isinstance(result_data, dict):
+            return JSONResponse({'status': 'error', 'message': 'Ungültiges Ergebnisformat'}, status_code=400)
+        try:
+            result_employee_id = int(result_data.get('employee_id'))
+        except (TypeError, ValueError):
+            result_employee_id = -1
+        if (
+            str(result_data.get('provider') or '') != expected_provider
+            or result_employee_id != expected_employee_id
+            or str(result_data.get('token') or '') != expected_token
+        ):
+            return JSONResponse({'status': 'error', 'message': 'Anlern-Ergebnis passt nicht zum Auftrag'}, status_code=409)
+
+    client.pending_command = None
+    client.command_result = result or 'Befehl abgeschlossen'
+    client.command_finished_at = datetime.now()
+    client.updated_at = datetime.now()
+    db.commit()
     return {'status': 'ok'}
 
 
