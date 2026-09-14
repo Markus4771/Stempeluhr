@@ -19,15 +19,13 @@ from . import api_v1
 router = APIRouter(prefix="/api/v1", tags=["API v1"])
 
 
-# Die bestehenden API-v1-Buchungsrouten rufen diese Funktion zur Laufzeit aus
-# dem api_v1-Modul auf. Durch den Austausch bleiben ihre Request-Modelle und
-# URLs kompatibel, während die alte employees.rfid_code-Abfrage verschwindet.
 def _resolve_employee_media_first(
     db: Session,
     employee_number: Optional[str],
     password: Optional[str],
     rfid_code: Optional[str],
 ) -> tuple[Employee, str]:
+    """Kompatibles rfid_code-Feld, aber Auflösung nur über Medienverwaltung."""
     if rfid_code:
         employee, _medium = resolve_employee_by_rfid(db, rfid_code)
         if employee:
@@ -50,60 +48,31 @@ def _resolve_employee_media_first(
     raise HTTPException(status_code=400, detail="employee_number oder rfid_code erforderlich")
 
 
-_original_set_user_fields = api_v1._set_user_fields
-
-
-def _set_user_fields_without_legacy_rfid(employee, data, db: Session, creating: bool = False):
-    """Behält rfid_code im API-Schema, schreibt aber nicht mehr ins Legacy-Feld.
-
-    Bei Create/Update wird ein mitgesendeter RFID-Code nach dem Flush durch die
-    jeweilige API-Route verarbeitet. Das direkte RFID-Endpoint unten ist der
-    bevorzugte Weg für neue Integrationen.
-    """
-    payload = data.model_dump(exclude_unset=not creating)
-    rfid_supplied = "rfid_code" in payload
-    rfid_value = payload.pop("rfid_code", None)
-
-    # Pydantic-Kopie ohne rfid_code erzeugen, damit die bestehende Feldlogik
-    # unverändert für alle Nicht-RFID-Felder weiterverwendet werden kann.
-    clean_data = data.model_copy(update={"rfid_code": None})
-    _original_set_user_fields(employee, clean_data, db, creating=creating)
-
-    # Die Originalfunktion würde bei vorhandenem Feld None ins Legacy-Feld
-    # schreiben. Das ist zulässig und verhindert neue Legacy-Zuordnungen.
-    if rfid_supplied:
-        employee.rfid_code = None
-        # UID erst nach vorhandenem employee.id anlegen. Create/Import führen
-        # unmittelbar danach flush aus; daher wird der Wert temporär am Objekt
-        # abgelegt und von den kompatiblen Create-Routen nicht benötigt. Für
-        # Updates empfehlen wir das dedizierte /users/{id}/rfid-Endpoint.
-        if rfid_value:
-            setattr(employee, "_pending_api_rfid", str(rfid_value).strip())
-
-
+# Bestehende Buchungs-, Terminal- und Offline-Sync-Routen greifen zur Laufzeit
+# auf api_v1._resolve_employee zu. Damit werden alle diese Wege zentralisiert,
+# ohne das öffentliche API-v1-Protokoll zu brechen.
 api_v1._resolve_employee = _resolve_employee_media_first
-api_v1._set_user_fields = _set_user_fields_without_legacy_rfid
 
 
-@router.post("/users/{user_id}/rfid")
-def api_set_user_rfid_media(
-    user_id: int,
-    data: api_v1.UserRfidRequest,
-    db: Session = Depends(get_db),
-    token: ApiToken = Depends(api_v1.require_api_token),
-):
-    """Kompatibles RFID-Endpoint mit zentralem Medienspeicher."""
-    api_v1.require_api_write(token)
-    employee = db.query(Employee).filter(Employee.id == user_id).first()
-    if not employee:
-        raise HTTPException(status_code=404, detail="Benutzer nicht gefunden")
+def _apply_non_rfid_user_fields(employee: Employee, data, db: Session, creating: bool) -> str | None:
+    """Wendet bestehende Benutzerlogik an und gibt optionalen RFID-Wert zurück."""
+    payload = data.model_dump(exclude_unset=not creating)
+    rfid_value = payload.pop("rfid_code", None) if "rfid_code" in payload else None
 
-    uid = (data.rfid_code or "").strip()
+    # Für die vorhandene Hilfsfunktion ein Modell erzeugen, bei dem rfid_code
+    # nicht als gesetzt gilt. So bleibt employees.rfid_code unangetastet.
+    model_type = type(data)
+    clean = model_type(**payload)
+    api_v1._set_user_fields(employee, clean, db, creating=creating)
+    employee.rfid_code = None
+    return str(rfid_value).strip() if rfid_value else None
+
+
+def _attach_rfid(db: Session, employee: Employee, uid: str | None):
     if not uid:
-        raise HTTPException(status_code=400, detail="rfid_code erforderlich")
-
+        return None
     try:
-        medium = add_rfid_medium(
+        return add_rfid_medium(
             db,
             employee.id,
             uid,
@@ -113,6 +82,60 @@ def api_set_user_rfid_media(
     except ValueError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
 
+
+@router.post("/users")
+def api_create_user_media(
+    data: api_v1.UserCreateRequest,
+    db: Session = Depends(get_db),
+    token: ApiToken = Depends(api_v1.require_api_token),
+):
+    api_v1.require_api_write(token)
+    employee = Employee()
+    uid = _apply_non_rfid_user_fields(employee, data, db, creating=True)
+    db.add(employee)
+    db.flush()
+    _attach_rfid(db, employee, uid)
+    db.add(AuditLog(actor=f"api:{token.name}", action="user_create", entity="employee", entity_id=str(employee.id), details=employee.employee_number))
+    db.commit()
+    db.refresh(employee)
+    return {"success": True, "user": api_v1._employee_dict(employee)}
+
+
+@router.put("/users/{user_id}")
+def api_update_user_media(
+    user_id: int,
+    data: api_v1.UserUpdateRequest,
+    db: Session = Depends(get_db),
+    token: ApiToken = Depends(api_v1.require_api_token),
+):
+    api_v1.require_api_write(token)
+    employee = db.query(Employee).filter(Employee.id == user_id).first()
+    if not employee:
+        raise HTTPException(status_code=404, detail="Benutzer nicht gefunden")
+    uid = _apply_non_rfid_user_fields(employee, data, db, creating=False)
+    _attach_rfid(db, employee, uid)
+    db.add(AuditLog(actor=f"api:{token.name}", action="user_update", entity="employee", entity_id=str(employee.id), details=employee.employee_number))
+    db.commit()
+    db.refresh(employee)
+    return {"success": True, "user": api_v1._employee_dict(employee)}
+
+
+@router.post("/users/{user_id}/rfid")
+def api_set_user_rfid_media(
+    user_id: int,
+    data: api_v1.UserRfidRequest,
+    db: Session = Depends(get_db),
+    token: ApiToken = Depends(api_v1.require_api_token),
+):
+    api_v1.require_api_write(token)
+    employee = db.query(Employee).filter(Employee.id == user_id).first()
+    if not employee:
+        raise HTTPException(status_code=404, detail="Benutzer nicht gefunden")
+
+    uid = (data.rfid_code or "").strip()
+    if not uid:
+        raise HTTPException(status_code=400, detail="rfid_code erforderlich")
+    medium = _attach_rfid(db, employee, uid)
     employee.rfid_code = None
     employee.updated_at = datetime.now()
     db.add(AuditLog(
