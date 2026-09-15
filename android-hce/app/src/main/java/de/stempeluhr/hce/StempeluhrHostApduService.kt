@@ -23,9 +23,9 @@ class StempeluhrHostApduService : HostApduService() {
         if(command.size>=5 && command[0]==0x80.toByte() && command[1]==0x10.toByte()){
             val length=command[4].toInt() and 255
             if(length!=32 || command.size<5+length)return notFound
-            val prefs=getSharedPreferences("stempeluhr_mobile",MODE_PRIVATE)
-            val token=prefs.getString("device_token","")?.trim().orEmpty()
-            val credentialId=prefs.getString("credential_id","")?.trim().orEmpty()
+            val store=SecurePairingStore(this)
+            val token=store.token()
+            val credentialId=store.credentialId()
             if(token.isEmpty()||credentialId.isEmpty())return notFound
             val challenge=command.copyOfRange(5,5+length)
             val proof=hmac(hceKey(token),challenge)
