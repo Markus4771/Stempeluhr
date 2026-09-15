@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">Stempeluhr NFC</string>
+    <string name="hce_service_description">Stempeluhr Smartphone-Anmeldung</string>
+</resources>
