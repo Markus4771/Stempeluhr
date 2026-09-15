@@ -1,84 +1,54 @@
 #!/usr/bin/env python3
-"""ISO-DEP/APDU Leser für Stempeluhr Android-HCE.
-
-Dieser Prozess ist bewusst vom bestehenden keyboard-wedge RFID-Agent getrennt.
-Er benötigt einen PC/SC-kompatiblen NFC-Leser und pyscard.
-"""
+"""ISO-DEP/APDU Agent für sichere Stempeluhr Android-HCE-Anmeldung."""
 from __future__ import annotations
-
-import os
-import time
+import os, secrets, time
 import requests
 
-SERVER = os.getenv("STEMPELUHR_SERVER", "http://127.0.0.1:8000").rstrip("/")
-AID = bytes.fromhex(os.getenv("STEMPELUHR_HCE_AID", "F05354454D50454C01"))
-POLL_SECONDS = float(os.getenv("HCE_POLL_SECONDS", "0.5"))
+SERVER=os.getenv("STEMPELUHR_SERVER","http://127.0.0.1:8000").rstrip("/")
+AID=bytes.fromhex(os.getenv("STEMPELUHR_HCE_AID","F05354454D50454C01"))
+POLL_SECONDS=float(os.getenv("HCE_POLL_SECONDS","0.5"))
 
 
-def select_apdu() -> list[int]:
-    return list(bytes([0x00, 0xA4, 0x04, 0x00, len(AID)]) + AID + bytes([0x00]))
+def select_apdu(): return list(bytes([0,0xA4,4,0,len(AID)])+AID+bytes([0]))
+def challenge_apdu(challenge:bytes): return list(bytes([0x80,0x10,0,0,len(challenge)])+challenge+bytes([0]))
 
+def transmit_ok(connection, apdu):
+    data,sw1,sw2=connection.transmit(apdu)
+    if (sw1,sw2)!=(0x90,0): raise RuntimeError(f"HCE APDU fehlgeschlagen: {sw1:02X}{sw2:02X}")
+    return bytes(data)
 
-def read_token(connection) -> str:
-    data, sw1, sw2 = connection.transmit(select_apdu())
-    if (sw1, sw2) != (0x90, 0x00):
-        raise RuntimeError(f"HCE-App nicht selektiert: {sw1:02X}{sw2:02X}")
-    raw = bytes(data)
-    if not raw.startswith(b"STEMPELUHR1:"):
-        raise RuntimeError("Ungültige HCE-Antwort")
-    token = raw[len(b"STEMPELUHR1:"):].decode("utf-8").strip()
-    if not token:
-        raise RuntimeError("Leerer Geräte-Token")
-    return token
+def read_proof(connection):
+    hello=transmit_ok(connection,select_apdu())
+    if hello!=b"STEMPELUHR2": raise RuntimeError("HCE v2 wird vom Smartphone nicht unterstützt")
+    challenge=secrets.token_bytes(32)
+    raw=transmit_ok(connection,challenge_apdu(challenge)).decode("ascii")
+    parts=raw.split(":",2)
+    if len(parts)!=3 or parts[0]!="PROOF": raise RuntimeError("Ungültiger HCE-Nachweis")
+    return int(parts[1]),challenge.hex(),parts[2]
 
+def stamp(credential_id:int,challenge:str,proof:str):
+    r=requests.post(f"{SERVER}/mobile/hce/verify",json={"credential_id":credential_id,"challenge":challenge,"proof":proof},timeout=10)
+    try: data=r.json()
+    except Exception: data={"message":r.text[:200]}
+    if not r.ok: raise RuntimeError(data.get("message") or f"HTTP {r.status_code}")
+    return data
 
-def stamp(token: str) -> dict:
-    response = requests.post(
-        f"{SERVER}/mobile/clock",
-        data={"device_token": token, "action": "auto"},
-        timeout=10,
-    )
-    try:
-        payload = response.json()
-    except Exception:
-        payload = {"message": response.text[:200]}
-    if not response.ok:
-        raise RuntimeError(payload.get("message") or f"HTTP {response.status_code}")
-    return payload
-
-
-def main() -> int:
-    try:
-        from smartcard.System import readers
-    except ImportError as exc:
-        raise SystemExit("pyscard fehlt. Debian: apt install python3-pyscard pcscd") from exc
-
-    last_token = ""
-    last_seen = 0.0
-    print(f"Stempeluhr HCE-Agent: Server={SERVER}, AID={AID.hex().upper()}")
+def main():
+    try: from smartcard.System import readers
+    except ImportError as exc: raise SystemExit("pyscard fehlt. Debian: apt install python3-pyscard pcscd") from exc
+    last_id=0; last_seen=0.0
+    print(f"Stempeluhr HCE-Agent v2: Server={SERVER}, AID={AID.hex().upper()}")
     while True:
         try:
-            available = readers()
-            if not available:
-                print("Kein PC/SC-NFC-Leser gefunden")
-                time.sleep(3)
-                continue
-            connection = available[0].createConnection()
-            connection.connect()
-            token = read_token(connection)
-            now = time.monotonic()
-            if token != last_token or now - last_seen > 8:
-                result = stamp(token)
-                print(result.get("message", "Buchung erfolgreich"))
-                last_token, last_seen = token, now
-        except KeyboardInterrupt:
-            return 0
+            available=readers()
+            if not available: time.sleep(3); continue
+            c=available[0].createConnection(); c.connect(); credential_id,challenge,proof=read_proof(c); now=time.monotonic()
+            if credential_id!=last_id or now-last_seen>8:
+                result=stamp(credential_id,challenge,proof); print(result.get("message","Buchung erfolgreich")); last_id,last_seen=credential_id,now
+        except KeyboardInterrupt: return 0
         except Exception as exc:
-            text = str(exc)
-            if "Card is not connected" not in text and "No card" not in text:
-                print(f"HCE: {text}")
+            text=str(exc)
+            if "Card is not connected" not in text and "No card" not in text: print(f"HCE: {text}")
         time.sleep(POLL_SECONDS)
 
-
-if __name__ == "__main__":
-    raise SystemExit(main())
+if __name__=="__main__": raise SystemExit(main())
