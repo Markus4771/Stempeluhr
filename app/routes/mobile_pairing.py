@@ -17,7 +17,7 @@ router=APIRouter()
 class MobilePairingSession(Base):
  __tablename__="mobile_pairing_sessions";id=Column(Integer,primary_key=True);employee_id=Column(Integer,ForeignKey("employees.id",ondelete="CASCADE"),nullable=False,index=True);provider=Column(String(50),nullable=False,default="mobile_app");pairing_hash=Column(String(64),nullable=False,unique=True,index=True);pairing_hint=Column(String(20),nullable=False);expires_at=Column(DateTime,nullable=False);completed=Column(Boolean,nullable=False,default=False);credential_id=Column(Integer,nullable=True);created_at=Column(DateTime,nullable=False,default=datetime.now);completed_at=Column(DateTime,nullable=True)
 class MobileHceChallenge(Base):
- __tablename__="mobile_hce_challenges";id=Column(String(64),primary_key=True);challenge_hash=Column(String(64),nullable=False,unique=True,index=True);terminal_id=Column(String(150),nullable=False);expires_at=Column(DateTime,nullable=False,index=True);used_at=Column(DateTime,nullable=True,index=True);created_at=Column(DateTime,nullable=False,default=datetime.now)
+ __tablename__="mobile_hce_challenges";id=Column(String(64),primary_key=True);challenge_hex=Column(String(64),nullable=False);terminal_id=Column(String(150),nullable=False);expires_at=Column(DateTime,nullable=False,index=True);used_at=Column(DateTime,nullable=True,index=True);created_at=Column(DateTime,nullable=False,default=datetime.now)
 class HceChallengeRequest(BaseModel):terminal_id:str
 class HceVerifyRequest(BaseModel):credential_id:int;challenge_id:str;proof:str;terminal_id:str
 
@@ -68,7 +68,7 @@ def _book(db,employee_id,action,source):
 def hce_challenge(data:HceChallengeRequest,db:Session=Depends(get_db)):
  terminal=data.terminal_id.strip()[:150]
  if not terminal:return JSONResponse({'status':'error','message':'Terminal-ID fehlt.'},status_code=400)
- raw=secrets.token_bytes(32);challenge_id=secrets.token_urlsafe(24);row=MobileHceChallenge(id=challenge_id,challenge_hash=hashlib.sha256(raw).hexdigest(),terminal_id=terminal,expires_at=datetime.now()+timedelta(seconds=20));db.add(row);db.commit();return {'status':'ok','challenge_id':challenge_id,'challenge':raw.hex(),'expires_in':20}
+ raw=secrets.token_bytes(32);challenge_id=secrets.token_urlsafe(24);db.add(MobileHceChallenge(id=challenge_id,challenge_hex=raw.hex(),terminal_id=terminal,expires_at=datetime.now()+timedelta(seconds=20)));db.commit();return {'status':'ok','challenge_id':challenge_id,'challenge':raw.hex(),'expires_in':20}
 @router.post('/mobile/hce/verify')
 def hce_verify(data:HceVerifyRequest,db:Session=Depends(get_db)):
  try:proof=bytes.fromhex(data.proof)
@@ -81,10 +81,10 @@ def hce_verify(data:HceVerifyRequest,db:Session=Depends(get_db)):
  if not hmac.compare_digest(challenge.terminal_id,data.terminal_id.strip()[:150]):return JSONResponse({'status':'error','message':'NFC-Challenge gehört zu einem anderen Terminal.'},status_code=409)
  row=db.query(EmployeeAuthCredential).filter(EmployeeAuthCredential.id==data.credential_id,EmployeeAuthCredential.provider=='mobile_app',EmployeeAuthCredential.active.is_(True)).first()
  if not row:return JSONResponse({'status':'error','message':'Smartphone ist nicht gekoppelt oder gesperrt.'},status_code=401)
- try:meta=json.loads(row.metadata_json or '{}');key=base64.b64decode(meta['hce_key'])
+ try:meta=json.loads(row.metadata_json or '{}');key=base64.b64decode(meta['hce_key']);raw=bytes.fromhex(challenge.challenge_hex);expected=hmac.new(key,raw,hashlib.sha256).digest()
  except Exception:return JSONResponse({'status':'error','message':'Smartphone muss für NFC v2 neu gekoppelt werden.'},status_code=409)
- # Challenge selbst wird nicht gespeichert. Der Server kann aus dem Hash keinen HMAC prüfen; daher wird die Challenge bis zur Verifikation benötigt.
- return JSONResponse({'status':'error','message':'Interner HCE-Challenge-Zustand unvollständig.'},status_code=500)
+ if not hmac.compare_digest(expected,proof):return JSONResponse({'status':'error','message':'NFC-Nachweis ungültig.'},status_code=401)
+ challenge.used_at=now;row.last_used_at=now;row.updated_at=now;db.flush();result=_book(db,row.employee_id,'auto','android_hce');return result
 @router.get('/mobile/pair/status/{session_id}')
 def pairing_status(session_id:int,db:Session=Depends(get_db)):
  row=db.query(MobilePairingSession).filter(MobilePairingSession.id==session_id).first()
