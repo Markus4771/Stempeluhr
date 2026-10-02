@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block content %}
+<style>
+.employee-plausibility-layout{display:grid;grid-template-columns:minmax(220px,.75fr) minmax(0,2fr);gap:1rem;align-items:start}
+.issue-list{display:grid;gap:.5rem}
+.issue-list a{display:block;padding:.7rem;border:1px solid #d8dee8;border-radius:.7rem;text-decoration:none;color:inherit;background:#fff}
+.issue-list a.active{border-color:#315d9b;box-shadow:0 0 0 2px rgba(49,93,155,.12)}
+.issue-meta{display:flex;justify-content:space-between;gap:.5rem;font-size:.8rem;color:#667085}
+.timeline{display:grid;gap:.5rem;margin:1rem 0}
+.timeline-entry{display:grid;grid-template-columns:6rem 1fr;gap:.8rem;padding:.65rem;border-left:4px solid #7c8da5;background:#f7f9fc;border-radius:.35rem}
+.response-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.6rem}
+.response-grid form{padding:.8rem;border:1px solid #d8dee8;border-radius:.7rem;background:#fff}
+.response-grid textarea{width:100%;min-height:6rem}
+@media(max-width:900px){.employee-plausibility-layout{grid-template-columns:1fr}.response-grid{grid-template-columns:1fr}}
+</style>
+
+<h1>Meine Plausibilitätsfälle</h1>
+<p class="help-text">Hier kannst du eigene Auffälligkeiten prüfen, bestätigen oder eine Korrektur anstoßen. Der endgültige Abschluss bleibt bei der Verwaltung.</p>
+{% if request.query_params.get('message') %}<div class="success-box">{{ request.query_params.get('message') }}</div>{% endif %}
+{% if request.query_params.get('error') %}<div class="error-box">{{ request.query_params.get('error') }}</div>{% endif %}
+
+{% if not issue %}
+<section class="card"><h2>Alles geprüft</h2><p>Für dich gibt es aktuell keine offenen Plausibilitätsfälle.</p><a class="button" href="/">Zum Dashboard</a></section>
+{% else %}
+<div class="employee-plausibility-layout">
+  <aside class="card">
+    <h2>Offene Fälle ({{ issues|length }})</h2>
+    <div class="issue-list">
+      {% for row in issues %}
+      <a href="/me/plausibility?issue_id={{ row.id }}" class="{% if row.id == issue.id %}active{% endif %}">
+        <strong>{{ row.issue_date.strftime('%d.%m.%Y') }}</strong>
+        <div>{{ row.check_type }}</div>
+        <div class="issue-meta"><span>{{ row.severity }}</span><span>{{ row.status }}</span></div>
+      </a>
+      {% endfor %}
+    </div>
+  </aside>
+
+  <main>
+    <section class="card">
+      <div class="issue-meta"><span>{{ issue.issue_date.strftime('%d.%m.%Y') }}</span><span>Schwere: {{ issue.severity }}</span></div>
+      <h2>{{ issue.check_type }}</h2>
+      <p>{{ issue.message }}</p>
+      {% if issue.comment %}<div class="warning-box"><strong>Bisheriger Hinweis:</strong><br>{{ issue.comment }}</div>{% endif %}
+
+      <h3>Buchungen dieses Tages</h3>
+      <div class="timeline">
+        {% for entry in entries %}
+        <div class="timeline-entry"><strong>{{ entry.timestamp.strftime('%H:%M:%S') }}</strong><span>{{ entry.entry_type }} · {{ entry.method }}{% if entry.terminal %} · {{ entry.terminal }}{% endif %}</span></div>
+        {% else %}
+        <div class="warning-box">Für diesen Tag wurden keine aktiven Buchungen gefunden.</div>
+        {% endfor %}
+      </div>
+    </section>
+
+    <div class="response-grid">
+      <form method="post" action="/me/plausibility/{{ issue.id }}/respond">
+        <h3>Als korrekt bestätigen</h3>
+        <p class="help-text">Nutze dies nur, wenn die angezeigten Buchungen sachlich stimmen.</p>
+        <textarea name="comment" placeholder="Optionaler Hinweis"></textarea>
+        <button class="button" name="action" value="confirm" type="submit">Buchungen bestätigen</button>
+      </form>
+      <form method="post" action="/me/plausibility/{{ issue.id }}/respond">
+        <h3>Hinweis geben</h3>
+        <p class="help-text">Erkläre der Verwaltung, was an diesem Tag passiert ist.</p>
+        <textarea name="comment" required placeholder="Zum Beispiel: Außendienst bis 18:00 Uhr"></textarea>
+        <button class="button secondary" name="action" value="comment" type="submit">Hinweis speichern</button>
+      </form>
+      <form method="post" action="/me/plausibility/{{ issue.id }}/respond">
+        <h3>Korrektur anstoßen</h3>
+        <p class="help-text">Beschreibe möglichst genau, welche Uhrzeit oder Buchung geändert werden soll.</p>
+        <textarea name="comment" required placeholder="Zum Beispiel: Gehen war um 16:35 Uhr"></textarea>
+        <button class="button warn" name="action" value="correction" type="submit">Zur Korrektur</button>
+      </form>
+    </div>
+  </main>
+</div>
+{% endif %}
+{% endblock %}

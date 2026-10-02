@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block content %}
+<div style="display:flex;justify-content:space-between;gap:1rem;align-items:center;flex-wrap:wrap;">
+  <div>
+    <h1>Automatische Plausibilitätsreparatur</h1>
+    <p class="help-text">Es werden nur vollständig identische Doppelbuchungen angeboten. Zeiten werden niemals geschätzt.</p>
+  </div>
+  <a class="button secondary" href="/plausibility">Zurück zur Übersicht</a>
+</div>
+{% if message %}<div class="success-box">{{ message }}</div>{% endif %}
+{% if error %}<div class="error-box">{{ error }}</div>{% endif %}
+
+<section class="card">
+  <h2>Sicherheitsprinzip</h2>
+  <p>Der älteste identische Datensatz bleibt erhalten. Weitere identische Einträge werden revisionssicher als gelöscht markiert und im Audit-Protokoll dokumentiert.</p>
+  <p><strong>Nicht automatisch geändert werden:</strong> fehlende Arbeitsbeginne, Arbeitsenden, Pausen oder nur ähnliche Buchungen.</p>
+</section>
+
+{% if proposals %}
+<form method="post" action="/plausibility/auto-repair/apply-selected" onsubmit="return confirm('Ausgewählte Reparaturen wirklich ausführen?');">
+<section class="card table-card">
+  <div style="display:flex;justify-content:space-between;gap:1rem;align-items:center;flex-wrap:wrap;">
+    <h2>{{ proposals|length }} sicher lösbare Fälle</h2>
+    <label><input type="checkbox" id="selectAll"> Alle auswählen</label>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Auswahl</th><th>Datum</th><th>Fall</th><th>Vorschlag</th><th>Behalten</th><th>Entfernen</th><th>Einzelaktion</th></tr></thead>
+      <tbody>
+      {% for p in proposals %}
+        <tr>
+          <td><input class="repair-select" type="checkbox" name="issue_ids" value="{{ p.issue_id }}"></td>
+          <td>{{ p.issue_date }}</td>
+          <td>#{{ p.issue_id }}<br><small>{{ p.entry_type }} · {{ p.timestamp }}</small></td>
+          <td><strong>{{ p.title }}</strong><br>{{ p.description }}</td>
+          <td>Datensatz #{{ p.keep_entry_id }}</td>
+          <td>{% for entry_id in p.remove_entry_ids %}#{{ entry_id }}{% if not loop.last %}, {% endif %}{% endfor %}</td>
+          <td>
+            <button class="button small" type="submit" formaction="/plausibility/auto-repair/{{ p.issue_id }}/apply" formmethod="post">Diese Reparatur ausführen</button>
+          </td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+<section class="card">
+  <h2>Ausgewählte Reparaturen ausführen</h2>
+  <p>Zur zusätzlichen Bestätigung bitte <code>REPARIEREN</code> eingeben.</p>
+  <div class="form-row">
+    <input name="confirmation" autocomplete="off" placeholder="REPARIEREN" required>
+    <button class="button danger" type="submit">Ausgewählte automatisch reparieren</button>
+  </div>
+</section>
+</form>
+<script>
+document.getElementById('selectAll').addEventListener('change', function(){
+  document.querySelectorAll('.repair-select').forEach(el => { el.checked = this.checked; });
+});
+</script>
+{% else %}
+<section class="card">
+  <h2>Keine sicher automatisch lösbaren Fälle</h2>
+  <p>Aktuell wurden keine exakt identischen Doppelbuchungen gefunden. Die übrigen Fälle müssen im Assistenten fachlich geprüft werden.</p>
+  <a class="button" href="/plausibility/assistant">Plausibilitäts-Assistent starten</a>
+</section>
+{% endif %}
+{% endblock %}

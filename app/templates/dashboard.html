@@ -7,6 +7,18 @@
 {% if request.query_params.get('message') %}<div class="success-box">{{ request.query_params.get('message') }}</div>{% endif %}
 {% if request.query_params.get('error') %}<div class="error-box">{{ request.query_params.get('error') }}</div>{% endif %}
 
+<style>
+.plausibility-overview{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.35rem;margin-top:.45rem}
+.plausibility-link{display:flex;align-items:center;justify-content:space-between;gap:.35rem;padding:.38rem .45rem;border:1px solid #d8dee8;border-radius:.55rem;text-decoration:none;color:inherit;background:#fff;font-size:.78rem;font-weight:700}
+.plausibility-link:hover{transform:translateY(-1px);box-shadow:0 3px 8px rgba(15,23,42,.10)}
+.plausibility-link strong{font-size:1rem}
+.plausibility-link.critical{border-color:#efb0aa;background:#fff1ef;color:#a51d12}
+.plausibility-link.warning{border-color:#efd28b;background:#fff9e8;color:#8a5b00}
+.plausibility-link.info{border-color:#a9c9ee;background:#eef6ff;color:#175ea8}
+.plausibility-total-link{display:inline-block;margin-top:.42rem;font-size:.74rem;font-weight:700;color:#315d9b;text-decoration:none}
+@media(max-width:900px){.plausibility-overview{grid-template-columns:1fr}}
+</style>
+
 <section class="card" id="dashboardBookingCard" hidden>
   <h2>Direkt buchen</h2>
   <p class="help-text">Angemeldet als <strong id="selfBookingName"></strong>. Alle Buchungen gelten für dein eigenes Arbeitszeitkonto.</p>
@@ -30,7 +42,17 @@
   <section class="card stat-card"><span class="stat-label">Anwesend</span><strong id="metricPresence">{{ stats.present_count }}</strong><small id="metricPresenceDetail">von {{ stats.active_employees }} aktiven</small></section>
   <section class="card stat-card"><span class="stat-label">Abwesenheitsanträge</span><strong>{{ stats.open_vacations }}</strong><small>offen</small></section>
   <section class="card stat-card"><span class="stat-label">Korrekturen</span><strong>{{ stats.open_corrections }}</strong><small>offen</small></section>
-  <section class="card stat-card" id="plausibilityCard"><span class="stat-label">Plausibilität</span><strong id="metricPlausibility">{{ stats.open_plausibility }}</strong><small>offene Meldungen</small></section>
+  <section class="card stat-card" id="plausibilityCard">
+    <span class="stat-label">Plausibilität</span>
+    <strong id="metricPlausibility">–</strong>
+    <small>offene Meldungen</small>
+    <div class="plausibility-overview" aria-label="Plausibilitätsfälle nach Priorität">
+      <a class="plausibility-link critical" id="plausibilityCriticalLink" href="/plausibility?severity=critical"><span>Kritisch</span><strong id="metricPlausibilityCritical">–</strong></a>
+      <a class="plausibility-link warning" id="plausibilityWarningLink" href="/plausibility?severity=warning"><span>Warnungen</span><strong id="metricPlausibilityWarning">–</strong></a>
+      <a class="plausibility-link info" id="plausibilityInfoLink" href="/plausibility?severity=info"><span>Hinweise</span><strong id="metricPlausibilityInfo">–</strong></a>
+    </div>
+    <a class="plausibility-total-link" href="/plausibility">Alle Fälle öffnen →</a>
+  </section>
   {% endif %}
   <section class="card stat-card"><span class="stat-label" id="overtimeLabel">Überstunden</span><strong id="metricOvertime">{{ stats.overtime_sum }} h</strong><small id="overtimeScope">persönlicher Stand</small></section>
   {% if is_admin %}
@@ -89,13 +111,27 @@
  fetch('/api/dashboard/metrics',{cache:'no-store',credentials:'same-origin'}).then(r=>r.ok?r.json():Promise.reject()).then(data=>{
   const p=document.getElementById('metricPresence');if(p)p.textContent=data.presence.present;
   const pd=document.getElementById('metricPresenceDetail');if(pd)pd.textContent='von '+data.presence.active+' aktiven';
-  const pl=document.getElementById('metricPlausibility');if(pl)pl.textContent=data.plausibility.open;level(document.getElementById('plausibilityCard'),data.plausibility.level);
   document.getElementById('metricOvertime').textContent=Number(data.overtime.hours).toFixed(2)+' h';
   document.getElementById('overtimeLabel').textContent=data.overtime.scope==='Eigene'?'Meine Überstunden':data.overtime.scope+'-Überstunden';
   document.getElementById('overtimeScope').textContent=data.overtime.scope==='Eigene'?'persönlicher Stand':'sichtbarer Bereich';
   const b=document.getElementById('metricBackup');if(b){b.textContent=data.backup.label;document.getElementById('backupAge').textContent=data.backup.age_label||'';level(document.getElementById('backupCard'),data.backup.level);}
   const s=document.getElementById('metricSystem');if(s){s.textContent=data.system.label;document.getElementById('systemDetail').textContent=data.system.detail;level(document.getElementById('systemCard'),data.system.level);document.getElementById('systemDatabase').textContent=data.system.database.label;document.getElementById('systemBackup').textContent=data.system.backup.label+' · '+(data.backup.age_label||'');document.getElementById('systemDisk').textContent=data.system.disk.label;document.getElementById('systemEmail').textContent=data.system.email.label;document.getElementById('systemGithub').textContent=data.system.github.label;}
  }).catch(()=>{});
+ fetch('/api/dashboard/plausibility-summary',{cache:'no-store',credentials:'same-origin'}).then(r=>r.ok?r.json():Promise.reject()).then(data=>{
+   const counts=data.counts||{};
+   const total=document.getElementById('metricPlausibility');if(total)total.textContent=counts.total||0;
+   const critical=document.getElementById('metricPlausibilityCritical');if(critical)critical.textContent=counts.critical||0;
+   const warning=document.getElementById('metricPlausibilityWarning');if(warning)warning.textContent=counts.warning||0;
+   const info=document.getElementById('metricPlausibilityInfo');if(info)info.textContent=counts.info||0;
+   if(data.links){
+     const criticalLink=document.getElementById('plausibilityCriticalLink');if(criticalLink)criticalLink.href=data.links.critical||criticalLink.href;
+     const warningLink=document.getElementById('plausibilityWarningLink');if(warningLink)warningLink.href=data.links.warning||warningLink.href;
+     const infoLink=document.getElementById('plausibilityInfoLink');if(infoLink)infoLink.href=data.links.info||infoLink.href;
+   }
+   level(document.getElementById('plausibilityCard'),(counts.critical||0)>0?'danger':((counts.warning||0)>0?'warning':'ok'));
+ }).catch(()=>{
+   const total=document.getElementById('metricPlausibility');if(total)total.textContent='?';
+ });
 })();
 </script>
 {% endblock %}

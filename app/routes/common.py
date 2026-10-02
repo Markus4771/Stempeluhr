@@ -168,90 +168,6 @@ def not_deleted_filter():
     """
     return or_(TimeEntry.deleted == False, TimeEntry.deleted.is_(None))
 
-# ---------------------------------------------------------------------------
-# RFID-Lernmodus über Raspberry-Terminal
-# ---------------------------------------------------------------------------
-RFID_LEARN_EMPLOYEE_ID_KEY = "rfid_learn_pending_employee_id"
-RFID_LEARN_STARTED_BY_KEY = "rfid_learn_pending_started_by"
-RFID_LEARN_STARTED_AT_KEY = "rfid_learn_pending_started_at"
-
-def _clear_pending_rfid_learn(db: Session):
-    for key in (RFID_LEARN_EMPLOYEE_ID_KEY, RFID_LEARN_STARTED_BY_KEY, RFID_LEARN_STARTED_AT_KEY):
-        row = db.query(Setting).filter(Setting.key == key).first()
-        if row:
-            db.delete(row)
-    db.commit()
-
-def _start_pending_rfid_learn(db: Session, employee: Employee, user: Employee):
-    service_set_setting(db, RFID_LEARN_EMPLOYEE_ID_KEY, str(employee.id))
-    service_set_setting(db, RFID_LEARN_STARTED_BY_KEY, getattr(user, "employee_number", "admin") or "admin")
-    service_set_setting(db, RFID_LEARN_STARTED_AT_KEY, datetime.now().isoformat(timespec="seconds"))
-    db.commit()
-
-def _get_pending_rfid_employee(db: Session):
-    value = service_settings_dict(db).get(RFID_LEARN_EMPLOYEE_ID_KEY, "")
-    try:
-        employee_id = int(value)
-    except Exception:
-        return None
-    return db.query(Employee).filter(Employee.id == employee_id).first()
-
-def _get_pending_rfid_status(db: Session):
-    employee = _get_pending_rfid_employee(db)
-    settings = service_settings_dict(db)
-    if not employee:
-        return {"active": False, "employee": None, "started_at": ""}
-    return {
-        "active": True,
-        "employee": {
-            "id": employee.id,
-            "employee_number": employee.employee_number,
-            "first_name": employee.first_name,
-            "last_name": employee.last_name,
-            "name": f"{employee.first_name} {employee.last_name}",
-        },
-        "started_at": settings.get(RFID_LEARN_STARTED_AT_KEY, ""),
-    }
-
-def _save_pending_rfid_from_terminal(request: Request, db: Session, rfid_code: str):
-    """Speichert einen am Raspberry gescannten RFID-Code im aktiven Lernauftrag."""
-    rfid_code = (rfid_code or "").strip().replace("\r", "").replace("\n", "")
-    pending_employee = _get_pending_rfid_employee(db)
-    if not pending_employee or not rfid_code:
-        return None
-
-    existing = db.query(Employee).filter(Employee.rfid_code == rfid_code, Employee.id != pending_employee.id).first()
-    if existing:
-        return templates.TemplateResponse("message.html", {
-            "request": request,
-            "title": "RFID bereits vergeben",
-            "message": f"Dieser RFID-Code ist bereits bei {existing.first_name} {existing.last_name} hinterlegt. Lernmodus bleibt aktiv.",
-            "return_to": "/raspberry"
-        })
-
-    old_rfid = pending_employee.rfid_code
-    pending_employee.rfid_code = rfid_code
-    pending_employee.updated_at = datetime.now()
-    db.commit()
-
-    log_action(
-        db,
-        "raspberry",
-        "rfid_learned_on_terminal",
-        "employees",
-        str(pending_employee.id),
-        f"RFID geändert von {old_rfid or '-'} auf {rfid_code}"
-    )
-    _clear_pending_rfid_learn(db)
-
-    return templates.TemplateResponse("message.html", {
-        "request": request,
-        "title": "RFID gespeichert",
-        "message": f"RFID wurde am Raspberry für {pending_employee.first_name} {pending_employee.last_name} gespeichert.",
-        "return_to": "/raspberry",
-        "status_display_seconds": status_display_seconds(db)
-    })
-
 
 # ---------------------------------------------------------------------------
 # Auswertungsrechte
@@ -588,5 +504,4 @@ def validate_employee_number(value: str, length: int):
 
 # Export auch interne Hilfsfunktionen für die modularisierten Routen.
 # Ohne __all__ importiert "from .common import *" keine Namen mit führendem Unterstrich.
-# Das hat in 4.7.08 u.a. _get_pending_rfid_status() im Dashboard gebrochen.
 __all__ = [name for name in globals().keys() if not name.startswith('__')]

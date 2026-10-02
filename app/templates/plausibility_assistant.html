@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+{% block content %}
+<style>
+.assistant-head{display:flex;justify-content:space-between;gap:1rem;align-items:flex-start;flex-wrap:wrap}.assistant-progress{font-weight:700;color:#475569}.assistant-grid{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(280px,.9fr);gap:1rem}.assistant-meta{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.75rem}.assistant-meta>div,.timeline-item,.suggestion-box,.pattern-box{background:#f8fafc;border:1px solid #dbe3ef;border-radius:10px;padding:.85rem}.timeline{display:grid;gap:.6rem}.timeline-item{display:flex;justify-content:space-between;gap:1rem;align-items:center}.timeline-type{font-weight:700;text-transform:capitalize}.severity-pill{display:inline-flex;padding:.25rem .6rem;border-radius:999px;font-weight:700;background:#e2e8f0}.severity-rot,.severity-kritisch{background:#fee2e2;color:#991b1b}.severity-gelb,.severity-warnung{background:#fef3c7;color:#92400e}.severity-blau,.severity-hinweis{background:#dbeafe;color:#1e40af}.assistant-actions{display:flex;flex-wrap:wrap;gap:.6rem;margin-top:1rem}.assistant-actions form{display:inline}.assistant-comment{width:100%;min-height:78px}.empty-state{text-align:center;padding:3rem 1rem}.issue-nav{display:flex;gap:.4rem;flex-wrap:wrap;margin-top:1rem}.issue-nav a{padding:.35rem .55rem;border:1px solid #cbd5e1;border-radius:8px;text-decoration:none}.issue-nav a.current{background:#1d4ed8;color:white;border-color:#1d4ed8}.pattern-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.5rem;margin-top:.65rem}.pattern-item{background:white;border:1px solid #dbe3ef;border-radius:8px;padding:.65rem}.pattern-confidence{font-size:.75rem;font-weight:700;text-transform:uppercase;color:#475569}@media(max-width:900px){.assistant-grid{grid-template-columns:1fr}.assistant-meta,.pattern-grid{grid-template-columns:1fr}}
+</style>
+<div class="assistant-head">
+  <div>
+    <p><a href="/plausibility">← Zur Plausibilitätsübersicht</a></p>
+    <h1>Plausibilitäts-Assistent</h1>
+    <p class="help-text">Offene Fälle werden nach Priorität einzeln geprüft. Arbeitszeiten werden niemals ohne fachliche Bestätigung verändert.</p>
+  </div>
+  {% if issue %}<div class="assistant-progress">Fall {{ position }} von {{ total }}</div>{% endif %}
+</div>
+
+{% if not issue %}
+<section class="card empty-state">
+  <h2>Keine offenen Plausibilitätsfälle</h2>
+  <p>Alle Fälle sind bearbeitet. Sauber – die Liste ist leer.</p>
+  <a class="button" href="/">Zum Dashboard</a>
+</section>
+{% else %}
+<section class="card">
+  <div class="assistant-meta">
+    <div><small>Mitarbeiter</small><br><strong>{{ issue.employee.employee_number }} – {{ issue.employee.first_name }} {{ issue.employee.last_name }}</strong></div>
+    <div><small>Datum</small><br><strong>{{ issue.issue_date.strftime('%d.%m.%Y') }}</strong></div>
+    <div><small>Schwere</small><br><span class="severity-pill severity-{{ issue.severity|lower }}">{{ issue.severity }}</span></div>
+  </div>
+  <h2 style="margin-top:1rem">{{ issue.check_type }}</h2>
+  <p>{{ issue.message }}</p>
+</section>
+
+<div class="assistant-grid">
+  <section class="card">
+    <h2>Tagesbuchungen</h2>
+    <div class="timeline">
+      {% for entry in entries %}
+      <div class="timeline-item">
+        <div><span class="timeline-type">{{ entry.entry_type.replace('_',' ') }}</span><br><small>{{ entry.method }}{% if entry.terminal %} · {{ entry.terminal }}{% endif %}</small></div>
+        <strong>{{ entry.timestamp.strftime('%H:%M:%S') }}</strong>
+      </div>
+      {% else %}
+      <div class="warning-box">Für diesen Tag wurden keine Zeitbuchungen gefunden.</div>
+      {% endfor %}
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Lösungsvorschlag</h2>
+    <div class="suggestion-box">
+      <strong>{{ suggestion.title }}</strong>
+      <p>{{ suggestion.text }}</p>
+      {% if suggestion.requires_edit %}<p><strong>Eine Zeitänderung muss manuell geprüft werden.</strong></p>{% else %}<p>Wenn die Buchungen korrekt sind, kann der Fall bestätigt werden.</p>{% endif %}
+    </div>
+
+    <div class="pattern-box" id="patternBox" style="margin-top:.75rem">
+      <strong>Historisches Buchungsmuster</strong>
+      <p id="patternStatus" class="help-text">Wird berechnet …</p>
+      <div class="pattern-grid" id="patternGrid"></div>
+      <small>Nur statistischer Hinweis. Ein Vorschlag ist kein Nachweis der tatsächlich geleisteten Arbeitszeit.</small>
+    </div>
+
+    <form method="post" action="/plausibility/assistant/{{ issue.id }}/decision">
+      <label for="assistantComment">Kommentar</label>
+      <textarea class="assistant-comment" id="assistantComment" name="comment" placeholder="Begründung oder Prüfergebnis"></textarea>
+      <div class="assistant-actions">
+        {% if suggestion.requires_edit %}
+        <button class="button" type="submit" name="action" value="edit">Buchungen bearbeiten</button>
+        <button class="button secondary" type="submit" name="action" value="reviewed">Als geprüft markieren</button>
+        {% else %}
+        <button class="button" type="submit" name="action" value="complete">Vorschlag übernehmen</button>
+        <button class="button secondary" type="submit" name="action" value="edit">Buchungen bearbeiten</button>
+        {% endif %}
+        <button class="button secondary" type="submit" name="action" value="skip">Überspringen</button>
+        <button class="button danger" type="submit" name="action" value="ignore" onclick="return confirm('Diesen Fall wirklich ignorieren?')">Ignorieren</button>
+      </div>
+    </form>
+  </section>
+</div>
+
+<div class="issue-nav" aria-label="Offene Fälle">
+{% for row in issues[:30] %}
+<a class="{% if row.id == issue.id %}current{% endif %}" href="/plausibility/assistant?issue_id={{ row.id }}" title="{{ row.employee.first_name }} {{ row.employee.last_name }} · {{ row.issue_date.strftime('%d.%m.%Y') }}">{{ loop.index }}</a>
+{% endfor %}
+{% if total > 30 %}<span>+ {{ total - 30 }} weitere</span>{% endif %}
+</div>
+
+<script>
+(function(){
+  const labels={kommen:'Typischer Arbeitsbeginn',gehen:'Typisches Arbeitsende',pause_start:'Typischer Pausenbeginn',pause_ende:'Typisches Pausenende'};
+  fetch('/api/plausibility-patterns/{{ issue.id }}',{cache:'no-store',credentials:'same-origin'})
+    .then(r=>r.ok?r.json():Promise.reject())
+    .then(data=>{
+      const grid=document.getElementById('patternGrid');
+      const status=document.getElementById('patternStatus');
+      const suggestions=data.suggestions||{};
+      const keys=['kommen','gehen','pause_start','pause_ende'].filter(key=>suggestions[key]);
+      if(!keys.length){status.textContent='Noch nicht genügend vergleichbare Buchungstage vorhanden.';return;}
+      status.textContent='Aus '+data.days_considered+' vergleichbaren Wochentagen der letzten '+data.lookback_days+' Tage.';
+      keys.forEach(key=>{
+        const item=suggestions[key];
+        const box=document.createElement('div');
+        box.className='pattern-item';
+        box.innerHTML='<small>'+labels[key]+'</small><br><strong>'+item.time+' Uhr</strong><br><span class="pattern-confidence">Vertrauen: '+item.confidence+'</span><br><small>'+item.samples+' Vergleichstage · Streuung '+item.spread_minutes+' Min.</small>';
+        grid.appendChild(box);
+      });
+    })
+    .catch(()=>{document.getElementById('patternStatus').textContent='Musteranalyse konnte nicht geladen werden.';});
+})();
+</script>
+{% endif %}
+{% endblock %}
