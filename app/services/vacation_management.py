@@ -46,6 +46,14 @@ def calculate_request_days(db: Session, start_date: date, end_date: date, half_d
 
 
 def get_or_create_profile(db: Session, employee: Employee) -> VacationProfile:
+    # New Employee objects do not have a primary key until SQLAlchemy has
+    # flushed the INSERT.  VacationProfile.employee_id is NOT NULL, so make
+    # sure the employee exists in the database before creating its profile.
+    if employee.id is None:
+        db.flush()
+    if employee.id is None:
+        raise ValueError("Mitarbeiter konnte vor Anlage des Urlaubsprofils nicht gespeichert werden.")
+
     profile = db.query(VacationProfile).filter(VacationProfile.employee_id == employee.id).first()
     if profile:
         return profile
