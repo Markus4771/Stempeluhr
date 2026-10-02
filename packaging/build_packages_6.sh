@@ -2,7 +2,7 @@
 set -eu
 
 ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
-VERSION="${VERSION:-6.0.0}"
+VERSION="${VERSION:-6.0.1}"
 OUT="${OUT:-$ROOT/dist}"
 WORK="${WORK:-$ROOT/.build-deb}"
 
