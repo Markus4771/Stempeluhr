@@ -1,6 +1,16 @@
-# Stempeluhr Professional 5.6.36
+# Stempeluhr Professional 5.6.37
 
 Webbasierte Zeiterfassung für Debian-Server und Raspberry-Pi-Terminals.
+
+## Änderungen in 5.6.37
+
+
+
+- Der Session-Schlüssel hat keinen festen, im Quelltext sichtbaren Vorgabewert mehr. Er wird zufällig erzeugt und unter `/var/lib/stempeluhr/secret_key` abgelegt (Modus 0600), damit er Neustarts übersteht.
+- Der Debian-Installationsskript erzeugt bei Neuinstallation einen zufälligen `STEMPELUHR_SECRET_KEY` und trägt ihn bei bestehenden Installationen nach, falls er fehlt.
+- Bekannte Platzhalter wie `stempeluhr-change-me-2026-v4-3-0` werden abgewiesen – auch wenn sie in der Umgebung gesetzt sind.
+- Der Startup-Check meldet einen leeren, zu kurzen oder vorhersagbaren Session-Schlüssel.
+- 10 neue Tests für den Session-Schlüssel.
 
 ## Änderungen in 5.6.36
 
@@ -18,7 +28,7 @@ Webbasierte Zeiterfassung für Debian-Server und Raspberry-Pi-Terminals.
 
 
 
-- Version: **5.6.36**
+- Version: **5.6.37**
 - Standarddatenbank: PostgreSQL
 - Zielplattform: Debian / Raspberry Pi OS
 - Standardbranch: `main`

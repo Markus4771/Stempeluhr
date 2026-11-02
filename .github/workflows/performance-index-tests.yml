@@ -73,6 +73,6 @@ jobs:
           ! grep -rq 'STEMPELUHR_SECRET_KEY", "[^"]' app/
       - name: Versionsgleichheit prüfen
         run: |
-          test "$(cat version.txt)" = "5.6.36"
-          grep -q 'APP_VERSION = "5.6.36"' app/version.py
-          grep -q '^Version: 5.6.36$' debian/control
+          test "$(cat version.txt)" = "5.6.37"
+          grep -q 'APP_VERSION = "5.6.37"' app/version.py
+          grep -q '^Version: 5.6.37$' debian/control

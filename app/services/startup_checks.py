@@ -50,6 +50,36 @@ def _env_keys(path: Path) -> set[str]:
     return keys
 
 
+def _check_secret_key() -> Dict[str, Any]:
+    """Prueft den Session-Schluessel auf einen vorhersagbaren Wert.
+
+    Mit einem festen Schluessel kann jeder Session-Cookies faelschen und
+    sich als Administrator anmelden. Der Schluessel darf daher weder leer
+    sein noch einer der bekannten Platzhalter sein.
+    """
+    from app.core.config import INSECURE_SECRET_KEYS, SECRET_KEY
+
+    key = (SECRET_KEY or "").strip()
+    insecure = not key or key in INSECURE_SECRET_KEYS
+    short = 0 < len(key) < 32
+    ok = not insecure and not short
+
+    if insecure:
+        message = "Session-Schluessel ist leer oder ein bekannter Platzhalter"
+    elif short:
+        message = f"Session-Schluessel ist zu kurz ({len(key)} Zeichen)"
+    else:
+        message = "OK"
+
+    return {
+        "name": "secret_key",
+        "ok": ok,
+        "message": message,
+        "length": len(key),
+        "source": "Umgebung" if os.environ.get("STEMPELUHR_SECRET_KEY", "").strip() else "Konfiguration",
+    }
+
+
 def run_startup_checks(app_dir: str | Path | None = None) -> Dict[str, Any]:
     root = Path(app_dir or os.environ.get("STEMPELUHR_APP_DIR", "/opt/stempeluhr"))
     checks: List[Dict[str, Any]] = []
@@ -83,6 +113,8 @@ def run_startup_checks(app_dir: str | Path | None = None) -> Dict[str, Any]:
         "missing_required": missing,
         "message": "OK" if configuration_ok else "Datenbankkonfiguration unvollständig",
     })
+
+    checks.append(_check_secret_key())
 
     try:
         disk = shutil.disk_usage(root if root.exists() else "/")
