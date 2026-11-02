@@ -1,6 +1,14 @@
-# Stempeluhr Professional 5.6.37
+# Stempeluhr Professional 5.6.38
 
 Webbasierte Zeiterfassung für Debian-Server und Raspberry-Pi-Terminals.
+
+## Änderungen in 5.6.38
+
+
+
+- Der Buchungs-Zustandsautomat hat 74 neue Tests: Zustandsübergänge, Buchungsaliase, gelöschte Buchungen, Tagesgrenzen und die Auflösung gleicher Zeitmarken.
+- Die Tests sind gegengeprüft: Fünf eingebaute Fehler in der Zustandslogik lassen die Suite wie erwartet fehlschlagen.
+- Dokumentiert ist, dass SQLite bei gleicher Zeitmarke über den Index bereits in Id-Reihenfolge liefert. Die Id-Sortierung sichert das Verhalten für PostgreSQL ab, wo die Reihenfolge sonst unspezifiziert wäre.
 
 ## Änderungen in 5.6.37
 
@@ -28,7 +36,7 @@ Webbasierte Zeiterfassung für Debian-Server und Raspberry-Pi-Terminals.
 
 
 
-- Version: **5.6.37**
+- Version: **5.6.38**
 - Standarddatenbank: PostgreSQL
 - Zielplattform: Debian / Raspberry Pi OS
 - Standardbranch: `main`
