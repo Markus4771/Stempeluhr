@@ -1,5 +1,5 @@
 Package: stempeluhr
-Version: 5.7.0
+Version: 6.0.0
 Section: web
 Priority: optional
 Architecture: all
@@ -8,7 +8,7 @@ Depends: python3, python3-venv, python3-pip, python3-evdev, python3-requests, ad
 Recommends: postgresql, postgresql-contrib, nginx, curl, wget, git, build-essential, python3-dev, libpq-dev
 Replaces: stempeluhr-professional
 Breaks: stempeluhr-professional
-Description: Stempeluhr Professional
- Webbasierte Zeiterfassung mit RFID, konfigurierbaren Rollen und Rechten,
- integriertem Hilfesystem, PDF-Handbüchern und Sicherheitsrichtlinien.
- Dieses Release-Paket ist für Neuinstallation und Update geeignet.
+Description: Stempeluhr Professional Kompatibilitätspaket
+ Bestehendes monolithisches Paket für Übergangs- und Testzwecke. Für neue
+ Installationen ab Version 6.0 werden stempeluhr-server, stempeluhr-terminal
+ oder stempeluhr-all-in-one empfohlen.

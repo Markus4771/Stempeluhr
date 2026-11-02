@@ -1,0 +1,10 @@
+Package: stempeluhr-all-in-one
+Version: 6.0.0
+Section: utils
+Priority: optional
+Architecture: all
+Depends: python3, python3-requests, pcscd, python3-pyscard
+Maintainer: Stempeluhr Project
+Description: Stempeluhr 6 server and terminal all-in-one
+ Complete Stempeluhr installation including terminal support for RFID and
+ Android HCE. The HCE agent is activated only when a PC/SC reader is present.

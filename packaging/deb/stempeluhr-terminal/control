@@ -1,0 +1,11 @@
+Package: stempeluhr-terminal
+Version: 6.0.0
+Section: utils
+Priority: optional
+Architecture: all
+Depends: python3, python3-requests, pcscd, python3-pyscard
+Maintainer: Stempeluhr Project
+Description: Stempeluhr 6 terminal client
+ Terminal package for RFID and Android HCE time-clock terminals.
+ Includes the PC/SC HCE agent; it is activated automatically when a
+ compatible PC/SC contactless reader is detected.

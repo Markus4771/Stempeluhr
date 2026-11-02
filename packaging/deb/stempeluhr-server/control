@@ -1,0 +1,10 @@
+Package: stempeluhr-server
+Version: 6.0.1
+Section: utils
+Priority: optional
+Architecture: all
+Depends: python3, python3-venv, python3-pip, adduser, systemd, postgresql-client, ca-certificates, openssl, sudo
+Maintainer: Stempeluhr Project
+Description: Stempeluhr Professional Server
+ Server package for Stempeluhr Professional 6.
+ Preserves the existing configuration and PostgreSQL database on upgrades.

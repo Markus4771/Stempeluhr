@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any, Dict, Tuple
 APP_NAME = "Stempeluhr Professional"
-APP_VERSION = "5.7.0"
+APP_VERSION = "6.0.0"
 VERSION_FILE_NAME = "version.txt"
 def _project_root() -> Path:
     try: return Path(__file__).resolve().parents[1]

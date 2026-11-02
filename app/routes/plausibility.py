@@ -19,6 +19,7 @@ def plausibility_view(
     request: Request,
     employee_id: int = 0,
     status: str = "offen",
+    severity: str = "",
     date_from: str = "",
     date_to: str = "",
     db: Session = Depends(get_db),
@@ -26,33 +27,71 @@ def plausibility_view(
     user = current_user(request, db)
     if not user:
         return RedirectResponse("/login", status_code=303)
+
     visible_ids = report_visible_employee_ids(db, user)
     if employee_id and employee_id not in visible_ids:
         employee_id = user.id
+
     today = date.today()
+    start_day = None
+    end_day = None
     try:
-        start_day = datetime.strptime(date_from, "%Y-%m-%d").date() if date_from else today - timedelta(days=7)
-        end_day = datetime.strptime(date_to, "%Y-%m-%d").date() if date_to else today
+        if date_from:
+            start_day = datetime.strptime(date_from, "%Y-%m-%d").date()
+        elif status not in {"offen", "geprueft"}:
+            start_day = today - timedelta(days=7)
+
+        if date_to:
+            end_day = datetime.strptime(date_to, "%Y-%m-%d").date()
+        elif status not in {"offen", "geprueft"}:
+            end_day = today
     except Exception:
-        start_day = today - timedelta(days=7)
-        end_day = today
+        start_day = None if status in {"offen", "geprueft"} else today - timedelta(days=7)
+        end_day = None if status in {"offen", "geprueft"} else today
+
     q = db.query(PlausibilityIssue).join(Employee, PlausibilityIssue.employee_id == Employee.id)
     if visible_ids:
         q = q.filter(PlausibilityIssue.employee_id.in_(visible_ids))
     else:
         q = q.filter(PlausibilityIssue.id == -1)
+
     if employee_id:
         q = q.filter(PlausibilityIssue.employee_id == employee_id)
     if status and status != "alle":
         q = q.filter(PlausibilityIssue.status == status)
-    q = q.filter(PlausibilityIssue.issue_date >= start_day, PlausibilityIssue.issue_date <= end_day)
-    employees = db.query(Employee).filter(Employee.id.in_(visible_ids)).order_by(Employee.last_name, Employee.first_name).all() if visible_ids else []
+
+    severity_normalized = (severity or "").strip().lower()
+    if severity_normalized == "critical":
+        q = q.filter(func.lower(PlausibilityIssue.severity).in_(["rot", "red", "critical", "kritisch", "fehler", "danger"]))
+    elif severity_normalized == "warning":
+        q = q.filter(func.lower(PlausibilityIssue.severity).in_(["gelb", "yellow", "warning", "warnung", "mittel"]))
+    elif severity_normalized == "info":
+        q = q.filter(func.lower(PlausibilityIssue.severity).in_(["blau", "blue", "info", "hinweis", "gruen", "green", "ok"]))
+
+    if start_day is not None:
+        q = q.filter(PlausibilityIssue.issue_date >= start_day)
+    if end_day is not None:
+        q = q.filter(PlausibilityIssue.issue_date <= end_day)
+
+    employees = (
+        db.query(Employee)
+        .filter(Employee.id.in_(visible_ids))
+        .order_by(Employee.last_name, Employee.first_name)
+        .all()
+        if visible_ids else []
+    )
     return templates.TemplateResponse("plausibility.html", {
         "request": request,
         "user": user,
         "issues": q.order_by(PlausibilityIssue.issue_date.desc(), Employee.last_name).all(),
         "employees": employees,
-        "filters": {"employee_id": employee_id, "status": status, "date_from": start_day.isoformat(), "date_to": end_day.isoformat()},
+        "filters": {
+            "employee_id": employee_id,
+            "status": status,
+            "severity": severity_normalized,
+            "date_from": start_day.isoformat() if start_day else "",
+            "date_to": end_day.isoformat() if end_day else "",
+        },
     })
 
 

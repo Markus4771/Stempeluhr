@@ -35,8 +35,7 @@ def admin(
             (Employee.employee_number.ilike(search)) |
             (Employee.first_name.ilike(search)) |
             (Employee.last_name.ilike(search)) |
-            (Employee.email.ilike(search)) |
-            (Employee.rfid_code.ilike(search))
+            (Employee.email.ilike(search))
         )
 
     if role_id:
@@ -170,7 +169,6 @@ def add_employee(
         phone=phone.strip() or None,
         birth_date=parse_optional_date(birth_date),
         entry_date=parse_optional_date(entry_date),
-        rfid_code=rfid_code.strip() or None,
         password_hash=hash_password(password) if password else None,
         role_id=role_id or None,
         department_id=department_id or None,
@@ -278,7 +276,6 @@ def edit_employee_save(
     e.phone = phone.strip() or None
     e.birth_date = parse_optional_date(birth_date)
     e.entry_date = parse_optional_date(entry_date)
-    e.rfid_code = rfid_code.strip() or None
 
     if password:
         e.password_hash = hash_password(password)
@@ -340,64 +337,3 @@ def toggle_employee_auto_break(employee_id: int, request: Request, db: Session =
     db.commit()
     log_action(db, user.employee_number, "employee_auto_break_toggled", "employees", str(e.id), f"auto_break_enabled={e.auto_break_enabled}")
     return RedirectResponse("/admin", 303)
-
-
-@router.get("/admin/employees/{employee_id}/rfid-learn", response_class=HTMLResponse)
-def rfid_learn_form(employee_id: int, request: Request, db: Session = Depends(get_db)):
-    user, redirect = require_admin_response(request, db)
-    if redirect:
-        return redirect
-
-    employee = db.query(Employee).filter(Employee.id == employee_id).first()
-    if not employee:
-        return templates.TemplateResponse("message.html", {
-            "request": request,
-            "user": user,
-            "title": "Fehler",
-            "message": "Mitarbeiter nicht gefunden",
-            "return_to": "/admin"
-        })
-
-    _start_pending_rfid_learn(db, employee, user)
-    settings = service_settings_dict(db)
-
-    return templates.TemplateResponse("rfid_learn.html", {
-        "request": request,
-        "user": user,
-        "employee": employee,
-        "started_at": settings.get(RFID_LEARN_STARTED_AT_KEY, ""),
-        "error": None
-    })
-
-@router.get("/admin/employees/{employee_id}/rfid-learn/cancel")
-def rfid_learn_cancel(employee_id: int, request: Request, db: Session = Depends(get_db)):
-    user, redirect = require_admin_response(request, db)
-    if redirect:
-        return redirect
-    _clear_pending_rfid_learn(db)
-    log_action(db, user.employee_number, "rfid_learn_cancelled", "employees", str(employee_id), "RFID-Lernmodus abgebrochen")
-    return RedirectResponse("/admin", 303)
-
-@router.post("/admin/employees/{employee_id}/rfid-learn")
-def rfid_learn_save(
-    employee_id: int,
-    request: Request,
-    rfid_code: str = Form(""),
-    db: Session = Depends(get_db)
-):
-    # Direkte RFID-Eingabe am PC ist bewusst gesperrt.
-    # Gelernt wird ausschließlich über die Raspberry-Seite /raspberry.
-    user, redirect = require_admin_response(request, db)
-    if redirect:
-        return redirect
-    employee = db.query(Employee).filter(Employee.id == employee_id).first()
-    if employee:
-        _start_pending_rfid_learn(db, employee, user)
-    return templates.TemplateResponse("message.html", {
-        "request": request,
-        "user": user,
-        "title": "RFID-Lernmodus aktiv",
-        "message": "Bitte den RFID-Chip am Raspberry Pi scannen. Eine direkte Eingabe am PC wird nicht gespeichert.",
-        "return_to": f"/admin/employees/{employee_id}/rfid-learn"
-    })
-

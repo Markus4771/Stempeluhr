@@ -1,0 +1,27 @@
+#!/bin/sh
+set -e
+
+systemctl daemon-reload >/dev/null 2>&1 || true
+systemctl enable pcscd.service >/dev/null 2>&1 || true
+systemctl restart pcscd.service >/dev/null 2>&1 || true
+
+# HCE requires a PC/SC reader. Keep the service disabled on installations
+# that only use the existing keyboard-wedge RFID reader.
+if command -v python3 >/dev/null 2>&1 && python3 - <<'PY'
+try:
+    from smartcard.System import readers
+    raise SystemExit(0 if readers() else 1)
+except Exception:
+    raise SystemExit(1)
+PY
+then
+    systemctl enable stempeluhr-hce-agent.service >/dev/null 2>&1 || true
+    systemctl restart stempeluhr-hce-agent.service >/dev/null 2>&1 || true
+    echo "Stempeluhr: PC/SC-Leser erkannt, Android-HCE aktiviert."
+else
+    systemctl disable stempeluhr-hce-agent.service >/dev/null 2>&1 || true
+    systemctl stop stempeluhr-hce-agent.service >/dev/null 2>&1 || true
+    echo "Stempeluhr: kein PC/SC-Leser erkannt; HCE bleibt deaktiviert."
+fi
+
+exit 0
