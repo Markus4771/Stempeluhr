@@ -1,4 +1,5 @@
 from .common import *
+from app.services.vacation_work_schedule import sync_employee_vacation_profile
 
 router = APIRouter()
 
@@ -191,6 +192,10 @@ def add_employee(
         active=True
     )
     db.add(e)
+    # Employee zuerst flushen, damit die Datenbank-ID feststeht.
+    # Erst danach darf das VacationProfile mit employee_id angelegt werden.
+    db.flush()
+    sync_employee_vacation_profile(db, e)
     db.commit()
     sync_emergency_admin(db)
     log_action(db, user.employee_number, "employee_created", "employees", str(e.id), e.employee_number)

@@ -13,7 +13,6 @@ from app.database import Base, get_db
 from app.models import Department, Employee, Setting, VacationRequest
 from app.services.auth_dispatcher import authenticate_credential
 from .common import *
-from .common import _save_pending_rfid_from_terminal
 from .vacation import _check_absence_calendar_access, absence_reason_for_request, absence_type_label_map
 
 router = APIRouter()
@@ -134,8 +133,6 @@ def raspberry_reason_scan(request: Request, rfid_code: str = Form(""), reason_id
     credential = (rfid_code or "").strip().replace("\\r", "").replace("\\n", "")
     if not credential:
         return templates.TemplateResponse("message.html", {"request": request, "title": "Fehler", "message": "Kein Anmeldemedium erkannt.", "return_to": "/raspberry"})
-    learn_response = _save_pending_rfid_from_terminal(request, db, credential)
-    if learn_response: return learn_response
 
     auth = authenticate_credential(db, credential, context={"source": "raspberry"})
     employee = auth.employee

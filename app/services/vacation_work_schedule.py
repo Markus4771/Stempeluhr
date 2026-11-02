@@ -192,7 +192,11 @@ def register_vacation_work_schedule_events() -> None:
             if isinstance(obj, VacationRequest):
                 _recalculate_request(session, obj)
             elif isinstance(obj, Employee):
-                sync_employee_vacation_profile(session, obj)
+                # Neue Employee-Objekte haben im before_flush noch keine ID.
+                # Das VacationProfile darf erst nach Vergabe der Employee-ID
+                # erzeugt werden, da vacation_profiles.employee_id NOT NULL ist.
+                if obj.id is not None:
+                    sync_employee_vacation_profile(session, obj)
 
     _registered = True
     sync_all_vacation_profiles_from_work_schedule()

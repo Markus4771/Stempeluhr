@@ -1,7 +1,6 @@
-#!/bin/sh
+#!/usr/bin/env bash
 set -e
 
-if [ "$1" = "remove" ] || [ "$1" = "deconfigure" ]; then
-    systemctl disable --now stempeluhr-hce-agent.service >/dev/null 2>&1 || true
-fi
+systemctl disable --now stempeluhr-terminal.service >/dev/null 2>&1 || true
+
 exit 0
