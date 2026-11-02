@@ -15,6 +15,8 @@ on:
       - 'tests/test_route_duplicates.py'
       - 'tests/test_secret_key.py'
       - 'tests/test_booking_state.py'
+      - 'tests/test_worktime_day_calculation.py'
+      - 'tests/test_worktime_account.py'
       - 'version.txt'
   push:
     branches: [main]
@@ -36,6 +38,8 @@ on:
       - 'tests/test_route_duplicates.py'
       - 'tests/test_secret_key.py'
       - 'tests/test_booking_state.py'
+      - 'tests/test_worktime_day_calculation.py'
+      - 'tests/test_worktime_account.py'
 
 jobs:
   performance-index-tests:
@@ -67,12 +71,14 @@ jobs:
         run: pytest -q tests/test_secret_key.py
       - name: Buchungszustand prüfen
         run: pytest -q tests/test_booking_state.py
+      - name: Arbeitszeitberechnung prüfen
+        run: pytest -q tests/test_worktime_day_calculation.py tests/test_worktime_account.py
       - name: Kein fester Schlüssel im Quelltext
         run: |
           ! grep -rq '^SECRET_KEY = os.environ.get' app/
           ! grep -rq 'STEMPELUHR_SECRET_KEY", "[^"]' app/
       - name: Versionsgleichheit prüfen
         run: |
-          test "$(cat version.txt)" = "5.6.38"
-          grep -q 'APP_VERSION = "5.6.38"' app/version.py
-          grep -q '^Version: 5.6.38$' debian/control
+          test "$(cat version.txt)" = "5.6.39"
+          grep -q 'APP_VERSION = "5.6.39"' app/version.py
+          grep -q '^Version: 5.6.39$' debian/control

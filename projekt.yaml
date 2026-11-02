@@ -1,7 +1,7 @@
 schema: itpz/v1
 id: stempeluhr
 name: Stempeluhr Professional
-version: 5.6.38
+version: 5.6.39
 description: Webbasierte Zeiterfassung für Debian-Server und Raspberry-Pi-Terminals.
 category: business
 license: Proprietary
@@ -14,8 +14,8 @@ repository:
 package:
   type: deb
   name: stempeluhr
-  asset: stempeluhr_5.6.38_all.deb
-  sha256_asset: stempeluhr_5.6.38_all.deb.sha256
+  asset: stempeluhr_5.6.39_all.deb
+  sha256_asset: stempeluhr_5.6.39_all.deb.sha256
 service:
   systemd: stempeluhr.service
 health:

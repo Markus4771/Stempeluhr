@@ -1,4 +1,4 @@
-# Stempeluhr Professional 5.6.38
+# Stempeluhr Professional 5.6.39
 
 Webbasierte Zeiterfassung für Debian-Server und Raspberry-Pi-Terminals.
 
@@ -36,7 +36,7 @@ Webbasierte Zeiterfassung für Debian-Server und Raspberry-Pi-Terminals.
 
 
 
-- Version: **5.6.38**
+- Version: **5.6.39**
 - Standarddatenbank: PostgreSQL
 - Zielplattform: Debian / Raspberry Pi OS
 - Standardbranch: `main`

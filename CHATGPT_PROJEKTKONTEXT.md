@@ -2,7 +2,7 @@
 
 - Repository: `Markus4771/Stempeluhr`
 - Branch: `main`
-- Aktuelle Version: **5.6.38**
+- Aktuelle Version: **5.6.39**
 - Plattform: Debian / Raspberry Pi OS
 - Backend: FastAPI, SQLAlchemy, PostgreSQL
 

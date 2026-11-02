@@ -1,4 +1,10 @@
 
+## 5.6.39
+
+- Arbeitszeitberechnung hat jetzt 106 weitere Tests: Tagesberechnung mit allen Buchungszustaenden, automatische Pausen, Feiertagsberechnung, Hilfsfunktionen und das Ueberstundenkonto.
+- Die Tests sind gegengeprueft: Zwelf eingebaute Fehler in der Logik (Pausen, Feiertage, Konto) lassen die Suite wie erwartet fehlschlagen.
+- Dokumentierte Inkonsistenz: die Monatszeile im Ueberstundenkonto nutzt das Namensformat "Vorname Nachname", die Mitarbeiterzeile nutzt "Nachname, Vorname". Beide stammen aus verschiedenen Stellen; eine Angleichung ist eine separate Aufgabe.
+
 ## 5.6.38
 
 

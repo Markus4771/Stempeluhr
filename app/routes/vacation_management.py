@@ -127,7 +127,7 @@ def vacation_management(request: Request, year: int | None = None, db: Session =
     </div>
     <h2>Betriebsferien</h2><table><thead><tr><th>Name</th><th>Von</th><th>Bis</th><th>Urlaubsabzug</th></tr></thead><tbody>{closure_rows}</tbody></table>
     """
-    return _layout("Urlaubsverwaltung 5.6.38", body)
+    return _layout("Urlaubsverwaltung 5.6.39", body)
 
 
 @router.post("/vacation/management/profile")
