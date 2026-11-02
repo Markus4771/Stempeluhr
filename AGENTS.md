@@ -50,14 +50,35 @@ Der Aufruf mit `PYTHONPATH=.` ist nötig, weil die Tests `app.` importieren.
 
 ## Git-Historie
 
-Das Audit ist in drei versionstrenne Commits aufgeteilt, jeder Commit ist
-für sich lauffähig und getestet (47 / 57 / 131 Tests):
+Das Audit ist in vier versionstrennte Commits aufgeteilt, jeder Commit ist
+für sich lauffähig und getestet (47 / 57 / 131 / 237 Tests):
 
 - `f8a3e53` – 5.6.36 Performance, Indizes, CI-Routencheck
 - `e2b1fed` – 5.6.37 sicherer Session-Schlüssel
 - `f49af20` – 5.6.38 Tests für den Buchungs-Zustandsautomaten
+- `f2a5e65` – 5.6.39 Tests für Tagesberechnung und Überstundenkonto
 
 Branch `feature/optimierung-5-6-36-bis-5-6-38`, PR #5 gegen `main`.
+
+## Testabdeckung
+
+| Datei | Bereich |
+|---|---|
+| `tests/test_worktime_calculation.py` | `calculate_period`, Bulk-Laden, Abfragezahl |
+| `tests/test_worktime_day_calculation.py` | `calculate_day`, Auto-Pausen, Feiertage, Hilfsfunktionen |
+| `tests/test_worktime_account.py` | `calculate_worktime_account` (Überstundenkonto) |
+| `tests/test_booking_state.py` | `booking_state` (Zustandsautomat) |
+| `tests/test_secret_key.py` | Session-Schlüssel |
+| `tests/test_performance_indexes.py` | Indizes der Migration 013 |
+| `tests/test_route_duplicates.py` | doppelt registrierte Routen |
+| `tests/test_status_and_network.py` | Admin-Statusliste, Sicherheitsprüfung |
+
+## Bekannte Inkonsistenz
+
+Im Überstundenkonto nutzt die Monatszeile das Namensformat
+„Vorname Nachname“, die Mitarbeiterzeile „Nachname, Vorname“. Die Monatsgruppen
+stammen aus `calculate_period`, die Mitarbeiterzeilen aus einer eigenen
+Abfrage. Bewusst nicht angeglichen, weil das die Anzeige ändert.
 
 ## Umgang mit Commits
 
