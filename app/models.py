@@ -1,4 +1,4 @@
-from sqlalchemy import Boolean, Column, Date, DateTime, Float, ForeignKey, Integer, String, Text
+from sqlalchemy import Boolean, Column, Date, DateTime, Float, ForeignKey, Index, Integer, String, Text
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from .database import Base
@@ -119,6 +119,12 @@ class TimeEntry(Base):
     created_at = Column(DateTime, default=datetime.now)
     employee = relationship("Employee", back_populates="entries")
 
+    # Jede Buchungsabfrage filtert nach employee_id und timestamp. Ohne diesen
+    # Index scannt die Datenbank die komplette time_entries-Tabelle.
+    __table_args__ = (
+        Index("ix_time_entries_employee_id_timestamp", "employee_id", "timestamp"),
+    )
+
 class WorkTimeAccount(Base):
     __tablename__ = "work_time_accounts"
     id = Column(Integer, primary_key=True)
@@ -219,6 +225,12 @@ class AuditLog(Base):
     details = Column(Text)
     ip_address = Column(String(100))
     created_at = Column(DateTime, default=datetime.now)
+
+    # Das Audit-Protokoll waechst unbegrenzt und wird nach created_at
+    # abgefragt (Datenschutz-Bereinigung, Auswertung nach Zeitraum).
+    __table_args__ = (
+        Index("ix_audit_logs_created_at", "created_at"),
+    )
 
 
 

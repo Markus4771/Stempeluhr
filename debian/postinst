@@ -28,6 +28,7 @@ install -d -m 0770 -o root -g "$APP_GROUP" "$SECRETS_DIR"
 if [[ ! -f "$ENV_FILE" ]]; then
   NEW_CONFIG=1
   DB_PASSWORD="$(openssl rand -hex 24)"
+  SECRET_KEY="$(openssl rand -hex 32)"
   cat > "$ENV_FILE" <<EOF
 DATABASE_TYPE=postgresql
 DATABASE_HOST=127.0.0.1
@@ -36,6 +37,7 @@ DATABASE_NAME=stempeluhr
 DATABASE_USER=stempeluhr
 HOST=0.0.0.0
 PORT=8000
+STEMPELUHR_SECRET_KEY=$SECRET_KEY
 EOF
   printf 'DATABASE_PASSWORD=%s\n' "$DB_PASSWORD" > "$DB_SECRET_FILE"
   log "Neue Grundkonfiguration und geschützte Datenbank-Secret-Datei erzeugt."
@@ -48,6 +50,10 @@ else
       sed -i '/^DATABASE_PASSWORD=/d' "$ENV_FILE"
       log "Vorhandenes Datenbankpasswort in Secret-Datei migriert."
     fi
+  fi
+  if ! grep -q '^STEMPELUHR_SECRET_KEY=' "$ENV_FILE"; then
+    printf 'STEMPELUHR_SECRET_KEY=%s\n' "$(openssl rand -hex 32)" >> "$ENV_FILE"
+    log "Fehlenden Session-Schlüssel erzeugt. Vorhandene Sessions bleiben ungültig."
   fi
 fi
 

@@ -14,7 +14,7 @@ from app.version import APP_NAME, APP_VERSION, get_app_version, get_version_info
 from app.core.config import SECRET_KEY, STATIC_DIR
 from app.database import SessionLocal
 from app.services.network_security import access_allowed, https_should_redirect
-from app.services.settings_service import get_setting
+from app.services.settings_service import get_setting, settings_dict
 from app.services.startup_checks import run_startup_checks
 from app.modules.loader import load_module_routers
 
@@ -135,10 +135,14 @@ def monthly_reporting_scheduler_loop():
 async def network_security_middleware(request: Request, call_next):
     db = SessionLocal()
     try:
-        if https_should_redirect(request, db):
+        # Die Einstellungen werden einmal je Request geladen und an beide
+        # Prüfungen weitergegeben. Vorher wurden sie je Prüfung und je
+        # Netzfilter erneut aus der Datenbank gelesen.
+        settings = settings_dict(db)
+        if https_should_redirect(request, db, settings):
             https_url = request.url.replace(scheme="https")
             return RedirectResponse(str(https_url), status_code=307)
-        allowed, reason = access_allowed(request, db)
+        allowed, reason = access_allowed(request, db, settings)
         if not allowed:
             return PlainTextResponse(f"Zugriff nicht erlaubt: {reason}", status_code=403)
     finally:

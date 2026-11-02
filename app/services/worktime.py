@@ -8,7 +8,7 @@ from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from app.models import Employee, TimeEntry, Holiday
-from app.services.settings_service import get_setting
+from app.services.settings_service import get_setting, settings_dict
 
 
 @dataclass
@@ -39,16 +39,31 @@ def _as_float(value: str, default: float) -> float:
         return default
 
 
+def _setting_value(settings: dict, key: str, default: str) -> str:
+    """Liest einen Wert aus einem bereits geladenen Settings-Dict.
+
+    Verhält sich identisch zu get_setting: fehlender Schlüssel und leerer
+    Wert werden unterschieden, ein gespeicherter None-Wert ergibt den Default.
+    """
+    value = settings.get(key)
+    return default if value is None else value
+
+
+def _break_settings_from(settings: dict) -> dict:
+    """Baut die Pausenregelung aus einem bereits geladenen Settings-Dict."""
+    return {
+        "enabled": _as_bool(_setting_value(settings, "auto_break_enabled", "0"), False),
+        "threshold_1_hours": _as_float(_setting_value(settings, "auto_break_threshold_1_hours", "6"), 6.0),
+        "deduct_1_minutes": _as_float(_setting_value(settings, "auto_break_deduct_1_minutes", "30"), 30.0),
+        "threshold_2_hours": _as_float(_setting_value(settings, "auto_break_threshold_2_hours", "9"), 9.0),
+        "deduct_2_minutes": _as_float(_setting_value(settings, "auto_break_deduct_2_minutes", "45"), 45.0),
+        "only_missing_break": _as_bool(_setting_value(settings, "auto_break_only_missing_break", "1"), True),
+    }
+
+
 def get_break_settings(db: Session) -> dict:
     """Liest die Pausenregelung aus den Systemeinstellungen."""
-    return {
-        "enabled": _as_bool(get_setting(db, "auto_break_enabled", "0"), False),
-        "threshold_1_hours": _as_float(get_setting(db, "auto_break_threshold_1_hours", "6"), 6.0),
-        "deduct_1_minutes": _as_float(get_setting(db, "auto_break_deduct_1_minutes", "30"), 30.0),
-        "threshold_2_hours": _as_float(get_setting(db, "auto_break_threshold_2_hours", "9"), 9.0),
-        "deduct_2_minutes": _as_float(get_setting(db, "auto_break_deduct_2_minutes", "45"), 45.0),
-        "only_missing_break": _as_bool(get_setting(db, "auto_break_only_missing_break", "1"), True),
-    }
+    return _break_settings_from(settings_dict(db))
 
 
 def ensure_break_settings(db: Session) -> None:
@@ -105,20 +120,40 @@ def holiday_adjusted_target_hours(db: Session, employee: Employee, day: date) ->
     Ganztägige aktive Feiertage setzen das Soll auf 0. Halbe Feiertage reduzieren
     das Soll mit dem konfigurierten Faktor, Standard 0,5.
     """
+    settings = settings_dict(db)
+    context = _holiday_context(db, settings)
+    return _holiday_adjusted_target(employee, day, context)
+
+
+def _holiday_context(db: Session, settings: dict) -> dict:
+    """Lädt Feiertage und Faktoren für die Sollberechnung in einem Durchgang.
+
+    Die Daten werden einmal geladen statt pro Mitarbeiter und Tag. Bei
+    mehreren Feiertagen am selben Tag zaehlt derselbe wie bei einer
+    Einzelabfrage (der mit der kleinsten Id), damit das Ergebnis identisch
+    bleibt.
+    """
+    affects = _as_bool(_setting_value(settings, "caldav_holidays_affect_target_hours", "true"), True)
+    factor = max(0.0, min(1.0, _as_float(_setting_value(settings, "caldav_half_day_factor", "0.5"), 0.5)))
+    holidays: dict[date, Holiday] = {}
+    if affects:
+        for holiday in db.query(Holiday).filter(Holiday.active == True).order_by(Holiday.id.asc()).all():
+            holidays.setdefault(holiday.date, holiday)
+    return {"affects": affects, "factor": factor, "holidays": holidays}
+
+
+def _holiday_adjusted_target(employee: Employee, day: date, context: dict) -> float:
+    """Sollstunden mit bereits geladenen Feiertagen (ohne Datenbankzugriff)."""
     target = target_hours_for_date(employee, day)
     if target <= 0:
         return 0.0
-    if not _as_bool(get_setting(db, "caldav_holidays_affect_target_hours", "true"), True):
+    if not context["affects"]:
         return target
-    holiday = db.query(Holiday).filter(Holiday.date == day, Holiday.active == True).first()
+    holiday = context["holidays"].get(day)
     if not holiday:
         return target
     if getattr(holiday, "half_day", False):
-        try:
-            factor = float(str(get_setting(db, "caldav_half_day_factor", "0.5")).replace(",", "."))
-        except Exception:
-            factor = 0.5
-        return round(target * max(0.0, min(1.0, factor)), 2)
+        return round(target * context["factor"], 2)
     return 0.0
 
 
@@ -213,8 +248,16 @@ def calculate_period(db: Session, start_day: date, end_day: date, employee_id: i
 
     employee_id filtert einen einzelnen Mitarbeiter.
     employee_ids begrenzt die sichtbare Menge nach Benutzerrechten.
+
+    Einstellungen, Feiertage und Buchungen werden jeweils einmal geladen und
+    danach im Speicher ausgewertet. Vorher wurde pro Mitarbeiter und Tag
+    erneut abgefragt, was bei einem Monatsreport über alle Mitarbeiter
+    mehrere tausend Einzelabfragen erzeugt hat.
     """
-    settings = get_break_settings(db)
+    settings = settings_dict(db)
+    break_settings = _break_settings_from(settings)
+    holiday_ctx = _holiday_context(db, settings)
+
     employees_query = _exclude_fixed_admin(db.query(Employee).filter(Employee.active == True))
     if employee_ids is not None:
         if not employee_ids:
@@ -223,12 +266,15 @@ def calculate_period(db: Session, start_day: date, end_day: date, employee_id: i
             employees_query = employees_query.filter(Employee.id.in_(employee_ids))
     if employee_id:
         employees_query = employees_query.filter(Employee.id == employee_id)
-    employees = employees_query.order_by(Employee.last_name, Employee.first_name).all()
+    # Die Mitarbeiter-Id ist letzter Sortierschluessel, damit die Reihenfolge
+    # bei gleichen Namen eindeutig ist.
+    employees = employees_query.order_by(
+        Employee.last_name, Employee.first_name, Employee.id
+    ).all()
 
     start_dt = datetime.combine(start_day, time.min)
     end_dt = datetime.combine(end_day + timedelta(days=1), time.min)
 
-    rows: list[WorkDayResult] = []
     totals = {
         "target_hours": 0.0,
         "gross_hours": 0.0,
@@ -239,33 +285,104 @@ def calculate_period(db: Session, start_day: date, end_day: date, employee_id: i
         "overtime_hours": 0.0,
     }
 
-    for employee in employees:
-        entries = db.query(TimeEntry).filter(
-            TimeEntry.employee_id == employee.id,
+    # Die Buchungen kommen nach Mitarbeiter-Id sortiert aus der Datenbank.
+    # Die Ausgabe erfolgt nach Name. Deshalb werden die Zeilen je Mitarbeiter
+    # an der Position der Ausgabe abgelegt und am Ende der Reihe nach
+    # ausgegeben.
+    rows_by_position: dict[int, list[WorkDayResult]] = {}
+    position_by_employee = {employee.id: index for index, employee in enumerate(employees)}
+
+    entries_stream = _iter_entries_by_employee(
+        db, [e.id for e in employees], start_dt, end_dt
+    )
+    for employee_id, by_day in entries_stream:
+        employee = employees[position_by_employee[employee_id]]
+        rows_by_position[position_by_employee[employee_id]] = _day_rows(
+            employee, by_day, start_day, end_day, break_settings, holiday_ctx
+        )
+
+    # Mitarbeiter ohne Buchungen brauchen ihre Zeilen ebenfalls.
+    for position, employee in enumerate(employees):
+        if position not in rows_by_position:
+            rows_by_position[position] = _day_rows(
+                employee, {}, start_day, end_day, break_settings, holiday_ctx
+            )
+
+    rows: list[WorkDayResult] = []
+    for position in range(len(employees)):
+        rows.extend(rows_by_position.get(position, []))
+
+    # Die Summen werden in Ausgabereihenfolge gebildet. Die Reihenfolge ist
+    # relevant, weil Gleitkommaaddition nicht assoziativ ist.
+    for row in rows:
+        for key in totals:
+            totals[key] += getattr(row, key)
+
+    totals = {key: round(value, 2) for key, value in totals.items()}
+    return {"rows": rows, "totals": totals, "break_settings": break_settings}
+
+
+def _day_rows(
+    employee: Employee,
+    by_day: dict[date, list[TimeEntry]],
+    start_day: date,
+    end_day: date,
+    break_settings: dict,
+    holiday_ctx: dict,
+) -> list[WorkDayResult]:
+    """Erzeugt die Tageszeilen eines Mitarbeiters fuer den Zeitraum.
+
+    Ein Tag erscheint, wenn er Buchungen hat oder wenn an diesem Tag Soll
+    vorgegeben ist.
+    """
+    employee_rows: list[WorkDayResult] = []
+    current = start_day
+    while current <= end_day:
+        day_entries = by_day.get(current, [])
+        if day_entries or target_hours_for_date(employee, current) > 0:
+            row = calculate_day(employee, day_entries, current, break_settings)
+            adjusted_target = _holiday_adjusted_target(employee, current, holiday_ctx)
+            row.target_hours = round(adjusted_target, 2)
+            row.overtime_hours = round(row.net_hours - row.target_hours, 2)
+            employee_rows.append(row)
+        current += timedelta(days=1)
+    return employee_rows
+
+
+def _iter_entries_by_employee(db: Session, employee_ids: list[int], start_dt: datetime, end_dt: datetime):
+    """Liefert die Buchungen des Zeitraums gruppiert nach Mitarbeiter-Id.
+
+    Die Abfrage sortiert nach employee_id und timestamp. Damit nutzt sie den
+    Index ix_time_entries_employee_id_timestamp ohne zusaetzliche Sortierung
+    der Datenbank.
+
+    Die Abfrage wird in Bloecken gelesen. Dadurch bleibt der Speicherbedarf
+    niedrig, auch wenn viele Buchungen im Zeitraum liegen.
+    """
+    if not employee_ids:
+        return
+
+    query = (
+        db.query(TimeEntry)
+        .filter(
+            TimeEntry.employee_id.in_(employee_ids),
             TimeEntry.timestamp >= start_dt,
             TimeEntry.timestamp < end_dt,
             or_(TimeEntry.deleted == False, TimeEntry.deleted.is_(None)),
-        ).order_by(TimeEntry.timestamp.asc()).all()
+        )
+        .order_by(TimeEntry.employee_id.asc(), TimeEntry.timestamp.asc())
+    )
 
-        by_day: dict[date, list[TimeEntry]] = {}
-        for entry in entries:
-            by_day.setdefault(entry.timestamp.date(), []).append(entry)
-
-        current = start_day
-        while current <= end_day:
-            day_entries = by_day.get(current, [])
-            if day_entries or target_hours_for_date(employee, current) > 0:
-                row = calculate_day(employee, day_entries, current, settings)
-                adjusted_target = holiday_adjusted_target_hours(db, employee, current)
-                row.target_hours = round(adjusted_target, 2)
-                row.overtime_hours = round(row.net_hours - row.target_hours, 2)
-                rows.append(row)
-                for key in totals:
-                    totals[key] += getattr(row, key)
-            current += timedelta(days=1)
-
-    totals = {key: round(value, 2) for key, value in totals.items()}
-    return {"rows": rows, "totals": totals, "break_settings": settings}
+    current_employee = None
+    by_day: dict[date, list[TimeEntry]] = {}
+    for entry in query.yield_per(500):
+        if current_employee is not None and entry.employee_id != current_employee:
+            yield current_employee, by_day
+            by_day = {}
+        current_employee = entry.employee_id
+        by_day.setdefault(entry.timestamp.date(), []).append(entry)
+    if current_employee is not None:
+        yield current_employee, by_day
 
 
 def _month_bounds(year: int, month: int) -> tuple[date, date]:

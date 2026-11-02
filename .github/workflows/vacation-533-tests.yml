@@ -1,4 +1,4 @@
-name: Urlaub 5.6.33 prüfen
+name: Urlaub 5.6.39 prüfen
 
 on:
   pull_request:
@@ -46,6 +46,6 @@ jobs:
         run: pytest -q tests/test_vacation_calculation.py
       - name: Versionsgleichheit prüfen
         run: |
-          test "$(cat version.txt)" = "5.6.33"
-          grep -q 'APP_VERSION = "5.6.33"' app/version.py
-          grep -q '^Version: 5.6.33$' debian/control
+          test "$(cat version.txt)" = "5.6.39"
+          grep -q 'APP_VERSION = "5.6.39"' app/version.py
+          grep -q '^Version: 5.6.39$' debian/control
