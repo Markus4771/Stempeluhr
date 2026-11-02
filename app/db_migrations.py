@@ -339,6 +339,25 @@ def _m012_onboarding(conn, dialect: str) -> None:
         conn.execute(text("CREATE INDEX IF NOT EXISTS ix_onboarding_tokens_employee_id ON onboarding_tokens (employee_id)"))
 
 
+def _m013_performance_indexes(conn, dialect: str) -> None:
+    # Indizes fuer die heissen Zugriffspfade der Zeiterfassung.
+    #
+    # Ohne ix_time_entries_employee_id_timestamp scannt jede Buchungsabfrage
+    # die komplette time_entries-Tabelle. CREATE INDEX laeuft bewusst innerhalb
+    # der Transaktion des Migrationslaufes (kein CONCURRENTLY), damit der
+    # Lauf auf SQLite und PostgreSQL identisch funktioniert.
+    #
+    # Die holidays-Tabelle bleibt bewusst ohne Index: sie enthaelt nur
+    # nationale Feiertage und waechst nicht unbegrenzt.
+    if _table_exists(conn, "time_entries"):
+        conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS ix_time_entries_employee_id_timestamp "
+            "ON time_entries (employee_id, timestamp)"
+        ))
+    if _table_exists(conn, "audit_logs"):
+        conn.execute(text("CREATE INDEX IF NOT EXISTS ix_audit_logs_created_at ON audit_logs (created_at)"))
+
+
 MIGRATIONS: tuple[Migration, ...] = (
     Migration("001", "soft_delete_time_entries", _m001_soft_delete_time_entries),
     Migration("002", "employee_permissions", _m002_employee_permissions),
@@ -352,6 +371,7 @@ MIGRATIONS: tuple[Migration, ...] = (
     Migration("010", "employee_break_rule", _m010_employee_break_rule),
     Migration("011", "raspberry_monitoring", _m011_raspberry_monitoring),
     Migration("012", "onboarding", _m012_onboarding),
+    Migration("013", "performance_indexes", _m013_performance_indexes),
 )
 
 

@@ -458,15 +458,32 @@ def create_admin_time_entry(db: Session, employee: Employee, entry_type: str, ad
     return entry
 
 def latest_employee_statuses(db: Session, employee_ids):
-    """Liefert den letzten Buchungsstatus pro Mitarbeiter für die Admin-Liste."""
+    """Liefert den letzten Buchungsstatus pro Mitarbeiter für die Admin-Liste.
+
+    Die letzte Buchung je Mitarbeiter wird in einer Abfrage ermittelt statt
+    je Mitarbeiter einzeln nachzuladen. Bei gleicher Zeitmarke gewinnt die
+    höhere Id, weil sie auch bei der Einzelabfrage zuletzt geliefert wird.
+    """
     result = {}
-    for employee_id in employee_ids:
-        last = (
-            db.query(TimeEntry)
-            .filter(TimeEntry.employee_id == employee_id)
-            .order_by(TimeEntry.timestamp.desc())
-            .first()
-        )
+    ids = [int(eid) for eid in employee_ids]
+    if not ids:
+        return result
+
+    last_entries = (
+        db.query(TimeEntry)
+        .filter(TimeEntry.employee_id.in_(ids))
+        .order_by(TimeEntry.employee_id.asc(), TimeEntry.timestamp.desc(), TimeEntry.id.desc())
+        .all()
+    )
+
+    # Je Mitarbeiter bleibt nur die erste Zeile (neueste Buchung).
+    last_by_employee: dict[int, TimeEntry] = {}
+    for entry in last_entries:
+        if entry.employee_id not in last_by_employee:
+            last_by_employee[entry.employee_id] = entry
+
+    for employee_id in ids:
+        last = last_by_employee.get(employee_id)
         if not last:
             result[employee_id] = {"label": "Keine Buchung", "entry_type": "", "timestamp": None, "present": False}
             continue

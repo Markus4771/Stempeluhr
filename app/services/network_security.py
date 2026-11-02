@@ -11,11 +11,15 @@ from app.models import Setting
 LOCAL_CIDRS = ["127.0.0.1/32", "::1/128"]
 
 
-def _get_setting(db: Session, key: str, default: str = "") -> str:
-    row = db.query(Setting).filter(Setting.key == key).first()
-    if not row or row.value is None:
+def _value(settings: dict, key: str, default: str = "") -> str:
+    """Liest einen Wert aus einem bereits geladenen Settings-Dict.
+
+    Ein gespeicherter None-Wert ergibt den Default.
+    """
+    value = settings.get(key)
+    if value is None:
         return default
-    return str(row.value)
+    return str(value)
 
 
 def _is_enabled(value: str | None, default: bool = False) -> bool:
@@ -71,8 +75,10 @@ def validate_cidr_text(raw: str | None) -> tuple[bool, str]:
         return False, str(exc)
 
 
-def https_should_redirect(request: Request, db: Session) -> bool:
-    if not _is_enabled(_get_setting(db, "security_force_https", "false")):
+def https_should_redirect(request: Request, db: Session, settings: dict | None = None) -> bool:
+    if settings is None:
+        settings = {s.key: s.value for s in db.query(Setting).all()}
+    if not _is_enabled(_value(settings, "security_force_https", "false")):
         return False
     if request.url.path.startswith("/health") or request.url.path.startswith("/static"):
         return False
@@ -80,8 +86,16 @@ def https_should_redirect(request: Request, db: Session) -> bool:
     return str(proto).lower() != "https"
 
 
-def access_allowed(request: Request, db: Session) -> tuple[bool, str]:
-    """Prüft Web/API/Admin-Netzfilter. Gibt (erlaubt, Grund) zurück."""
+def access_allowed(request: Request, db: Session, settings: dict | None = None) -> tuple[bool, str]:
+    """Prüft Web/API/Admin-Netzfilter. Gibt (erlaubt, Grund) zurück.
+
+    Wird settings übergeben, werden die Einstellungen nicht erneut aus der
+    Datenbank gelesen. So entfallen die bisherigen Mehrfachabfragen je
+    Request.
+    """
+    if settings is None:
+        settings = {s.key: s.value for s in db.query(Setting).all()}
+
     path = request.url.path or "/"
     ip = client_ip(request)
 
@@ -90,8 +104,8 @@ def access_allowed(request: Request, db: Session) -> tuple[bool, str]:
         return True, "ok"
 
     # Allgemeiner Netzwerkfilter.
-    if _is_enabled(_get_setting(db, "security_network_filter_enabled", "false")):
-        raw = _get_setting(db, "security_allowed_networks", "")
+    if _is_enabled(_value(settings, "security_network_filter_enabled", "false")):
+        raw = _value(settings, "security_allowed_networks", "")
         try:
             networks = parse_cidr_list(raw)
         except ValueError:
@@ -100,8 +114,8 @@ def access_allowed(request: Request, db: Session) -> tuple[bool, str]:
             return False, f"IP {ip} ist nicht in den erlaubten Netzwerken"
 
     # API separat einschränken.
-    if path.startswith("/api") and _is_enabled(_get_setting(db, "security_api_network_filter_enabled", "false")):
-        raw = _get_setting(db, "security_api_allowed_networks", "")
+    if path.startswith("/api") and _is_enabled(_value(settings, "security_api_network_filter_enabled", "false")):
+        raw = _value(settings, "security_api_allowed_networks", "")
         try:
             networks = parse_cidr_list(raw)
         except ValueError:
@@ -111,8 +125,8 @@ def access_allowed(request: Request, db: Session) -> tuple[bool, str]:
 
     # Admin/Systembereiche separat einschränken.
     admin_paths = ("/admin", "/system", "/reports", "/corrections")
-    if path.startswith(admin_paths) and _is_enabled(_get_setting(db, "security_admin_network_filter_enabled", "false")):
-        raw = _get_setting(db, "security_admin_allowed_networks", "")
+    if path.startswith(admin_paths) and _is_enabled(_value(settings, "security_admin_network_filter_enabled", "false")):
+        raw = _value(settings, "security_admin_allowed_networks", "")
         try:
             networks = parse_cidr_list(raw)
         except ValueError:
