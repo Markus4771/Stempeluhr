@@ -47,16 +47,13 @@ def parse_cidr_list(raw: str | None, include_localhost: bool = True) -> list[ipa
 
 
 def client_ip(request: Request) -> str:
-    """Ermittelt Client-IP. Bei Reverse Proxy X-Forwarded-For zuerst verwenden."""
-    forwarded = request.headers.get("x-forwarded-for") or ""
-    if forwarded:
-        first = forwarded.split(",")[0].strip()
-        if first:
-            return first
-    real_ip = request.headers.get("x-real-ip") or ""
-    if real_ip.strip():
-        return real_ip.strip()
-    return request.client.host if request.client else "127.0.0.1"
+    """Verwendet die vom ASGI-Server geprüfte Client-IP.
+
+    Uvicorn wertet Proxy-Header nur für konfigurierte vertrauenswürdige
+    Proxys aus (--forwarded-allow-ips). Rohe Header sind nicht vertrauenswürdig.
+    Ohne Client-Adresse muss der Netzwerkfilter den Zugriff verweigern.
+    """
+    return request.client.host if request.client else ""
 
 
 def in_networks(ip_value: str, networks: Iterable[ipaddress._BaseNetwork]) -> bool:

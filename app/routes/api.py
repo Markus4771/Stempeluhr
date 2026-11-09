@@ -3,9 +3,10 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from datetime import datetime
 from app.database import get_db
-from app.models import Employee, TimeEntry, Setting
+from app.models import Employee, TimeEntry
 from app.schemas import ClockRequest
 from app.security import verify_password
+from app.routes.api_v1 import require_api_token
 
 
 def _exclude_fixed_admin(query, Employee):
@@ -35,7 +36,7 @@ def api_is_duplicate_booking(db: Session, employee_id: int, seconds: int = 8):
 def status(db: Session = Depends(get_db)):
     return {"success": True, "app":"Stempeluhr", "version": get_app_version()}
 
-@router.get("/employees")
+@router.get("/employees", dependencies=[Depends(require_api_token)])
 def employees(db: Session = Depends(get_db)):
     return [{"id":e.id,"employee_number":e.employee_number,"name":f"{e.first_name} {e.last_name}","active":e.active,"birth_date": e.birth_date.isoformat() if e.birth_date else None, "entry_date": e.entry_date.isoformat() if e.entry_date else None} for e in db.query(Employee).all()]
 
