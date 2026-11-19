@@ -158,11 +158,22 @@ def close_display(process: subprocess.Popen | None) -> None:
         except Exception: pass
 
 
+def find_rfid_device() -> str:
+    if DEVICE and Path(DEVICE).exists():
+        return DEVICE
+    devices = sorted(Path("/dev/input/by-id").glob("*-event-kbd"))
+    if not devices:
+        raise RuntimeError("Kein RFID-/NFC-HID-Leser gefunden")
+    reader = str(devices[0])
+    print(f"RFID-Leser automatisch erkannt: {reader}")
+    return reader
+
+
 def read_uid(timeout: int) -> str:
-    if not DEVICE: raise RuntimeError("RFID_INPUT_DEVICE ist nicht konfiguriert")
+    reader = find_rfid_device()
     try: from evdev import InputDevice, categorize, ecodes
     except ImportError as exc: raise RuntimeError("python3-evdev fehlt; bitte Terminal-Paket neu installieren") from exc
-    device = InputDevice(DEVICE)
+    device = InputDevice(reader)
     try:
         buffer: list[str] = []; deadline = time.monotonic() + timeout
         while time.monotonic() < deadline:
