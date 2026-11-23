@@ -27,11 +27,6 @@ class EmployeeRfidMedia(Base):
 
 
 def normalize_rfid_uid(value: str | None) -> str:
-    """Normalisiert Leser-Ausgaben für einen stabilen Vergleich.
-
-    Entfernt Steuerzeichen, Leerzeichen und übliche Trennzeichen. Hex-Zeichen
-    werden vereinheitlicht. Andere Reader-IDs bleiben als Großbuchstaben erhalten.
-    """
     if not value:
         return ""
     cleaned = str(value).replace("\\r", "").replace("\\n", "").strip().upper()
@@ -40,15 +35,18 @@ def normalize_rfid_uid(value: str | None) -> str:
 
 
 def ensure_rfid_media_schema() -> None:
-    """Legt die Medientabelle an und übernimmt vorhandene Mitarbeiter-RFIDs."""
+    """Legt die Medientabelle an und migriert alte employees.rfid_code-Zuordnungen.
+
+    Nach erfolgreicher Übernahme wird das Legacy-Feld geleert. Damit existiert
+    für RFID/NFC nur noch employee_rfid_media als maßgebliche Datenquelle.
+    """
     Base.metadata.create_all(bind=engine, tables=[EmployeeRfidMedia.__table__])
 
     with engine.begin() as conn:
         dialect = conn.dialect.name
-        if inspect(conn).has_table("employee_rfid_media"):
-            if dialect == "postgresql":
-                conn.execute(text("CREATE INDEX IF NOT EXISTS ix_employee_rfid_media_employee_id ON employee_rfid_media (employee_id)"))
-                conn.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS ux_employee_rfid_media_uid ON employee_rfid_media (uid)"))
+        if inspect(conn).has_table("employee_rfid_media") and dialect == "postgresql":
+            conn.execute(text("CREATE INDEX IF NOT EXISTS ix_employee_rfid_media_employee_id ON employee_rfid_media (employee_id)"))
+            conn.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS ux_employee_rfid_media_uid ON employee_rfid_media (uid)"))
 
         if not inspect(conn).has_table("employees"):
             return
@@ -58,9 +56,19 @@ def ensure_rfid_media_schema() -> None:
             uid = normalize_rfid_uid(raw_uid)
             if not uid:
                 continue
-            exists = conn.execute(text("SELECT 1 FROM employee_rfid_media WHERE uid = :uid"), {"uid": uid}).first()
-            if exists:
+
+            existing = conn.execute(
+                text("SELECT id, employee_id FROM employee_rfid_media WHERE uid = :uid"),
+                {"uid": uid},
+            ).first()
+            if existing:
+                # Nie eine vorhandene UID auf einen anderen Mitarbeiter umhängen.
+                # Das alte Feld wird nur geleert, wenn dieselbe Zuordnung bereits
+                # in der neuen Tabelle vorhanden ist.
+                if int(existing[1]) == int(employee_id):
+                    conn.execute(text("UPDATE employees SET rfid_code = NULL WHERE id = :employee_id"), {"employee_id": employee_id})
                 continue
+
             conn.execute(
                 text(
                     "INSERT INTO employee_rfid_media "
@@ -71,15 +79,17 @@ def ensure_rfid_media_schema() -> None:
                     "employee_id": employee_id,
                     "uid": uid,
                     "uid_raw": str(raw_uid),
-                    "name": "Bestehende RFID-Karte",
+                    "name": "Übernommene RFID-Karte",
                     "media_type": "rfid",
                     "active": True,
                     "created_at": datetime.now(),
                 },
             )
+            conn.execute(text("UPDATE employees SET rfid_code = NULL WHERE id = :employee_id"), {"employee_id": employee_id})
 
 
 def resolve_employee_by_rfid(db: Session, raw_uid: str | None) -> tuple[Employee | None, EmployeeRfidMedia | None]:
+    """Löst RFID/NFC ausschließlich über die zentrale Medientabelle auf."""
     uid = normalize_rfid_uid(raw_uid)
     if not uid:
         return None, None
@@ -89,17 +99,14 @@ def resolve_employee_by_rfid(db: Session, raw_uid: str | None) -> tuple[Employee
         .filter(EmployeeRfidMedia.uid == uid, EmployeeRfidMedia.active.is_(True))
         .first()
     )
-    if medium:
-        employee = db.query(Employee).filter(Employee.id == medium.employee_id, Employee.active.is_(True)).first()
-        if employee:
-            medium.last_used_at = datetime.now()
-            return employee, medium
+    if not medium:
+        return None, None
 
-    # Abwärtskompatibilität, falls die Startmigration noch nicht gelaufen ist.
-    for employee in db.query(Employee).filter(Employee.rfid_code.isnot(None), Employee.active.is_(True)).all():
-        if normalize_rfid_uid(employee.rfid_code) == uid:
-            return employee, None
-    return None, None
+    employee = db.query(Employee).filter(Employee.id == medium.employee_id, Employee.active.is_(True)).first()
+    if not employee:
+        return None, None
+    medium.last_used_at = datetime.now()
+    return employee, medium
 
 
 def add_rfid_medium(

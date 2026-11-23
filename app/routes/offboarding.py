@@ -1,4 +1,6 @@
 from .common import *
+from app.services.auth_credentials import EmployeeAuthCredential, revoke_auth_credential
+from app.services.rfid_media import EmployeeRfidMedia
 
 router = APIRouter()
 
@@ -110,13 +112,47 @@ def system_settings_offboarding_save(
         emp.exit_date = None
     emp.status = status if status in ["active", "inactive", "archived"] else "inactive"
     emp.active = emp.status == "active"
+
+    # Austrittsdatum auch im Legacy-Feld synchron halten.
+    emp.left_at = emp.exit_date
+
     if emp.status == "archived" and not getattr(emp, "archived_at", None):
         emp.archived_at = datetime.now()
+    elif emp.status != "archived":
+        emp.archived_at = None
+
+    # Beim Sperren des Logins alle Anmeldewege widerrufen.
     if block_login == "1":
         emp.password_hash = None
         emp.pin_code_hash = None
+
+        credentials = (
+            db.query(EmployeeAuthCredential)
+            .filter(
+                EmployeeAuthCredential.employee_id == emp.id,
+                EmployeeAuthCredential.active.is_(True),
+            )
+            .all()
+        )
+        for credential in credentials:
+            revoke_auth_credential(
+                db,
+                credential.id,
+                reason="Offboarding / Mitarbeiteraustritt",
+            )
+
+    # RFID/NFC nicht löschen, sondern deaktivieren.
+    # Dadurch bleibt nachvollziehbar, welches Medium zugeordnet war.
     if block_rfid == "1" or release_rfid == "1":
         emp.rfid_code = None
+        (
+            db.query(EmployeeRfidMedia)
+            .filter(
+                EmployeeRfidMedia.employee_id == emp.id,
+                EmployeeRfidMedia.active.is_(True),
+            )
+            .update({"active": False}, synchronize_session=False)
+        )
     emp.offboarding_note = (offboarding_note or "").strip() or None
     emp.updated_at = datetime.now()
     db.add(AuditLog(actor=user.employee_number, action="employee_offboarding_saved", entity="employees", entity_id=str(emp.id), details=f"Status={emp.status}, Austritt={emp.exit_date}, Urlaub={vacation_handling}, Überstunden={overtime_handling}"))

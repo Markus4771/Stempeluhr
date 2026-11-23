@@ -1,32 +1,61 @@
-# Stempeluhr Professional 5.7.0
+# Stempeluhr Professional 6.0.0
 
 Webbasierte Zeiterfassung für Debian-Server und Raspberry-Pi-Terminals.
 
-## Aktueller Stand
+## Betriebsarten
 
-- Version: **5.7.0**
-- Standarddatenbank: PostgreSQL
-- Zielplattform: Debian / Raspberry Pi OS
-- Standardbranch: `main`
+Version 6.0 unterstützt drei offizielle Installationsvarianten aus derselben Codebasis:
 
-## Änderungen in 5.7.0
+- **Server:** Weboberfläche, PostgreSQL, Verwaltung, Berichte und APIs.
+- **Terminal:** schlanker Hardware-Client mit Display sowie RFID-/NFC-Agent.
+- **All-in-One:** Server und Terminal gemeinsam, passend zur bisherigen Raspberry-Installation.
 
-- Moderne Verwaltung für mehrere RFID-/NFC-Medien je Mitarbeiter.
-- Entferntes Anlernen über einen ausgewählten Raspberry Pi, auch wenn die Weboberfläche an einem anderen PC geöffnet ist.
-- Live-Status für Terminal, Scanauftrag, Zeitüberschreitung und erkannte UID.
-- Raspberry-Agent für Tastatur-Wedge-RFID-/NFC-Leser über Linux `evdev`.
-- Karten, Handys, Smartwatches, NFC-Ringe und weitere Medien werden getrennt verwaltet.
-- Anzeige der letzten Verwendung eines Mediums.
-- Die Backup-Verbesserungen aus 5.6.34 bleiben enthalten.
-
-## Installation
+## Pakete bauen
 
 ```bash
 cd ~/Stempeluhr
-git pull --ff-only
-bash scripts/build_release.sh
-sudo apt install ./releases/stempeluhr_5.7.0_all.deb
-sudo bash /opt/stempeluhr/scripts/install_rfid_agent.sh
+bash scripts/build_packages.sh
 ```
 
-Danach `/etc/stempeluhr/rfid-agent.env` prüfen und dort das richtige `RFID_INPUT_DEVICE` eintragen.
+Erzeugt werden:
+
+```text
+releases/stempeluhr-server_6.0.0_all.deb
+releases/stempeluhr-terminal_6.0.0_all.deb
+releases/stempeluhr-all-in-one_6.0.0_all.deb
+```
+
+## All-in-One installieren
+
+```bash
+sudo apt install \
+  ./releases/stempeluhr-server_6.0.0_all.deb \
+  ./releases/stempeluhr-terminal_6.0.0_all.deb \
+  ./releases/stempeluhr-all-in-one_6.0.0_all.deb
+```
+
+Der Server ist dabei lokal unter `http://127.0.0.1:8000` eingetragen. Die bestehende PostgreSQL-Datenbank und `/etc/stempeluhr` bleiben erhalten.
+
+## Nur Server installieren
+
+```bash
+sudo apt install ./releases/stempeluhr-server_6.0.0_all.deb
+```
+
+## Nur Terminal installieren
+
+```bash
+sudo apt install ./releases/stempeluhr-terminal_6.0.0_all.deb
+sudo nano /etc/stempeluhr/terminal.env
+sudo systemctl restart stempeluhr-terminal
+```
+
+Im Terminal muss `STEMPELUHR_SERVER` auf den Debian-Server zeigen, beispielsweise:
+
+```ini
+STEMPELUHR_SERVER=http://192.168.1.20:8000
+```
+
+## Kompatibilität
+
+Die vorhandene 5.x-Anwendung wird nicht sofort intern in mehrere Repositories zerlegt. Version 6.0 trennt zunächst Installation und Dienste. Dadurch bleibt das Upgrade sicher und die gemeinsame Codebasis kann anschließend schrittweise in Server-, Terminal-, Shared- und Plugin-Module überführt werden.

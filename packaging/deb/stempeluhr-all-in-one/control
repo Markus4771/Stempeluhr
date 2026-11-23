@@ -1,0 +1,10 @@
+Package: stempeluhr-all-in-one
+Version: 6.0.1
+Section: utils
+Priority: optional
+Architecture: all
+Depends: stempeluhr-server (= 6.0.1), stempeluhr-terminal (= 6.0.1)
+Maintainer: Stempeluhr Project
+Description: Stempeluhr Professional All-in-One
+ Metapaket zur Installation von Stempeluhr-Server und Stempeluhr-Terminal
+ in derselben Version. Dieses Paket enthält keine eigenen Anwendungsdateien.

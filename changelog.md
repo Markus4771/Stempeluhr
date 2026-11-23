@@ -1,3 +1,14 @@
+## 6.0.0
+
+- drei offizielle Debian-Pakete eingeführt: `stempeluhr-server`, `stempeluhr-terminal` und `stempeluhr-all-in-one`
+- bisherige Raspberry-Installation bleibt als All-in-One-Betriebsart erhalten
+- dedizierte Debian-Server können ohne lokale Terminalhardware installiert werden
+- entfernte Raspberry- und Debian-Terminals erhalten ein schlankes Hardwarepaket ohne PostgreSQL und Webanwendung
+- gemeinsamer Build erzeugt alle Pakete samt SHA256-Prüfsummen
+- Terminaldienst in `stempeluhr-terminal.service` und Konfiguration in `/etc/stempeluhr/terminal.env` vereinheitlicht
+- bestehende Datenbank und Serverkonfiguration werden beim Upgrade weiterverwendet
+- Grundlage für Shared-Protokoll, Terminalfähigkeiten und austauschbare Authentifizierungsprovider geschaffen
+
 ## 5.7.0
 
 - modernes responsives Design für die RFID-/NFC-Medienverwaltung ergänzt

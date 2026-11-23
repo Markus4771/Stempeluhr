@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+{% block content %}
+{% if request.query_params.get('message') %}<div class="success-box">{{ request.query_params.get('message') }}</div>{% endif %}
+{% if request.query_params.get('error') %}<div class="error-box">{{ request.query_params.get('error') }}</div>{% endif %}
+
+<div class="page-head">
+  <div>
+    <h1>Genehmigte Plausibilitätsausnahmen</h1>
+    <p class="muted">Revisionssichere Übersicht aller genehmigten und widerrufenen Ausnahmen.</p>
+  </div>
+  <a class="button secondary" href="/plausibility">Zur Plausibilitätsprüfung</a>
+</div>
+
+<section class="card">
+  <h2>Filtern</h2>
+  <form method="get" class="filter-row">
+    <label>Mitarbeiter
+      <select name="employee_id">
+        <option value="0">Alle sichtbaren</option>
+        {% for e in employees %}
+        <option value="{{ e.id }}" {% if filters.employee_id == e.id %}selected{% endif %}>{{ e.employee_number }} – {{ e.first_name }} {{ e.last_name }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>Prüftyp
+      <select name="check_type">
+        <option value="">Alle</option>
+        {% for item in check_types %}<option value="{{ item }}" {% if filters.check_type == item %}selected{% endif %}>{{ item }}</option>{% endfor %}
+      </select>
+    </label>
+    <label>Status
+      <select name="state">
+        <option value="active" {% if filters.state == 'active' %}selected{% endif %}>Aktiv</option>
+        <option value="revoked" {% if filters.state == 'revoked' %}selected{% endif %}>Widerrufen</option>
+        <option value="all" {% if filters.state == 'all' %}selected{% endif %}>Alle</option>
+      </select>
+    </label>
+    <label>Von <input type="date" name="date_from" value="{{ filters.date_from }}"></label>
+    <label>Bis <input type="date" name="date_to" value="{{ filters.date_to }}"></label>
+    <button class="button" type="submit">Filtern</button>
+    <a class="button secondary" href="/plausibility/exceptions">Zurücksetzen</a>
+  </form>
+</section>
+
+{% if filters.state != 'revoked' %}
+<section class="card">
+  <h2>Mehrere Ausnahmen widerrufen</h2>
+  <form method="post" action="/plausibility/exceptions/revoke-bulk" id="bulkRevokeForm">
+    <label>Widerrufsbegründung *
+      <textarea name="reason" required minlength="3" rows="3" placeholder="Warum werden die ausgewählten Ausnahmen widerrufen?"></textarea>
+    </label>
+    <div class="form-actions">
+      <button class="button danger" type="submit">Ausgewählte Ausnahmen widerrufen</button>
+      <button class="button secondary" type="button" id="toggleExceptionSelection">Alle sichtbaren aktiven Ausnahmen auswählen</button>
+    </div>
+  </form>
+</section>
+{% endif %}
+
+<section class="card table-card">
+  <h2>Ausnahmen <span class="muted">({{ rows|length }})</span></h2>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Auswahl</th><th>Arbeitstag</th><th>Mitarbeiter</th><th>Prüftyp</th><th>Begründung</th><th>Genehmigung</th><th>Status</th><th>Aktion</th></tr>
+      </thead>
+      <tbody>
+      {% for row in rows %}
+        <tr>
+          <td>
+            {% if row.active %}<input class="exception-checkbox" type="checkbox" name="exception_ids" value="{{ row.id }}" form="bulkRevokeForm" aria-label="Ausnahme {{ row.id }} auswählen">{% endif %}
+          </td>
+          <td><strong>{{ row.issue_date.strftime('%d.%m.%Y') }}</strong><div class="muted-small">Fall-ID {{ row.issue_id or '–' }}</div></td>
+          <td>{{ row.employee_number }} – {{ row.first_name }} {{ row.last_name }}</td>
+          <td><code>{{ row.check_type }}</code></td>
+          <td>{{ row.reason }}</td>
+          <td>
+            <div>{{ row.approved_by }}</div>
+            <div class="muted-small">{{ row.approved_at.strftime('%d.%m.%Y %H:%M') if row.approved_at else '–' }}</div>
+          </td>
+          <td>
+            {% if row.active %}
+              <span class="status-pill status-present">Aktiv</span>
+            {% else %}
+              <span class="status-pill status-away">Widerrufen</span>
+              <div class="muted-small">{{ row.revoked_by or '–' }} · {{ row.revoked_at.strftime('%d.%m.%Y %H:%M') if row.revoked_at else '–' }}</div>
+              {% if row.revoke_reason %}<div class="muted-small">{{ row.revoke_reason }}</div>{% endif %}
+            {% endif %}
+          </td>
+          <td>
+            {% if row.active %}
+            <details>
+              <summary class="button small danger">Widerrufen</summary>
+              <form method="post" action="/plausibility/exceptions/{{ row.id }}/revoke" style="margin-top:.5rem;min-width:260px;">
+                <label>Begründung *
+                  <textarea name="reason" required minlength="3" rows="3"></textarea>
+                </label>
+                <p class="muted-small">Der zugehörige Plausibilitätsfall wird wieder geöffnet.</p>
+                <button class="button small danger" type="submit">Widerruf bestätigen</button>
+              </form>
+            </details>
+            {% else %}
+              <span class="muted">Keine Aktion</span>
+            {% endif %}
+          </td>
+        </tr>
+      {% else %}
+        <tr><td colspan="8">Keine Ausnahmen für die gewählten Filter gefunden.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<script>
+(function(){
+  const button=document.getElementById('toggleExceptionSelection');
+  if(!button)return;
+  button.addEventListener('click',function(){
+    const boxes=Array.from(document.querySelectorAll('.exception-checkbox'));
+    const select=boxes.some(box=>!box.checked);
+    boxes.forEach(box=>box.checked=select);
+    button.textContent=select?'Auswahl aufheben':'Alle sichtbaren aktiven Ausnahmen auswählen';
+  });
+})();
+</script>
+{% endblock %}

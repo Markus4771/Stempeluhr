@@ -12,3 +12,4 @@ requests
 caldav
 icalendar
 recurring-ical-events
+qrcode[pil]

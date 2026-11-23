@@ -15,7 +15,7 @@ NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
 ProtectHome=true
-ReadWritePaths=/var/log/stempeluhr
+ReadWritePaths=/var/log/stempeluhr /var/lib/stempeluhr
 
 [Install]
 WantedBy=multi-user.target

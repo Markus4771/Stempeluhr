@@ -1,0 +1,15 @@
+[Unit]
+Description=Stempeluhr Android HCE NFC Agent
+After=network-online.target pcscd.service
+Wants=network-online.target pcscd.service
+
+[Service]
+Type=simple
+EnvironmentFile=-/etc/stempeluhr/terminal.env
+ExecStart=/usr/bin/python3 /opt/stempeluhr/scripts/raspberry_hce_agent.py
+Restart=always
+RestartSec=3
+User=root
+
+[Install]
+WantedBy=multi-user.target

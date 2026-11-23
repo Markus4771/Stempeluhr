@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+case "${1:-}" in
+  remove|upgrade|deconfigure)
+    systemctl stop stempeluhr.service 2>/dev/null || true
+    ;;
+esac
+
+exit 0

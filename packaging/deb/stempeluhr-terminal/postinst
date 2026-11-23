@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+install -d -m 0750 /etc/stempeluhr /var/log/stempeluhr /var/lib/stempeluhr
+
+if [[ ! -f /etc/stempeluhr/terminal.env ]]; then
+  DEVICE="$(find /dev/input/by-id /dev/input -maxdepth 1 \( -type l -o -name 'event*' \) 2>/dev/null | head -n1 || true)"
+
+  cat > /etc/stempeluhr/terminal.env <<ENV
+STEMPELUHR_SERVER=http://127.0.0.1:8000
+RASPBERRY_HOSTNAME=$(hostname)
+RFID_INPUT_DEVICE=$DEVICE
+RFID_SCAN_TIMEOUT=35
+HEARTBEAT_SECONDS=5
+RFID_DISPLAY_ENABLED=true
+RFID_DISPLAY_USER=pi
+RFID_DISPLAY=:0
+RFID_WAYLAND_DISPLAY=wayland-0
+RFID_XDG_RUNTIME_DIR=/run/user/1000
+RFID_SUCCESS_SECONDS=3
+ENV
+
+  chmod 0640 /etc/stempeluhr/terminal.env
+fi
+
+# Kompatibilität mit der bisherigen Agent-Konfiguration.
+if [[ -f /etc/stempeluhr/rfid-agent.env && ! -s /etc/stempeluhr/terminal.env ]]; then
+  cp /etc/stempeluhr/rfid-agent.env /etc/stempeluhr/terminal.env
+fi
+
+/usr/bin/python3 -c 'import evdev, requests'
+
+systemctl daemon-reload
+systemctl enable --now stempeluhr-terminal.service
