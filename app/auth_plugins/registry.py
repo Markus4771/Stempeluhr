@@ -41,13 +41,13 @@ PLUGIN_DEFINITIONS = (
     PluginDefinition("nfc", "app.auth_plugins.nfc", True),
     PluginDefinition("mobile_app", "app.auth_plugins.mobile_app", True),
     PluginDefinition("smartwatch", "app.auth_plugins.smartwatch", True),
+    PluginDefinition("fido2", "app.auth_plugins.fido2", True),
 )
 
 PLANNED_PLUGINS = (
     {"key": "qr", "name": "QR-Code", "description": "Dynamische und statische QR-Anmeldung.", "required_capabilities": ["camera"]},
     {"key": "pin", "name": "PIN", "description": "Anmeldung über Terminal-Tastatur oder Touchdisplay.", "required_capabilities": ["pin"]},
     {"key": "fingerprint", "name": "Fingerabdruck", "description": "Biometrische Anmeldung über Fingerprint-Sensor.", "required_capabilities": ["fingerprint"]},
-    {"key": "fido2", "name": "FIDO2 / Passkey", "description": "Anmeldung mit Sicherheitsschlüssel oder Passkey.", "required_capabilities": []},
 )
 
 _loaded_plugins: dict[str, AuthenticationPlugin] = {}
